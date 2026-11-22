@@ -63,6 +63,10 @@ tasks {
         filesMatching("plugin.yml") {
             expand("version" to project.version)
         }
+        from("LICENSE") {
+            into("META-INF")
+            rename { "LICENSE-Vise-Core" }
+        }
     }
 
     shadowJar {

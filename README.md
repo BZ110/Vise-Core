@@ -760,7 +760,7 @@ Each group lists its registered commands, aliases, and permission nodes. Additio
 
 ## License
 
-Vise Core is licensed under the [zlib License](LICENSE). You can use, modify, fork, and redistribute it, including commercially. Keep the license notice in source distributions, clearly identify modified versions, and represent the project's origins accurately.
+Vise Core's code is licensed under the [BSD 3-Clause License](LICENSE). You can use, modify, and redistribute it, including commercially. Source distributions, including forks, must retain the original copyright notice and license terms. Redistributed JARs must carry the same notice and terms in the documentation or other materials that accompany the download. Vise Core's build includes its license at `META-INF/LICENSE-Vise-Core` inside the JAR.
 
 ## Credits
 
