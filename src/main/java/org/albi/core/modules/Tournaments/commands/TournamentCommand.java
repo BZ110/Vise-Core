@@ -1,5 +1,9 @@
 package org.albi.core.modules.Tournaments.commands;
 
+import org.albi.core.gui.Messages;
+
+import org.albi.core.gui.GuiService;
+
 import com.samjakob.spigui.buttons.SGButton;
 import com.samjakob.spigui.item.ItemBuilder;
 import com.samjakob.spigui.menu.SGMenu;
@@ -33,7 +37,7 @@ public class TournamentCommand implements CommandExecutor {
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
         if (!(sender instanceof Player p)) {
-            sender.sendMessage("Players only.");
+            Messages.send(sender, "messages.tournament-command.players-only");
             return true;
         }
 
@@ -43,7 +47,7 @@ public class TournamentCommand implements CommandExecutor {
         }
 
         if (args.length == 0) {
-            p.sendMessage("§cUsage: /tournament <join|leave|create|start>");
+            Messages.send(p, "messages.tournament-command.usage-tournament-join-leave-create-start");
             return true;
         }
 
@@ -67,7 +71,7 @@ public class TournamentCommand implements CommandExecutor {
                 }
             }
             if (target == null) {
-                p.sendMessage("§cNo waiting tournament found.");
+                Messages.send(p, "messages.tournament-command.no-waiting-tournament-found");
                 return true;
             }
             startTournamentPhase(target);
@@ -82,7 +86,7 @@ public class TournamentCommand implements CommandExecutor {
             }
 
             if (target == null) {
-                p.sendMessage("§cThere is no active tournament waiting for players right now.");
+                Messages.send(p, "messages.tournament-command.there-is-no-active-tournament-waiting-for-players");
                 return true;
             }
 
@@ -90,11 +94,11 @@ public class TournamentCommand implements CommandExecutor {
             PartyManager pm = plugin.getPartyManager();
             if (pm.isInParty(p)) {
                 if (!pm.isLeader(p)) {
-                    p.sendMessage("§cOnly the party leader can join the tournament for your group.");
+                    Messages.send(p, "messages.tournament-command.only-the-party-leader-can-join-the-tournament");
                     return true;
                 }
                 if (pm.getMembers(p).size() > target.getTeamSize()) {
-                    p.sendMessage("§cYour party is too large for this tournament (" + target.getTeamSize() + " maximum).");
+                    Messages.send(p, "messages.tournament-command.your-party-is-too-large-for-this-tournament", target.getTeamSize());
                     return true;
                 }
 
@@ -115,14 +119,14 @@ public class TournamentCommand implements CommandExecutor {
         } else if (args[0].equalsIgnoreCase("leave")) {
             TournamentSession target = manager.getSession(p);
             if (target == null) {
-                p.sendMessage("§cYou are not in a tournament.");
+                Messages.send(p, "messages.tournament-command.you-are-not-in-a-tournament");
                 return true;
             }
             
             PartyManager pm = plugin.getPartyManager();
             if (pm.isInParty(p) && target.getState() == TournamentSession.State.WAITING) {
                 if (!pm.isLeader(p)) {
-                    p.sendMessage("§cOnly the party leader can leave the tournament.");
+                    Messages.send(p, "messages.tournament-command.only-the-party-leader-can-leave-the-tournament");
                     return true;
                 }
                 for (UUID member : pm.getMembers(p)) {
@@ -146,7 +150,7 @@ public class TournamentCommand implements CommandExecutor {
     }
 
     private void openCreateGui(Player p) {
-        SGMenu menu = plugin.getGUI().create("§bTournament: Select Kit", 5);
+        SGMenu menu = plugin.getMenus().create("tournaments.kits", 5);
         int slot = 0;
         for (Kit k : DuelManager.stor.getAllKits()) {
             if (slot > 44) break;
@@ -157,35 +161,35 @@ public class TournamentCommand implements CommandExecutor {
             }));
             slot++;
         }
-        p.openInventory(menu.getInventory());
+        GuiService.open(p, menu);
     }
 
     private void openSizeGui(Player p, Kit k) {
-        SGMenu menu = plugin.getGUI().create("§bTournament: Team Size", 1);
+        SGMenu menu = plugin.getMenus().create("tournaments.team-size", 1);
         
-        menu.setButton(3, new SGButton(new ItemBuilder(Material.IRON_SWORD).name("§a1v1").build()).withListener(e -> {
+        GuiService.control(menu, "1v1", 3, new SGButton(new ItemBuilder(Material.IRON_SWORD).name("§a1v1").build()).withListener(e -> {
             p.closeInventory();
             createTournament(p, k, 1);
         }));
 
-        menu.setButton(4, new SGButton(new ItemBuilder(Material.DIAMOND_SWORD).name("§e2v2").build()).withListener(e -> {
+        GuiService.control(menu, "2v2", 4, new SGButton(new ItemBuilder(Material.DIAMOND_SWORD).name("§e2v2").build()).withListener(e -> {
             p.closeInventory();
             createTournament(p, k, 2);
         }));
 
-        menu.setButton(5, new SGButton(new ItemBuilder(Material.NETHERITE_SWORD).name("§c3v3").build()).withListener(e -> {
+        GuiService.control(menu, "3v3", 5, new SGButton(new ItemBuilder(Material.NETHERITE_SWORD).name("§c3v3").build()).withListener(e -> {
             p.closeInventory();
             createTournament(p, k, 3);
         }));
 
-        p.openInventory(menu.getInventory());
+        GuiService.open(p, menu);
     }
 
     private void createTournament(Player p, Kit k, int size) {
         String tourneyName = "Server Setup " + k.getName() + " " + size + "v" + size;
         manager.getAPI().createTournament(tourneyName, "s" + getRand()).thenAccept(json -> {
             if (json == null || !json.has("tournament")) {
-                p.sendMessage("§cFailed to reach Challonge API. Please check your credentials.");
+                Messages.send(p, "messages.tournament-command.failed-to-reach-challonge-api-please-check-your");
                 return;
             }
             
@@ -194,15 +198,15 @@ public class TournamentCommand implements CommandExecutor {
             manager.getActiveTournaments().put(url, session);
             
             Bukkit.getScheduler().runTask(plugin, () -> {
-                Bukkit.broadcastMessage("§e§l===================================");
+                Bukkit.broadcastMessage(Messages.text(null, "messages.tournament-command.create-tournament"));
                 Bukkit.broadcastMessage(" ");
-                Bukkit.broadcastMessage("      §b§lNEW TOURNAMENT STARTED!");
-                Bukkit.broadcastMessage("      §7Kit: §f" + k.getName());
-                Bukkit.broadcastMessage("      §7Mode: §f" + size + "v" + size);
+                Bukkit.broadcastMessage(Messages.text(null, "messages.tournament-command.new-tournament-started"));
+                Bukkit.broadcastMessage(Messages.text(null, "messages.tournament-command.kit", k.getName()));
+                Bukkit.broadcastMessage(Messages.text(null, "messages.tournament-command.mode-v", size, size));
                 Bukkit.broadcastMessage(" ");
-                Bukkit.broadcastMessage("      §eType §a/tournament join §eto play!");
+                Bukkit.broadcastMessage(Messages.text(null, "messages.tournament-command.type-tournament-join-to-play"));
                 Bukkit.broadcastMessage(" ");
-                Bukkit.broadcastMessage("§e§l===================================");
+                Bukkit.broadcastMessage(Messages.text(null, "messages.tournament-command.create-tournament"));
             });
         });
     }
@@ -211,7 +215,7 @@ public class TournamentCommand implements CommandExecutor {
         session.setState(TournamentSession.State.PLAYING);
         session.setCurrentRound(1);
         
-        Bukkit.broadcastMessage("§a§lThe Tournament is now generating matches! The bracket has been finalized.");
+        Bukkit.broadcastMessage(Messages.text(null, "messages.tournament-command.the-tournament-is-now-generating-matches-the-bracket"));
         
         // Form teams
         List<UUID> pool = new ArrayList<>(session.getParticipants());

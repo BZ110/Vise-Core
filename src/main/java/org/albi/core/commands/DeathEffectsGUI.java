@@ -1,296 +1,130 @@
 package org.albi.core.commands;
 
+import org.albi.core.gui.Messages;
+
+import com.samjakob.spigui.buttons.SGButton;
 import org.albi.core.Core;
-import org.albi.core.data.ExtendedPlayer;
 import org.albi.core.data.MainPlayer;
+import org.albi.core.gui.GuiService;
 import org.albi.core.managers.cosmetics.DeathEffect;
-import org.bukkit.Bukkit;
 import org.bukkit.Material;
-import org.bukkit.NamespacedKey;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
-import org.bukkit.event.EventHandler;
-import org.bukkit.event.Listener;
-import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.event.inventory.InventoryCloseEvent;
-import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.persistence.PersistentDataType;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.Locale;
 
-public class DeathEffectsGUI implements Listener {
-
-    private final Core plugin;
-    // Not using ChatColor so we use raw § codes which remain valid
-    private static final String BASE_TITLE = "§4§lKill Effects";
-
-    private final NamespacedKey effectKey;
-
-    // Track which page a player is on
-    private final Map<UUID, Integer> openPages = new HashMap<>();
-
-    public DeathEffectsGUI(Core plugin) {
-        this.plugin = plugin;
-        this.effectKey = new NamespacedKey(plugin, "death_effect_id");
-        Bukkit.getPluginManager().registerEvents(this, plugin);
-    }
-
-    public void open(Player player, int page) {
-        String title = BASE_TITLE + " §8§l| §7Page " + (page + 1);
-        Inventory inv = Bukkit.createInventory(null, 54, title);
-
-        ExtendedPlayer ep = plugin.getExtendedPlayer(player);
-        if (ep == null) return;
-        MainPlayer mp = ep.getMainPlayer();
-        if (mp == null) return;
-
-        String selected = mp.getDeathEffect();
-        if (selected == null) selected = "NONE";
-
-        // Elegant dark border with purple tinted glass
-        fillBorder(inv);
-
-        fillBorder(inv);
-
-        // Filter out NONE so the grid is purely effects
-        List<DeathEffect> effects = new ArrayList<>(Arrays.asList(DeathEffect.values()));
-        effects.removeIf(e -> e == DeathEffect.NONE);
-
-        // 21 content slots
-        int[] itemSlots = {
+public class DeathEffectsGUI {
+    private static final String MENU_ID = "cosmetics.kill-effects";
+    private static final int[] EFFECT_SLOTS = {
             10, 11, 12, 13, 14, 15, 16,
             19, 20, 21, 22, 23, 24, 25,
             28, 29, 30, 31, 32, 33, 34
-        };
+    };
+    private static final List<DeathEffect> EFFECTS = Arrays.stream(DeathEffect.values())
+            .filter(effect -> effect != DeathEffect.NONE).toList();
+    private final Core plugin;
 
-        int start = page * 21;
-        int end = Math.min(start + 21, effects.size());
+    public DeathEffectsGUI(Core plugin) {
+        this.plugin = plugin;
+    }
 
-        for (int i = start; i < end; i++) {
-            DeathEffect effect = effects.get(i);
+    public void open(Player player, int requestedPage) {
+        MainPlayer profile = plugin.getExtendedPlayer(player).getMainPlayer();
+        if (profile == null) return;
+        int lastPage = Math.max(0, (EFFECTS.size() - 1) / EFFECT_SLOTS.length);
+        int page = Math.clamp(requestedPage, 0, lastPage);
+        var menu = plugin.getMenus().create(MENU_ID, 6, page + 1, lastPage + 1);
+        int from = page * EFFECT_SLOTS.length;
+        for (int index = from; index < Math.min(from + EFFECT_SLOTS.length, EFFECTS.size()); index++) {
+            var effect = EFFECTS.get(index);
+            var item = effectIcon(player, profile, effect);
+            GuiService.entry(menu, effect.name(), EFFECT_SLOTS[index - from], new SGButton(item).withListener(event -> select(player, effect, page)));
+        }
+        if (page > 0) {
+            menu.setButton("previous", 45, new SGButton(item(Material.SPECTRAL_ARROW, GuiService.text("death-effects-gui.previous-page"),
+                    List.of(GuiService.text("death-effects-gui.go-back-to-the-previous-page")))).withListener(event -> open(player, page - 1)));
+        }
+        if (page < lastPage) {
+            menu.setButton("next", 53, new SGButton(item(Material.ARROW, GuiService.text("death-effects-gui.next-page"),
+                    List.of(GuiService.text("death-effects-gui.browse-the-next-page-of-effects")))).withListener(event -> open(player, page + 1)));
+        }
+        menu.setButton("header", 4, new SGButton(item(Material.SKELETON_SKULL, GuiService.text("death-effects-gui.kill-effects"),
+                List.of(GuiService.text("death-effects-gui.select-your-cosmetic-kill-effect"), GuiService.text("death-effects-gui.effects-play-when-you-kill-someone"), "",
+                        GuiService.text("death-effects-gui.your-level", profile.level())))));
+        menu.setButton("current-effect", 49, new SGButton(item(Material.NETHER_STAR, GuiService.text("death-effects-gui.current-effect"),
+                List.of(GuiService.text("death-effects-gui.active", effectName(profile.getDeathEffect())), "", GuiService.text("death-effects-gui.click-an-effect-to-select-it")))));
+        menu.setButton("reset", 50, new SGButton(item(Material.BARRIER, GuiService.text("death-effects-gui.reset-effect"),
+                List.of(GuiService.text("death-effects-gui.click-to-disable-your-kill-effect")))).withListener(event -> select(player, DeathEffect.NONE, page)));
+        GuiService.open(player, menu);
+    }
 
-            boolean unlocked = isUnlocked(player, mp, effect);
-            boolean isSelected = effect.name().equalsIgnoreCase(selected);
+    private ItemStack effectIcon(Player player, MainPlayer profile, DeathEffect effect) {
+        boolean selected = effect.name().equalsIgnoreCase(profile.getDeathEffect());
+        boolean unlocked = isUnlocked(player, profile, effect);
+        List<String> lore = new ArrayList<>(List.of(GuiService.text("death-effects-gui.cosmetic-kill-effect"), ""));
+        if (selected) {
+            lore.addAll(List.of(GuiService.text("death-effects-gui.currently-selected"), GuiService.text("death-effects-gui.this-is-your-active-kill-effect")));
+        } else if (unlocked) {
+            lore.addAll(List.of(GuiService.text("death-effects-gui.click-to-select"), GuiService.text("death-effects-gui.click-to-equip-this-kill-effect")));
+        } else {
+            lore.addAll(List.of(GuiService.text("death-effects-gui.locked"), GuiService.text("death-effects-gui.required-level", effect.getRequiredLevel()),
+                    GuiService.text("death-effects-gui.your-level", profile.level()), "", GuiService.text("death-effects-gui.unlock-by-reaching-the-required-level")));
+        }
+        lore.add("");
+        lore.add(GuiService.text("death-effects-gui.level-req", effect.getRequiredLevel()));
 
-            Material mat = unlocked ? effect.getIcon() : Material.BARRIER;
-            ItemStack item = new ItemStack(mat);
-            ItemMeta meta = item.getItemMeta();
+        String color = selected ? "§a§l" : unlocked ? "§b§l" : "§c§l";
+        ItemStack icon = item(unlocked ? effect.getIcon() : Material.BARRIER, color + effect.getDisplayName(), lore);
+        if (selected) icon.editMeta(meta -> meta.setEnchantmentGlintOverride(true));
+        return icon;
+    }
 
-            // Name: colored by state
-            String nameColor = isSelected ? "§a§l" : (unlocked ? "§b§l" : "§c§l");
-            meta.setDisplayName(nameColor + effect.getDisplayName());
-
-            List<String> lore = new ArrayList<>();
-            lore.add("§8▸ §7Cosmetic Kill Effect");
-            lore.add("");
-
-            if (isSelected) {
-                lore.add("§a§l✔ Currently Selected");
-                lore.add("§7This is your active kill effect.");
-                meta.addEnchant(org.bukkit.enchantments.Enchantment.UNBREAKING, 1, true);
-                meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
-            } else if (unlocked) {
-                lore.add("§e§lClick to Select");
-                lore.add("§7Click to equip this kill effect.");
-            } else {
-                lore.add("§c§l✖ Locked");
-                lore.add("§7Required Level: §c" + effect.getRequiredLevel());
-                lore.add("§7Your Level: §e" + mp.level());
-                lore.add("");
-                lore.add("§8Unlock by reaching the required level.");
-            }
-
-            lore.add("");
-            lore.add("§8Level Req: §7" + effect.getRequiredLevel());
-
+    private ItemStack item(Material material, String name, List<String> lore) {
+        ItemStack item = new ItemStack(material);
+        item.editMeta(meta -> {
+            meta.setDisplayName(name);
             meta.setLore(lore);
             meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_UNBREAKABLE);
-
-            // Store effect name via PDC (modern, not deprecated)
-            meta.getPersistentDataContainer().set(effectKey, PersistentDataType.STRING, effect.name());
-
-            item.setItemMeta(meta);
-            inv.setItem(itemSlots[i - start], item);
-        }
-
-        // Navigation button – Previous
-        if (page > 0) {
-            inv.setItem(45, navButton(Material.SPECTRAL_ARROW, "§a§l◀ Previous Page",
-                    "§7Go back to the previous page."));
-        }
-
-        // Navigation button – Next
-        if (end < effects.size()) {
-            inv.setItem(53, navButton(Material.ARROW, "§a§l▶ Next Page",
-                    "§7Browse the next page of effects."));
-        }
-
-        // Header decoration – skull item at slot 4
-        ItemStack header = new ItemStack(Material.SKELETON_SKULL);
-        ItemMeta hm = header.getItemMeta();
-        hm.setDisplayName("§4§l☠ Kill Effects");
-        List<String> hl = new ArrayList<>();
-        hl.add("§7Select your cosmetic kill effect.");
-        hl.add("§8Effects play when you kill someone.");
-        hl.add("");
-        hl.add("§7Your Level: §e" + mp.level());
-        hm.setLore(hl);
-        hm.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
-        header.setItemMeta(hm);
-        inv.setItem(4, header);
-
-        // Info about current selection at slot 49
-        String curName = selected.equalsIgnoreCase("NONE") ? "§cNone" : "§a" + effectDisplayName(selected);
-        ItemStack infoItem = new ItemStack(Material.NETHER_STAR);
-        ItemMeta im = infoItem.getItemMeta();
-        im.setDisplayName("§e§lCurrent Effect");
-        List<String> il = new ArrayList<>();
-        il.add("§7Active: " + curName);
-        il.add("");
-        il.add("§8Click an effect to select it.");
-        im.setLore(il);
-        im.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
-        infoItem.setItemMeta(im);
-        inv.setItem(49, infoItem);
-
-        // Reset button at slot 50
-        ItemStack resetBtn = navButton(Material.BARRIER, "§c§lReset Effect", "§7Click to disable your kill effect.");
-        inv.setItem(50, resetBtn);
-
-        player.openInventory(inv);
-        openPages.put(player.getUniqueId(), page);
-        player.playSound(player.getLocation(), Sound.ITEM_BOOK_PAGE_TURN, 0.8f, 1.2f);
-    }
-
-    private void fillBorder(Inventory inv) {
-        ItemStack border = new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
-        ItemMeta bm = border.getItemMeta();
-        bm.setDisplayName("§0 ");
-        bm.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
-        border.setItemMeta(bm);
-
-        ItemStack purpleBorder = new ItemStack(Material.PURPLE_STAINED_GLASS_PANE);
-        ItemMeta pm = purpleBorder.getItemMeta();
-        pm.setDisplayName("§0 ");
-        pm.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
-        purpleBorder.setItemMeta(pm);
-
-        // Top + bottom rows with purple corners
-        for (int i = 0; i < 9; i++) {
-            inv.setItem(i, (i == 0 || i == 8) ? purpleBorder : border);
-        }
-        for (int i = 45; i < 54; i++) {
-            inv.setItem(i, (i == 45 || i == 53) ? purpleBorder : border);
-        }
-        // Side columns
-        for (int row = 1; row <= 4; row++) {
-            inv.setItem(row * 9, border);
-            inv.setItem(row * 9 + 8, border);
-        }
-    }
-
-    private ItemStack navButton(Material mat, String name, String loreLine) {
-        ItemStack item = new ItemStack(mat);
-        ItemMeta meta = item.getItemMeta();
-        meta.setDisplayName(name);
-        List<String> lore = new ArrayList<>();
-        lore.add(loreLine);
-        meta.setLore(lore);
-        meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
-        item.setItemMeta(meta);
+        });
         return item;
     }
 
-    private String effectDisplayName(String effectName) {
+    private String effectName(String name) {
+        if (name == null || name.equalsIgnoreCase("NONE")) return "§cNone";
         try {
-            return DeathEffect.valueOf(effectName).getDisplayName();
-        } catch (Exception e) {
-            return effectName;
-        }
-    }
-
-    private boolean isUnlocked(Player player, MainPlayer mp, DeathEffect effect) {
-        return mp.level() >= effect.getRequiredLevel()
-                || player.isOp()
-                || player.hasPermission("core.deatheffect.*")
-                || player.hasPermission("core.deatheffect." + effect.name().toLowerCase());
-    }
-
-    @EventHandler
-    public void onClick(InventoryClickEvent event) {
-        if (!(event.getWhoClicked() instanceof Player player)) return;
-        String title = event.getView().getTitle();
-        if (!title.startsWith(BASE_TITLE)) return;
-
-        event.setCancelled(true);
-
-        ItemStack hit = event.getCurrentItem();
-        if (hit == null || hit.getType() == Material.AIR || !hit.hasItemMeta()) return;
-
-        ItemMeta meta = hit.getItemMeta();
-        String rawName = meta.getDisplayName();
-        int page = openPages.getOrDefault(player.getUniqueId(), 0);
-
-        // Navigation
-        String stripped = rawName.replaceAll("§.", "");
-        if (stripped.contains("Next Page")) {
-            open(player, page + 1);
-            return;
-        }
-        if (stripped.contains("Previous Page")) {
-            if (page > 0) open(player, page - 1);
-            return;
-        }
-        if (stripped.contains("Reset Effect")) {
-            ExtendedPlayer ep = plugin.getExtendedPlayer(player);
-            if (ep != null && ep.getMainPlayer() != null) {
-                ep.getMainPlayer().setDeathEffect("NONE");
-                player.sendMessage("§a§l☠ §aYour kill effect has been disabled.");
-                player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 1f);
-                open(player, page);
-            }
-            return;
-        }
-
-        // Check PDC for effect name
-        String effectName = meta.getPersistentDataContainer().get(effectKey, PersistentDataType.STRING);
-        if (effectName == null || effectName.isEmpty()) return;
-
-        DeathEffect effect;
-        try {
-            effect = DeathEffect.valueOf(effectName);
+            return "§a" + DeathEffect.valueOf(name).getDisplayName();
         } catch (IllegalArgumentException e) {
-            return;
+            return name;
         }
+    }
 
-        ExtendedPlayer ep = plugin.getExtendedPlayer(player);
-        MainPlayer mp = ep.getMainPlayer();
+    private boolean isUnlocked(Player player, MainPlayer profile, DeathEffect effect) {
+        return effect == DeathEffect.NONE || profile.level() >= effect.getRequiredLevel()
+                || player.isOp() || player.hasPermission("core.deatheffect.*")
+                || player.hasPermission("core.deatheffect." + effect.name().toLowerCase(Locale.ROOT));
+    }
 
-        if (!isUnlocked(player, mp, effect)) {
-            player.sendMessage("§cYou haven't unlocked §e" + effect.getDisplayName()
-                    + "§c yet! Reach §elevel " + effect.getRequiredLevel() + "§c to unlock it.");
+    private void select(Player player, DeathEffect effect, int page) {
+        MainPlayer profile = plugin.getExtendedPlayer(player).getMainPlayer();
+        if (profile == null) return;
+        if (!isUnlocked(player, profile, effect)) {
+            Messages.send(player, "messages.death-effects-gui.you-haven-t-unlocked-yet-reach-level-to", effect.getDisplayName(), effect.getRequiredLevel());
             player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 1f);
             return;
         }
-
-        mp.setDeathEffect(effect.name());
-        player.sendMessage("§a§l☠ §aYour kill effect has been set to §e" + effect.getDisplayName() + "§a!");
-        player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1f, 2f);
-        open(player, page); // Refresh to show updated selection
-    }
-
-    @EventHandler
-    public void onClose(InventoryCloseEvent event) {
-        if (event.getView().getTitle().startsWith(BASE_TITLE)) {
-            openPages.remove(event.getPlayer().getUniqueId());
+        profile.setDeathEffect(effect.name());
+        if (effect == DeathEffect.NONE) {
+            Messages.send(player, "messages.death-effects-gui.your-kill-effect-has-been-disabled");
+            player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 1f);
+        } else {
+            Messages.send(player, "messages.death-effects-gui.your-kill-effect-has-been-set-to", effect.getDisplayName());
+            player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1f, 2f);
         }
+        open(player, page);
     }
 }

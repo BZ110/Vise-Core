@@ -1,5 +1,7 @@
 package org.albi.core.modules.CustomKit.commands;
 
+import org.albi.core.gui.Messages;
+
 import org.albi.core.Core;
 import org.albi.core.modules.CustomKit.helpers.CustomKitCategory;
 import org.albi.core.serializable.SerializableItem;
@@ -34,7 +36,7 @@ public class ChangeCategoryLogoCommand extends BaseCommand {
             return true;
         }
         if (args.length < 1) {
-            player.sendMessage("§cUsage: /changecategorylogo <name>");
+            Messages.send(player, "messages.change-category-logo-command.usage-changecategorylogo-name");
             return true;
         }
 
@@ -43,13 +45,13 @@ public class ChangeCategoryLogoCommand extends BaseCommand {
         Map<String, CustomKitCategory> categories =
                 (Map<String, CustomKitCategory>) plugin.getData().get("customKitCategories");
         if (categories == null || !categories.containsKey(name)) {
-            player.sendMessage("§cCategory not found: " + name);
+            Messages.send(player, "messages.change-category-logo-command.category-not-found", name);
             return true;
         }
 
         ItemStack inHand = player.getInventory().getItemInMainHand();
         if (inHand == null || inHand.getType().isAir()) {
-            player.sendMessage("§cHold the new logo item in your main hand");
+            Messages.send(player, "messages.change-category-logo-command.hold-the-new-logo-item-in-your-main");
             return true;
         }
 
@@ -57,7 +59,7 @@ public class ChangeCategoryLogoCommand extends BaseCommand {
         cat.setIcon(new SerializableItem(inHand));
         plugin.getData().set("customKitCategories", categories);
 
-        player.sendMessage("§aCategory §e" + name + "§a logo updated successfully.");
+        Messages.send(player, "messages.change-category-logo-command.category-logo-updated-successfully", name);
         return true;
     }
 }

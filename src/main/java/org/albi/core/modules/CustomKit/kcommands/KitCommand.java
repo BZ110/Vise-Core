@@ -1,5 +1,7 @@
 package org.albi.core.modules.CustomKit.kcommands;
 
+import org.albi.core.gui.Messages;
+
 import org.albi.core.Core;
 import org.albi.core.data.ExtendedPlayer;
 import org.albi.core.data.MainPlayer;
@@ -32,14 +34,14 @@ public class KitCommand extends BaseCommand {
 
         CustomKit[] kits = mp.getKits();
         if (kits.length <= kitIndex || kits[kitIndex] == null) {
-            plugin.getMessageAPI().sendMessage(player, "&cKit " + kitIndex + " does not exist.");
+            plugin.getMessageAPI().sendMessage(player, Messages.text(player, "messages.kit-command.kit-does-not-exist", kitIndex));
             return true;
         }
 
         CustomKit kit = kits[kitIndex];
         plugin.resetPlayer(player, false);
         plugin.applyPossibleKit(player, kit.toKit());
-        plugin.getMessageAPI().sendMessage(player, "&aLoaded Kit " + kitIndex);
+        plugin.getMessageAPI().sendMessage(player, Messages.text(player, "messages.kit-command.loaded-kit", kitIndex));
         return true;
     }
 }

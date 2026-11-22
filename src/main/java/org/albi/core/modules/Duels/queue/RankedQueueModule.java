@@ -1,5 +1,9 @@
 package org.albi.core.modules.Duels.queue;
 
+import org.albi.core.gui.Messages;
+
+import org.albi.core.gui.GuiService;
+
 import com.samjakob.spigui.buttons.SGButton;
 import com.samjakob.spigui.menu.SGMenu;
 import org.albi.core.Core;
@@ -90,22 +94,22 @@ public class RankedQueueModule implements Listener, CommandExecutor {
         }
 
         void open() {
-            SGMenu menu = plugin.getGUI().create("§6§lRanked Queue", 3);
+            SGMenu menu = plugin.getMenus().create("queues.ranked", 3);
 
             // Informational Sign
             ItemStack sign = new ItemStack(Material.OAK_SIGN);
             ItemMeta signMeta = sign.getItemMeta();
             if (signMeta != null) {
-                signMeta.setDisplayName("§6§lRanking Information");
+                signMeta.setDisplayName(GuiService.text("ranked-queue-module.ranking-information"));
                 signMeta.setLore(Arrays.asList(
-                        "§7Our system uses a dynamic ELO algorithm.",
-                        "§7Stakes scale with opponent difficulty:",
-                        "§7 - Beat a PRO: §aHigh Reward",
-                        "§7 - Lose to a NOOB: §cHeavy Penalty",
-                        "§7Matches are §fBest of 1§7."));
+                        GuiService.text("ranked-queue-module.our-system-uses-a-dynamic-elo-algorithm"),
+                        GuiService.text("ranked-queue-module.stakes-scale-with-opponent-difficulty"),
+                        GuiService.text("ranked-queue-module.beat-a-pro-high-reward"),
+                        GuiService.text("ranked-queue-module.lose-to-a-noob-heavy-penalty"),
+                        GuiService.text("ranked-queue-module.matches-are-best-of-1")));
                 sign.setItemMeta(signMeta);
             }
-            menu.setButton(4, new SGButton(sign));
+            GuiService.control(menu, "sign", 4, new SGButton(sign));
 
             for (Kit k : DuelManager.stor.kits) {
                 if (k.isPk())
@@ -121,22 +125,22 @@ public class RankedQueueModule implements Listener, CommandExecutor {
                     List<String> lore = im.hasLore() ? new ArrayList<>(im.getLore()) : new ArrayList<>();
                     lore.add(" ");
                     RankedStats rs = plugin.getExtendedPlayer(viewer).getMainPlayer().getKitRankedStats(k.getName());
-                    lore.add("§6Your Elo: §f" + rs.getElo());
-                    lore.add("§6Status: " + rs.getTierDisplay());
-                    lore.add("§eQueued: §f" + getQueued(k));
+                    lore.add(GuiService.text("ranked-queue-module.your-elo", rs.getElo()));
+                    lore.add(GuiService.text("ranked-queue-module.status", rs.getTierDisplay()));
+                    lore.add(GuiService.text("ranked-queue-module.queued", getQueued(k)));
                     lore.add(" ");
-                    lore.add("§dClick to join ranked queue!");
+                    lore.add(GuiService.text("ranked-queue-module.click-to-join-ranked-queue"));
                     im.setLore(lore);
                     icon.setItemMeta(im);
                 }
 
-                menu.setButton(local, new SGButton(icon).withListener(e -> {
+                GuiService.entry(menu, k.getName(), local, new SGButton(icon).withListener(e -> {
                     joinQueue(viewer, k);
                     viewer.closeInventory();
                 }));
             }
 
-            viewer.openInventory(menu.getInventory());
+            GuiService.open(viewer, menu);
         }
     }
 
@@ -144,24 +148,24 @@ public class RankedQueueModule implements Listener, CommandExecutor {
         // Safety checks
         ExtendedPlayer ep = plugin.getExtendedPlayer(player);
         if (ep == null || !ep.isReady()) {
-            player.sendMessage("§eWait for your profile to load before joining ranked.");
+            Messages.send(player, "messages.ranked-queue-module.wait-for-your-profile-to-load-before-joining");
             return;
         }
         if (ep.getPlayerDuelInstance() != null) {
-            player.sendMessage("§cYou cannot queue while in a duel!");
+            Messages.send(player, "messages.ranked-queue-module.you-cannot-queue-while-in-a-duel");
             return;
         }
         if (org.albi.core.modules.Tournaments.TournamentManager.getInstance() != null
                 && org.albi.core.modules.Tournaments.TournamentManager.getInstance().isInTournament(player)) {
-            player.sendMessage("§cYou cannot queue for ranked duels while you are in a tournament.");
+            Messages.send(player, "messages.ranked-queue-module.you-cannot-queue-for-ranked-duels-while-you");
             return;
         }
         if (plugin.getPartyManager() != null && plugin.getPartyManager().isInParty(player)) {
-            player.sendMessage("§cYou cannot join solo ranked while in a party!");
+            Messages.send(player, "messages.ranked-queue-module.you-cannot-join-solo-ranked-while-in-a");
             return;
         }
         if (ep.isSpectating()) {
-            player.sendMessage("§cYou cannot queue while spectating!");
+            Messages.send(player, "messages.ranked-queue-module.you-cannot-queue-while-spectating");
             return;
         }
 
@@ -176,7 +180,7 @@ public class RankedQueueModule implements Listener, CommandExecutor {
         queuedSince.put(player.getUniqueId(), System.currentTimeMillis());
         queuedKey.put(player.getUniqueId(), kit.getName());
 
-        player.sendMessage("§aYou have joined the §6Ranked §aqueue for §f" + KitSafety.queueDisplayName(kit) + "§a.");
+        Messages.send(player, "messages.ranked-queue-module.you-have-joined-the-ranked-queue-for", KitSafety.queueDisplayName(kit));
         plugin.giveAppropriateLobbyItems(player);
     }
 
@@ -206,7 +210,7 @@ public class RankedQueueModule implements Listener, CommandExecutor {
             String kitName = queuedKey.get(player.getUniqueId());
             int eloRange = getEloRange((int) elapsed);
 
-            player.sendActionBar("§e" + elapsed + "s §7| §6Range: ±" + eloRange);
+            player.sendActionBar(Messages.text(player, "messages.ranked-queue-module.s-range", elapsed, eloRange));
         }
     }
 
@@ -223,8 +227,7 @@ public class RankedQueueModule implements Listener, CommandExecutor {
             ExtendedPlayer ep = plugin.getExtendedPlayer(player);
             org.albi.core.modules.Duels.ranked.RankedStats rs = ep.getMainPlayer().getKitRankedStats(kitName);
 
-            player.sendMessage(" \n§6§lSEARCHING...\n§7Mode: §f" + kitName + "\n§7Elo: §f" + rs.getElo() + " §8(§7"
-                    + rs.getTierDisplay() + "§8)\n§7Range: §e±" + eloRange + "\n ");
+            Messages.send(player, "messages.ranked-queue-module.searching-mode-elo-range", kitName, rs.getElo(), rs.getTierDisplay(), eloRange);
         }
     }
 
@@ -279,7 +282,7 @@ public class RankedQueueModule implements Listener, CommandExecutor {
         for (Player p : List.of(p1, p2)) {
             p.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 80, 4, false, false, false));
             p.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 80, 4, false, false, false));
-            p.sendTitle("§6§lRANKED MATCH", "§7Opponent found! Teleporting...", 10, 60, 10);
+            p.sendTitle(Messages.text(p, "messages.ranked-queue-module.ranked-match"), Messages.text(p, "messages.ranked-queue-module.opponent-found-teleporting"), 10, 60, 10);
             p.playSound(p, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1.0f, 1.0f);
         }
 

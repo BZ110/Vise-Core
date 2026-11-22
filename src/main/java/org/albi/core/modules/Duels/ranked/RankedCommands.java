@@ -1,5 +1,9 @@
 package org.albi.core.modules.Duels.ranked;
 
+import org.albi.core.gui.Messages;
+
+import org.albi.core.gui.GuiService;
+
 import com.samjakob.spigui.buttons.SGButton;
 import com.samjakob.spigui.menu.SGMenu;
 import org.albi.core.Core;
@@ -46,7 +50,7 @@ public class RankedCommands implements CommandExecutor {
         if (label.equalsIgnoreCase("seegames")) {
             String name = args.length == 0 ? player.getName() : args[0];
             if (!name.matches("[a-zA-Z0-9_]{1,16}")) {
-                player.sendMessage("§cEnter the player's exact Minecraft name.");
+                Messages.send(player, "messages.ranked-commands.enter-the-player-s-exact-minecraft-name");
                 return true;
             }
             var profile = plugin.getExtendedPlayer(player);
@@ -62,7 +66,7 @@ public class RankedCommands implements CommandExecutor {
 
         if (label.equalsIgnoreCase("matchinfo")) {
             if (args.length == 0) {
-                player.sendMessage("§cUsage: /matchinfo <id>");
+                Messages.send(player, "messages.ranked-commands.usage-matchinfo-id");
                 return true;
             }
             showMatchInfo(player, args[0]);
@@ -71,7 +75,7 @@ public class RankedCommands implements CommandExecutor {
 
         if (label.equalsIgnoreCase("rankedreport")) {
             if (args.length == 0) {
-                player.sendMessage("§cUsage: /rankedreport <matchId>");
+                Messages.send(player, "messages.ranked-commands.usage-rankedreport-match-id");
                 return true;
             }
             generateMatchReport(player, args[0]);
@@ -82,7 +86,7 @@ public class RankedCommands implements CommandExecutor {
     }
 
     private void openLeaderboard(Player player) {
-        SGMenu menu = plugin.getGUI().create("\u00A78Ranked Leaderboard (Top 27)", 3);
+        SGMenu menu = plugin.getMenus().create("ranked.leaderboard", 3);
 
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             StatManagement.getRedis().withJedis(j -> {
@@ -102,7 +106,7 @@ public class RankedCommands implements CommandExecutor {
                     ItemStack head = new ItemStack(Material.PLAYER_HEAD);
                     SkullMeta meta = (SkullMeta) head.getItemMeta();
                     meta.setOwningPlayer(Bukkit.getOfflinePlayer(uuid));
-                    meta.setDisplayName("\u00A7d#" + rank + " \u00A7f" + name);
+                    meta.setDisplayName(GuiService.text("ranked-commands.open-leaderboard", rank, name));
                     meta.setLore(List.of(
                             "\u00A77Elo: \u00A76" + elo,
                             "\u00A77Tier: " + RankedTier.getTierDisplay(elo)));
@@ -115,7 +119,7 @@ public class RankedCommands implements CommandExecutor {
                 Bukkit.getScheduler().runTask(plugin, () -> {
                     for (SGButton btn : buttons)
                         menu.addButton(btn);
-                    player.openInventory(menu.getInventory());
+                    GuiService.open(player, menu);
                 });
                 return null;
             });
@@ -123,7 +127,7 @@ public class RankedCommands implements CommandExecutor {
     }
 
     private void showRecentGames(Player viewer, String name, UUID localId) {
-        viewer.sendMessage("§8[§dRanked§8] §7Fetching recent games for §f" + name + "§7...");
+        Messages.send(viewer, "messages.ranked-commands.ranked-fetching-recent-games-for", name);
 
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             UUID id = localId == null ? StatManagement.findRecentMatchPlayer(name) : localId;
@@ -131,19 +135,18 @@ public class RankedCommands implements CommandExecutor {
             Bukkit.getScheduler().runTask(plugin, () -> {
                 if (!viewer.isOnline()) return;
                 if (matches.isEmpty()) {
-                    viewer.sendMessage("§cNo recent ranked matches found for this player.");
+                    Messages.send(viewer, "messages.ranked-commands.no-recent-ranked-matches-found-for-this-player");
                     return;
                 }
-                viewer.sendMessage("§8§m--------------------------------------");
-                viewer.sendMessage("§d§lRecent Ranked Matches - " + name);
+                Messages.send(viewer, "messages.ranked-commands.show-recent-games");
+                Messages.send(viewer, "messages.ranked-commands.recent-ranked-matches", name);
                 for (RankedMatchRecord match : matches) {
                     String result = match.getWinner() == null ? "§eDraw"
                             : (match.getWinner().equals(id) ? "§aVictory" : "§cDefeat");
                     String opponent = match.getPlayer1().equals(id) ? match.getPlayer2Name() : match.getPlayer1Name();
-                    viewer.sendMessage("§8» " + result + " §7vs §f" + opponent + " §8| §7ID: §f" + match.getMatchId()
-                            + (match.isSuspicious() ? " §c§l[Suspicious!]" : ""));
+                    Messages.send(viewer, "messages.ranked-commands.vs-id", result, opponent, match.getMatchId(), (match.isSuspicious() ? " §c§l[Suspicious!]" : ""));
                 }
-                viewer.sendMessage("§8§m--------------------------------------");
+                Messages.send(viewer, "messages.ranked-commands.show-recent-games");
             });
         });
     }
@@ -152,26 +155,25 @@ public class RankedCommands implements CommandExecutor {
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             RankedMatchRecord record = StatManagement.loadMatchRecord(matchId);
             if (record == null) {
-                player.sendMessage("§cMatch not found.");
+                Messages.send(player, "messages.ranked-commands.match-not-found");
                 return;
             }
 
-            player.sendMessage("§8§m--------------------------------------");
-            player.sendMessage("§d§lMatch info: " + record.getMatchId());
-            player.sendMessage("§7Kit: §f" + record.getKitName());
-            player.sendMessage("§7Players: §f" + record.getPlayer1Name() + " §7vs §f" + record.getPlayer2Name());
+            Messages.send(player, "messages.ranked-commands.show-match-info");
+            Messages.send(player, "messages.ranked-commands.match-info", record.getMatchId());
+            Messages.send(player, "messages.ranked-commands.kit", record.getKitName());
+            Messages.send(player, "messages.ranked-commands.players-vs", record.getPlayer1Name(), record.getPlayer2Name());
 
             double avgReach = record.getHits().stream().mapToDouble(RankedMatchRecord.HitRecord::distance).average()
                     .orElse(0);
-            player.sendMessage(
-                    "§7Average Reach: " + (avgReach > 3.5 ? "§c" : "§a") + String.format("%.2f", avgReach) + " blocks");
+            Messages.send(player, "messages.ranked-commands.average-reach-blocks", (avgReach > 3.5 ? "§c" : "§a"), String.format("%.2f", avgReach));
 
             if (record.isSuspicious()) {
-                player.sendMessage("§c§lSuspicious Activity Detected!");
-                player.sendMessage("§cReason: " + record.getSuspicionReason());
+                Messages.send(player, "messages.ranked-commands.suspicious-activity-detected");
+                Messages.send(player, "messages.ranked-commands.reason", record.getSuspicionReason());
             }
 
-            player.sendMessage("§8§m--------------------------------------");
+            Messages.send(player, "messages.ranked-commands.show-match-info");
         });
     }
 
@@ -179,7 +181,7 @@ public class RankedCommands implements CommandExecutor {
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             RankedMatchRecord record = StatManagement.loadMatchRecord(matchId);
             if (record == null) {
-                player.sendMessage("§cMatch not found.");
+                Messages.send(player, "messages.ranked-commands.match-not-found");
                 return;
             }
 
@@ -191,14 +193,14 @@ public class RankedCommands implements CommandExecutor {
             File reportFile = new File(reportFolder, matchId + ".html");
             try (FileWriter writer = new FileWriter(reportFile)) {
                 writer.write(html);
-                player.sendMessage("§8[§dRanked§8] §aReport generated successfully!");
-                player.sendMessage("§7File: §f" + reportFile.getAbsolutePath());
+                Messages.send(player, "messages.ranked-commands.ranked-report-generated-successfully");
+                Messages.send(player, "messages.ranked-commands.file", reportFile.getAbsolutePath());
 
                 if (WebhookService.sendMatchReport(plugin, record, reportFile)) {
-                    player.sendMessage("§8[§dRanked§8] §eDiscord webhook delivery queued.");
+                    Messages.send(player, "messages.ranked-commands.ranked-discord-webhook-delivery-queued");
                 }
             } catch (IOException e) {
-                player.sendMessage("§cFailed to save match report.");
+                Messages.send(player, "messages.ranked-commands.failed-to-save-match-report");
                 e.printStackTrace();
             }
         });

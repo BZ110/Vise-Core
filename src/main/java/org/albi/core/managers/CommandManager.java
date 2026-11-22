@@ -39,6 +39,12 @@ public class CommandManager {
         registerCommand(plugin, "armortrim", new ArmorTrimCommand(plugin));
         registerCommand(plugin, "profile", new ProfileCommand(plugin));
         registerCommand(plugin, "autorestart", new AutoRestartCommand(plugin));
+        registerCommand(plugin, "coreconfig", (sender, command, label, args) -> {
+            if (args.length != 1 || !args[0].equalsIgnoreCase("reload")) return false;
+            plugin.getMessageAPI().sendMessageLang(sender,
+                    plugin.loadInterfaceFiles(false) ? "ui_config_reloaded" : "ui_config_reload_failed");
+            return true;
+        });
 
         // Ranked Matchmaking Commands
         RankedCommands rankedCmd = new RankedCommands(plugin);

@@ -1,5 +1,7 @@
 package org.albi.core.events;
 
+import org.albi.core.gui.Messages;
+
 import org.albi.core.Core;
 import org.albi.core.data.ExtendedPlayer;
 import org.albi.core.data.MainPlayer;
@@ -41,7 +43,7 @@ public class OnJoinListener implements Listener {
         ep.whenReady().thenRun(() ->
                 Bukkit.getScheduler().runTask(plugin, () -> {
                     if (!player.isOnline() || Bukkit.getPlayer(player.getUniqueId()) != player) return;
-                    player.sendMessage("§aYour profile is now ready.");
+                    Messages.send(player, "messages.on-join-listener.your-profile-is-now-ready");
 
                     MainPlayer mp = ep.getMainPlayer();
 

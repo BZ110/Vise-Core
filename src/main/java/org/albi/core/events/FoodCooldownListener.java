@@ -1,5 +1,7 @@
 package org.albi.core.events;
 
+import org.albi.core.gui.Messages;
+
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -35,7 +37,7 @@ public final class FoodCooldownListener implements Listener {
 
         if (now < allowedAt) {
             long remain = (allowedAt - now + 999) / 1000;
-            player.sendMessage(ChatColor.RED + "You must wait " + remain + " seconds before you can eat another.");
+            Messages.send(player, "messages.food-cooldown-listener.you-must-wait-seconds-before-you-can-eat", ChatColor.RED, remain);
             e.setCancelled(true);
             return;
         }

@@ -1,5 +1,7 @@
 package org.albi.core.util;
 
+import org.albi.core.gui.Messages;
+
 import org.albi.core.Core;
 import org.albi.core.data.ExtendedPlayer;
 import org.bukkit.Bukkit;
@@ -41,11 +43,11 @@ public final class AnnouncementService {
             if (ep == null) continue;
             if (ep.getPlayerDuelInstance() != null) continue;
             if (ep.isLavaRisingEvent()) continue;
-            player.sendMessage(" ");
-            player.sendMessage(plugin.getMessageAPI().toColor("&8&m----------------------------------------"));
+            Messages.send(player, "messages.announcement-service.send-one");
+            Messages.send(player, "messages.announcement-service.divider");
             player.sendMessage(msg);
-            player.sendMessage(plugin.getMessageAPI().toColor("&8&m----------------------------------------"));
-            player.sendMessage(" ");
+            Messages.send(player, "messages.announcement-service.divider");
+            Messages.send(player, "messages.announcement-service.send-one");
         }
     }
 }

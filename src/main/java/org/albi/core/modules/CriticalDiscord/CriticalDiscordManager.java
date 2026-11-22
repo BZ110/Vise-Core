@@ -1,5 +1,7 @@
 package org.albi.core.modules.CriticalDiscord;
 
+import org.albi.core.gui.Messages;
+
 import com.zaxxer.hikari.HikariDataSource;
 import net.md_5.bungee.api.chat.ClickEvent;
 import net.md_5.bungee.api.chat.HoverEvent;
@@ -130,7 +132,7 @@ public final class CriticalDiscordManager extends Module {
         @Override
         public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
             if (!(sender instanceof Player player)) {
-                sender.sendMessage("This command is only for players");
+                Messages.send(sender, "messages.critical-discord-manager.this-command-is-only-for-players");
                 return true;
             }
 
@@ -142,7 +144,7 @@ public final class CriticalDiscordManager extends Module {
                 }
                 if (sub.equals("unlink")) {
                     mod.unlinkAsync(player.getUniqueId());
-                    player.sendMessage("§aYour Discord account is no longer linked (changes may take a second)");
+                    Messages.send(player, "messages.critical-discord-manager.your-discord-account-is-no-longer-linked-changes");
                     return true;
                 }
                 if (sub.equals("check")) {
@@ -153,7 +155,7 @@ public final class CriticalDiscordManager extends Module {
 
             var invite = ConfigValues.httpEndpoint(mod.getPlugin().getConfig().getString("network.discord_url", ""));
             if (invite == null) {
-                player.sendMessage("§7The Discord invite is unavailable on this server.");
+                Messages.send(player, "messages.critical-discord-manager.the-discord-invite-is-unavailable-on-this-server");
                 return true;
             }
             TextComponent linkMsg = new TextComponent("§bClick here to join the Discord.");

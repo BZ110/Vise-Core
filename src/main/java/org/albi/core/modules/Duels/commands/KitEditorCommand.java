@@ -1,5 +1,9 @@
 package org.albi.core.modules.Duels.commands;
 
+import org.albi.core.gui.Messages;
+
+import org.albi.core.gui.GuiService;
+
 import com.samjakob.spigui.buttons.SGButton;
 import com.samjakob.spigui.menu.SGMenu;
 import org.albi.core.Core;
@@ -26,21 +30,21 @@ public class KitEditorCommand implements CommandExecutor {
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!(sender instanceof Player p)) {
-            sender.sendMessage("Players only.");
+            Messages.send(sender, "messages.kit-editor-command.players-only");
             return true;
         }
 
-        SGMenu menu = plugin.getGUI().create("§6Kit Editor", 1);
-        menu.setButton(2, button(Material.DIAMOND_SWORD, "§dDuel Kit Editor",
-                List.of("§7Edit saved layouts for duel kits.", "§fClick to continue."),
+        SGMenu menu = plugin.getMenus().create("kits.editor", 1);
+        GuiService.control(menu, "duel-kit-editor", 2, button(Material.DIAMOND_SWORD, GuiService.text("kit-editor-command.duel-kit-editor"),
+                List.of(GuiService.text("kit-editor-command.edit-saved-layouts-for-duel-kits"), GuiService.text("kit-editor-command.click-to-continue")),
                 e -> gui.openDuelKitMenu(p)));
-        menu.setButton(4, button(Material.IRON_AXE, "§bFFA Kit Editor",
-                List.of("§7Edit saved layouts for FFA kits.", "§fClick to continue."),
+        GuiService.control(menu, "ffa-kit-editor", 4, button(Material.IRON_AXE, GuiService.text("kit-editor-command.ffa-kit-editor"),
+                List.of(GuiService.text("kit-editor-command.edit-saved-layouts-for-ffa-kits"), GuiService.text("kit-editor-command.click-to-continue")),
                 e -> gui.openKitMenu(p)));
-        menu.setButton(6, button(Material.BOOK, "§eCustom Kit Editor",
-                List.of("§7Open your custom kit browser.", "§fClick to continue."),
+        GuiService.control(menu, "custom-kit-editor", 6, button(Material.BOOK, GuiService.text("kit-editor-command.custom-kit-editor"),
+                List.of(GuiService.text("kit-editor-command.open-your-custom-kit-browser"), GuiService.text("kit-editor-command.click-to-continue")),
                 e -> p.performCommand("customkit")));
-        p.openInventory(menu.getInventory());
+        GuiService.open(p, menu);
         return true;
     }
 

@@ -1,5 +1,7 @@
 package org.albi.core.modules.Duels.commands;
 
+import org.albi.core.gui.Messages;
+
 import org.albi.core.Core;
 import org.albi.core.modules.Duels.DuelManager;
 import org.albi.core.modules.Duels.helpers.Arena;
@@ -73,11 +75,11 @@ public class DuelAdminCommand extends BaseCommand {
 
     private void handlePolarArena(Player p, String[] a) {
         if (!polarEnabled()) {
-            p.sendMessage(ChatColor.RED + "Polar arenas are disabled or PolarPaper is not loaded.");
+            Messages.send(p, "messages.duel-admin-command.polar-arenas-are-disabled-or-polar-paper-is", ChatColor.RED);
             return;
         }
         if (a.length == 1) {
-            p.sendMessage(ChatColor.YELLOW + "Usage: /dueladmin polar_arena <create|edit|arenaready|save|setdisplayitem|spawn1|spawn2|setspawn|set_limit|info> ...");
+            Messages.send(p, "messages.duel-admin-command.usage-dueladmin-polar-arena-create-edit-arenaready-save", ChatColor.YELLOW);
             return;
         }
 
@@ -91,17 +93,17 @@ public class DuelAdminCommand extends BaseCommand {
             case "setspawn" -> polarArenaSetSpawnLegacy(p, a);
             case "set_limit" -> polarArenaSetLimit(p, a);
             case "info" -> polarArenaInfo(p, a);
-            default -> p.sendMessage(ChatColor.YELLOW + "Usage: /dueladmin polar_arena <create|edit|arenaready|save|setdisplayitem|spawn1|spawn2|setspawn|set_limit|info> ...");
+            default -> Messages.send(p, "messages.duel-admin-command.usage-dueladmin-polar-arena-create-edit-arenaready-save", ChatColor.YELLOW);
         }
     }
 
     private void polarArenaCreate(Player p, String[] a) {
         if (a.length != 3) {
-            p.sendMessage(ChatColor.RED + "Usage: /dueladmin polar_arena create <name>");
+            Messages.send(p, "messages.duel-admin-command.usage-dueladmin-polar-arena-create-name", ChatColor.RED);
             return;
         }
         if (findArena(a[2]) != null) {
-            p.sendMessage(ChatColor.RED + "An arena with that name already exists.");
+            Messages.send(p, "messages.duel-admin-command.an-arena-with-that-name-already-exists", ChatColor.RED);
             return;
         }
         Arena arena = new Arena();
@@ -110,62 +112,62 @@ public class DuelAdminCommand extends BaseCommand {
         DuelManager.stor.arenas.add(arena);
         DuelManager.polarArenaManager.createArena(arena, p, success -> {
             if (success) {
-                p.sendMessage(ChatColor.GREEN + "Polar arena created. You were moved into the origin world for setup.");
+                Messages.send(p, "messages.duel-admin-command.polar-arena-created-you-were-moved-into-the", ChatColor.GREEN);
             } else {
                 DuelManager.stor.arenas.remove(arena);
-                p.sendMessage(ChatColor.RED + "Failed to create the polar arena world.");
+                Messages.send(p, "messages.duel-admin-command.failed-to-create-the-polar-arena-world", ChatColor.RED);
             }
         });
     }
 
     private void polarArenaEdit(Player p, String[] a) {
         if (a.length != 3) {
-            p.sendMessage(ChatColor.RED + "Usage: /dueladmin polar_arena edit <name>");
+            Messages.send(p, "messages.duel-admin-command.usage-dueladmin-polar-arena-edit-name", ChatColor.RED);
             return;
         }
         Arena arena = findArena(a[2]);
         if (arena == null || !arena.isPolarArena()) {
-            p.sendMessage(ChatColor.RED + "That polar arena does not exist.");
+            Messages.send(p, "messages.duel-admin-command.that-polar-arena-does-not-exist", ChatColor.RED);
             return;
         }
         DuelManager.polarArenaManager.loadOriginForEdit(arena, p, success -> {
-            if (!success) p.sendMessage(ChatColor.RED + "Failed to load the polar origin world.");
+            if (!success) Messages.send(p, "messages.duel-admin-command.failed-to-load-the-polar-origin-world", ChatColor.RED);
         });
     }
 
     private void polarArenaSave(Player p, String[] a) {
         if (a.length != 3) {
-            p.sendMessage(ChatColor.RED + "Usage: /dueladmin polar_arena save <name>");
+            Messages.send(p, "messages.duel-admin-command.usage-dueladmin-polar-arena-save-name", ChatColor.RED);
             return;
         }
         Arena arena = findArena(a[2]);
         if (arena == null || !arena.isPolarArena()) {
-            p.sendMessage(ChatColor.RED + "That polar arena does not exist.");
+            Messages.send(p, "messages.duel-admin-command.that-polar-arena-does-not-exist", ChatColor.RED);
             return;
         }
         DuelManager.polarArenaManager.saveOrigin(arena, success -> {
-            if (success) p.sendMessage(ChatColor.GREEN + "Saved polar origin world and refreshed preloads.");
-            else p.sendMessage(ChatColor.RED + "Could not save the polar origin world.");
+            if (success) Messages.send(p, "messages.duel-admin-command.saved-polar-origin-world-and-refreshed-preloads", ChatColor.GREEN);
+            else Messages.send(p, "messages.duel-admin-command.could-not-save-the-polar-origin-world", ChatColor.RED);
         });
     }
 
     private void polarArenaSetDisplay(Player p, String[] a) {
         if (a.length != 3) {
-            p.sendMessage(ChatColor.RED + "Usage: /dueladmin polar_arena setdisplayitem <name>");
+            Messages.send(p, "messages.duel-admin-command.usage-dueladmin-polar-arena-setdisplayitem-name", ChatColor.RED);
             return;
         }
         Arena arena = findArena(a[2]);
         if (arena == null || !arena.isPolarArena()) {
-            p.sendMessage(ChatColor.RED + "That polar arena does not exist.");
+            Messages.send(p, "messages.duel-admin-command.that-polar-arena-does-not-exist", ChatColor.RED);
             return;
         }
         arena.setDisplayItem(new SerializableItem(p.getInventory().getItemInMainHand()));
-        p.sendMessage(ChatColor.GREEN + "Updated polar arena display item for " + arena.getName() + ".");
+        Messages.send(p, "messages.duel-admin-command.updated-polar-arena-display-item-for", ChatColor.GREEN, arena.getName());
     }
 
     private void polarArenaSetSpawnLegacy(Player p, String[] a) {
         if (a.length != 4) {
-            p.sendMessage(ChatColor.RED + "Usage: /dueladmin polar_arena setspawn <name> <1|2>");
+            Messages.send(p, "messages.duel-admin-command.usage-dueladmin-polar-arena-setspawn-name-1-2", ChatColor.RED);
             return;
         }
         try {
@@ -173,19 +175,19 @@ public class DuelAdminCommand extends BaseCommand {
             if (team != 1 && team != 2) throw new NumberFormatException();
             polarArenaSetSpawn(p, a, team);
         } catch (NumberFormatException ex) {
-            p.sendMessage(ChatColor.RED + "Usage: /dueladmin polar_arena setspawn <name> <1|2>");
+            Messages.send(p, "messages.duel-admin-command.usage-dueladmin-polar-arena-setspawn-name-1-2", ChatColor.RED);
         }
     }
 
     private void polarArenaSetSpawn(Player p, String[] a, int team) {
         if (a.length != 3 && a.length != 4) {
-            p.sendMessage(ChatColor.RED + "Usage: /dueladmin polar_arena spawn" + team + " <name>");
+            Messages.send(p, "messages.duel-admin-command.usage-dueladmin-polar-arena-spawn-name", ChatColor.RED, team);
             return;
         }
         String arenaName = a[2];
         Arena arena = findArena(arenaName);
         if (arena == null || !arena.isPolarArena()) {
-            p.sendMessage(ChatColor.RED + "That polar arena does not exist.");
+            Messages.send(p, "messages.duel-admin-command.that-polar-arena-does-not-exist", ChatColor.RED);
             return;
         }
         Location l = p.getLocation();
@@ -194,17 +196,17 @@ public class DuelAdminCommand extends BaseCommand {
         arena.setSpawn(team, "z", l.getZ());
         arena.setSpawn(team, "yaw", l.getYaw());
         arena.setSpawn(team, "pitch", l.getPitch());
-        p.sendMessage(ChatColor.GREEN + "Saved exact world coordinates for spawn " + team + " on " + arena.getName() + ".");
+        Messages.send(p, "messages.duel-admin-command.saved-exact-world-coordinates-for-spawn-on", ChatColor.GREEN, team, arena.getName());
     }
 
     private void polarArenaSetLimit(Player p, String[] a) {
         if (a.length != 4) {
-            p.sendMessage(ChatColor.RED + "Usage: /dueladmin polar_arena set_limit <name> <1|2|min|max>");
+            Messages.send(p, "messages.duel-admin-command.usage-dueladmin-polar-arena-set-limit-name-1", ChatColor.RED);
             return;
         }
         Arena arena = findArena(a[2]);
         if (arena == null || !arena.isPolarArena()) {
-            p.sendMessage(ChatColor.RED + "That polar arena does not exist.");
+            Messages.send(p, "messages.duel-admin-command.that-polar-arena-does-not-exist", ChatColor.RED);
             return;
         }
         Location loc = p.getLocation();
@@ -212,29 +214,29 @@ public class DuelAdminCommand extends BaseCommand {
             case "1", "min" -> {
                 arena.setCornerParameter("x1", loc.getX());
                 arena.setCornerParameter("z1", loc.getZ());
-                p.sendMessage(ChatColor.GREEN + "Saved limit corner 1 for " + arena.getName() + ".");
+                Messages.send(p, "messages.duel-admin-command.saved-limit-corner-1-for", ChatColor.GREEN, arena.getName());
             }
             case "2", "max" -> {
                 arena.setCornerParameter("x2", loc.getX());
                 arena.setCornerParameter("z2", loc.getZ());
-                p.sendMessage(ChatColor.GREEN + "Saved limit corner 2 for " + arena.getName() + ".");
+                Messages.send(p, "messages.duel-admin-command.saved-limit-corner-2-for", ChatColor.GREEN, arena.getName());
             }
-            default -> p.sendMessage(ChatColor.RED + "Usage: /dueladmin polar_arena set_limit <name> <1|2|min|max>");
+            default -> Messages.send(p, "messages.duel-admin-command.usage-dueladmin-polar-arena-set-limit-name-1", ChatColor.RED);
         }
     }
 
     private void polarArenaInfo(Player p, String[] a) {
         if (a.length != 3) {
-            p.sendMessage(ChatColor.RED + "Usage: /dueladmin polar_arena info <name>");
+            Messages.send(p, "messages.duel-admin-command.usage-dueladmin-polar-arena-info-name", ChatColor.RED);
             return;
         }
         Arena arena = findArena(a[2]);
         if (arena == null || !arena.isPolarArena()) {
-            p.sendMessage(ChatColor.RED + "That polar arena does not exist.");
+            Messages.send(p, "messages.duel-admin-command.that-polar-arena-does-not-exist", ChatColor.RED);
             return;
         }
         p.sendMessage(arena.getInfo());
-        p.sendMessage(ChatColor.GRAY + "Origin world: " + DuelManager.polarArenaManager.originWorldName(arena));
+        Messages.send(p, "messages.duel-admin-command.origin-world", ChatColor.GRAY, DuelManager.polarArenaManager.originWorldName(arena));
     }
 
     /*───────────────────────────────────────────────────────────────────*/
@@ -362,13 +364,12 @@ public class DuelAdminCommand extends BaseCommand {
     /* ── kit list ─────────────────────────────────────────────────────*/
     private void kitList(Player p) {
         if (DuelManager.stor.kits.isEmpty()) {
-            p.sendMessage(ChatColor.YELLOW + "No kits defined.");
+            Messages.send(p, "messages.duel-admin-command.no-kits-defined", ChatColor.YELLOW);
             return;
         }
-        p.sendMessage(ChatColor.GREEN + "Available kits:");
+        Messages.send(p, "messages.duel-admin-command.available-kits", ChatColor.GREEN);
         DuelManager.stor.kits.forEach(k ->
-                p.sendMessage(ChatColor.AQUA + " - "
-                        + k.getName() + ChatColor.GRAY + " (slot " + k.getSlot() + ")"));
+                Messages.send(p, "messages.duel-admin-command.slot", ChatColor.AQUA, k.getName(), ChatColor.GRAY, k.getSlot()));
     }
 
     /* ── kit delete <name> ────────────────────────────────────────────*/
@@ -377,7 +378,7 @@ public class DuelAdminCommand extends BaseCommand {
         Kit k = findKit(a[2]);
         if (k == null) { msg(p, "duel_admin_kit_proper_name"); return; }
         DuelManager.stor.kits.remove(k);
-        p.sendMessage(ChatColor.RED + "Deleted kit " + k.getName() + ".");
+        Messages.send(p, "messages.duel-admin-command.deleted-kit", ChatColor.RED, k.getName());
     }
 
     private void kitCreate(Player p, String[] a) {

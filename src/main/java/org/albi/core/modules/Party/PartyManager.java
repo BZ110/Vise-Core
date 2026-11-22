@@ -1,5 +1,9 @@
 package org.albi.core.modules.Party;
 
+import org.albi.core.gui.Messages;
+
+import org.albi.core.gui.GuiService;
+
 import com.samjakob.spigui.buttons.SGButton;
 import com.samjakob.spigui.menu.SGMenu;
 import org.albi.core.Core;
@@ -24,26 +28,26 @@ public final class PartyManager extends Module {
 
     private final Map<UUID, Party> partyOfPlayer = new HashMap<>();
     private static final List<String> READY_SUBTITLES = List.of(
-            "§7The squad forms under your banner.",
-            "§7A storm is coming. You started it.",
-            "§7The lobby just got more dangerous.",
-            "§7Steel up. Your crew is online.",
-            "§7No weak links. No slow starts.",
-            "§7The hunt begins now.",
-            "§7Built different. Fight together.",
-            "§7The war room is open.",
-            "§7You brought the cavalry.",
-            "§7More than a party. A problem.",
-            "§7This squad was made for damage.",
-            "§7Pressure rises the second you queue.",
-            "§7You lit the fuse. Now move.",
-            "§7Strength in numbers. Fear in everyone else.",
-            "§7Locked in. Dialed up.",
-            "§7A clean roster. A dirty outcome.",
-            "§7This is where momentum starts.",
-            "§7You did not come here to play safe.",
-            "§7The room got louder for a reason.",
-            "§7A proper unit has assembled."
+            GuiService.text("party-manager.the-squad-forms-under-your-banner"),
+            GuiService.text("party-manager.a-storm-is-coming-you-started-it"),
+            GuiService.text("party-manager.the-lobby-just-got-more-dangerous"),
+            GuiService.text("party-manager.steel-up-your-crew-is-online"),
+            GuiService.text("party-manager.no-weak-links-no-slow-starts"),
+            GuiService.text("party-manager.the-hunt-begins-now"),
+            GuiService.text("party-manager.built-different-fight-together"),
+            GuiService.text("party-manager.the-war-room-is-open"),
+            GuiService.text("party-manager.you-brought-the-cavalry"),
+            GuiService.text("party-manager.more-than-a-party-a-problem"),
+            GuiService.text("party-manager.this-squad-was-made-for-damage"),
+            GuiService.text("party-manager.pressure-rises-the-second-you-queue"),
+            GuiService.text("party-manager.you-lit-the-fuse-now-move"),
+            GuiService.text("party-manager.strength-in-numbers-fear-in-everyone-else"),
+            GuiService.text("party-manager.locked-in-dialed-up"),
+            GuiService.text("party-manager.a-clean-roster-a-dirty-outcome"),
+            GuiService.text("party-manager.this-is-where-momentum-starts"),
+            GuiService.text("party-manager.you-did-not-come-here-to-play-safe"),
+            GuiService.text("party-manager.the-room-got-louder-for-a-reason"),
+            GuiService.text("party-manager.a-proper-unit-has-assembled")
     );
     private final Random random = new Random();
 
@@ -68,7 +72,7 @@ public final class PartyManager extends Module {
 
         var extendedPlayer = getPlugin().getExtendedPlayer(creator);
         if (extendedPlayer != null && extendedPlayer.getPlayerDuelInstance() != null) {
-            getPlugin().getMessageAPI().sendMessage(creator, "&cYou cannot create a party while you are in a duel.");
+            getPlugin().getMessageAPI().sendMessage(creator, Messages.text(creator, "messages.party-manager.you-cannot-create-a-party-while-you-are"));
             return null;
         }
 
@@ -76,7 +80,7 @@ public final class PartyManager extends Module {
         partyOfPlayer.put(creator.getUniqueId(), party);
 
         getPlugin().getMessageAPI().sendMessageLang(creator, "party_created");
-        creator.sendTitle("§6§lParty Created", READY_SUBTITLES.get(random.nextInt(READY_SUBTITLES.size())), 5, 35, 10);
+        creator.sendTitle(Messages.text(creator, "messages.party-manager.party-created"), READY_SUBTITLES.get(random.nextInt(READY_SUBTITLES.size())), 5, 35, 10);
         giveLobbyPartyItems(creator, true);
         return party;
     }
@@ -144,7 +148,7 @@ public final class PartyManager extends Module {
             getPlugin().getMessageAPI().sendMessageLang(player, "party_none");
             return;
         }
-        getPlugin().getMessageAPI().sendMessage(player, "&7Party Members &8(&b" + party.getMembers().size() + "&7/&b" + party.getMax() + "&8):");
+        getPlugin().getMessageAPI().sendMessage(player, Messages.text(player, "messages.party-manager.party-members", party.getMembers().size(), party.getMax()));
         for (UUID id : party.getMembers()) {
             String name = Bukkit.getOfflinePlayer(id).getName();
             String prefix = id.equals(party.getLeader()) ? "&6(Leader) " : "  ";
@@ -269,51 +273,51 @@ public final class PartyManager extends Module {
             return;
         }
 
-        SGMenu menu = getPlugin().getGUI().create("§6§lParty Settings", 3);
-        menu.setButton(10, new SGButton(named(Material.COMPARATOR,
-                "§b§lShuffle Teams: " + (party.isShuffle() ? "§aON" : "§cOFF"),
-                List.of("§7Shuffle the draft order for auto-fill actions.", "§fClick to toggle.")))
+        SGMenu menu = getPlugin().getMenus().create("party.settings", 3);
+        GuiService.control(menu, "shuffle-teams", 10, new SGButton(named(Material.COMPARATOR,
+                GuiService.text("party-manager.shuffle-teams", (party.isShuffle() ? "§aON" : "§cOFF")),
+                List.of(GuiService.text("party-manager.shuffle-the-draft-order-for-auto-fill-actions"), GuiService.text("party-manager.click-to-toggle"))))
                 .withListener(e -> {
                     if (!party.isLeader((Player) e.getWhoClicked())) {
-                        e.getWhoClicked().sendMessage("§cOnly the party leader can change party settings.");
+                        Messages.send(e.getWhoClicked(), "messages.party-manager.only-the-party-leader-can-change-party-settings");
                         return;
                     }
                     party.toggleShuffle();
                     openPartySettings((Player) e.getWhoClicked());
                 }));
 
-        menu.setButton(12, new SGButton(named(Material.TARGET,
-                "§d§lAuto Balance: " + (party.isAutoBalance() ? "§aON" : "§cOFF"),
-                List.of("§7Use even fill as the default draft helper.", "§fClick to toggle.")))
+        GuiService.control(menu, "auto-balance", 12, new SGButton(named(Material.TARGET,
+                GuiService.text("party-manager.auto-balance", (party.isAutoBalance() ? "§aON" : "§cOFF")),
+                List.of(GuiService.text("party-manager.use-even-fill-as-the-default-draft-helper"), GuiService.text("party-manager.click-to-toggle"))))
                 .withListener(e -> {
                     if (!party.isLeader((Player) e.getWhoClicked())) {
-                        e.getWhoClicked().sendMessage("§cOnly the party leader can change party settings.");
+                        Messages.send(e.getWhoClicked(), "messages.party-manager.only-the-party-leader-can-change-party-settings");
                         return;
                     }
                     party.toggleAutoBalance();
                     openPartySettings((Player) e.getWhoClicked());
                 }));
 
-        menu.setButton(14, new SGButton(named(Material.EMERALD,
-                "§a§lParty Play",
-                List.of("§7Open the team builder and setup menu.", "§fClick to continue.")))
+        GuiService.control(menu, "party-play", 14, new SGButton(named(Material.EMERALD,
+                GuiService.text("party-manager.party-play"),
+                List.of(GuiService.text("party-manager.open-the-team-builder-and-setup-menu"), GuiService.text("party-manager.click-to-continue"))))
                 .withListener(e -> ((Player) e.getWhoClicked()).performCommand("party play")));
 
-        menu.setButton(16, new SGButton(named(Material.PLAYER_HEAD,
-                "§b§lRoster",
-                List.of("§7View your party members in chat.", "§fClick to list members.")))
+        GuiService.control(menu, "roster", 16, new SGButton(named(Material.PLAYER_HEAD,
+                GuiService.text("party-manager.roster"),
+                List.of(GuiService.text("party-manager.view-your-party-members-in-chat"), GuiService.text("party-manager.click-to-list-members"))))
                 .withListener(e -> ((Player) e.getWhoClicked()).performCommand("party list")));
 
-        menu.setButton(22, new SGButton(named(Material.ARROW,
-                "§e§lBack",
-                List.of("§7Return to your party hotbar.")))
+        GuiService.control(menu, "back", 22, new SGButton(named(Material.ARROW,
+                GuiService.text("party-manager.back"),
+                List.of(GuiService.text("party-manager.return-to-your-party-hotbar"))))
                 .withListener(e -> {
                     Player clicker = (Player) e.getWhoClicked();
                     giveLobbyPartyItems(clicker, isLeader(clicker));
                     clicker.closeInventory();
                 }));
 
-        player.openInventory(menu.getInventory());
+        GuiService.open(player, menu);
     }
 
     public void giveLobbyPartyItems(Player player, boolean leader) {
@@ -325,14 +329,14 @@ public final class PartyManager extends Module {
         player.getInventory().setArmorContents(null);
         player.getInventory().setItemInOffHand(null);
 
-        ItemStack play = named(Material.EMERALD, "§a§lPlay", List.of("§7Open party play.", "§fClick to build teams or launch Party FFA."));
-        ItemStack list = named(Material.PLAYER_HEAD, "§b§lMembers", List.of("§7View your current party roster."));
+        ItemStack play = named(Material.EMERALD, GuiService.text("party-manager.play"), List.of(GuiService.text("party-manager.open-party-play"), GuiService.text("party-manager.click-to-build-teams-or-launch-party-ffa")));
+        ItemStack list = named(Material.PLAYER_HEAD, GuiService.text("party-manager.members"), List.of(GuiService.text("party-manager.view-your-current-party-roster")));
         if (list.getItemMeta() instanceof SkullMeta skull) {
             skull.setOwningPlayer(player);
             list.setItemMeta(skull);
         }
-        ItemStack help = named(Material.NAME_TAG, "§d§lInvite Help", List.of("§7Use §f/party invite <player>§7.", "§7Quick reminder for inviting teammates."));
-        ItemStack settings = named(Material.COMPARATOR, "§6§lParty Settings", List.of("§7Shuffle, balancing, and party controls.", "§fRight click to manage your party."));
+        ItemStack help = named(Material.NAME_TAG, GuiService.text("party-manager.invite-help"), List.of(GuiService.text("party-manager.use-party-invite-player"), GuiService.text("party-manager.quick-reminder-for-inviting-teammates")));
+        ItemStack settings = named(Material.COMPARATOR, GuiService.text("party-manager.party-settings"), List.of(GuiService.text("party-manager.shuffle-balancing-and-party-controls"), GuiService.text("party-manager.right-click-to-manage-your-party")));
         ItemStack end = named(Material.BARRIER, leader ? "§c§lDisband Party" : "§c§lLeave Party", List.of(leader ? "§7End the whole party instantly." : "§7Leave your current party."));
 
         player.getInventory().setItem(0, play);

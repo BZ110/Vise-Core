@@ -1,5 +1,7 @@
 package org.albi.core.modules.CustomKit.commands;
 
+import org.albi.core.gui.Messages;
+
 import org.albi.core.Core;
 import org.albi.core.modules.CustomKit.helpers.CustomKitCategory;
 import org.albi.core.serializable.SerializableItem;
@@ -31,7 +33,7 @@ public class CreateCustomKitCategoryCommand extends BaseCommand {
             return true;
         }
         if (args.length < 2) {
-            player.sendMessage("§cUsage: /createcustomkitcategory <name> <guiSlot>");
+            Messages.send(player, "messages.create-custom-kit-category-command.usage-createcustomkitcategory-name-gui-slot");
             return true;
         }
 
@@ -39,17 +41,17 @@ public class CreateCustomKitCategoryCommand extends BaseCommand {
         int guiSlot;
         try { guiSlot = Integer.parseInt(args[1]); }
         catch (NumberFormatException ex) {
-            player.sendMessage("§cSlot must be a number 0‑53");
+            Messages.send(player, "messages.create-custom-kit-category-command.slot-must-be-a-number-0-53");
             return true;
         }
         if (guiSlot < 0 || guiSlot > 53) {
-            player.sendMessage("§cSlot must be between 0 and 53");
+            Messages.send(player, "messages.create-custom-kit-category-command.slot-must-be-between-0-and-53");
             return true;
         }
 
         ItemStack inHand = player.getInventory().getItemInMainHand();
         if (inHand == null || inHand.getType().isAir()) {
-            player.sendMessage("§cHold the logo item in your main hand");
+            Messages.send(player, "messages.create-custom-kit-category-command.hold-the-logo-item-in-your-main-hand");
             return true;
         }
 
@@ -63,7 +65,7 @@ public class CreateCustomKitCategoryCommand extends BaseCommand {
         categories.put(name, cat);
         plugin.getData().set("customKitCategories", categories);
 
-        player.sendMessage("§aCategory §e" + name + "§a created at GUI slot " + guiSlot);
+        Messages.send(player, "messages.create-custom-kit-category-command.category-created-at-gui-slot", name, guiSlot);
         return true;
     }
 }

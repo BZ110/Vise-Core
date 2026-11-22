@@ -1,5 +1,9 @@
 package org.albi.core.commands;
 
+import org.albi.core.gui.Messages;
+
+import org.albi.core.gui.GuiService;
+
 import com.samjakob.spigui.buttons.SGButton;
 import com.samjakob.spigui.menu.SGMenu;
 import org.albi.core.Core;
@@ -33,7 +37,7 @@ public class ArmorTrimCommand extends BaseCommand {
     }
 
     private void openMainMenu(Player player) {
-        SGMenu menu = plugin.getGUI().create("§8✦ §b§lArmor Trims", 3);
+        SGMenu menu = plugin.getMenus().create("cosmetics.armor-trims", 3);
         MainPlayer mp = StatManagement.getMain(player);
 
         decorate(menu, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 13, 15, 17, 18, 19, 20, 21, 23, 24, 25, 26);
@@ -43,19 +47,19 @@ public class ArmorTrimCommand extends BaseCommand {
         registerArmorPiece(menu, 14, "LEGGINGS", Material.DIAMOND_LEGGINGS, "§b§lLeggings Trim", mp, player);
         registerArmorPiece(menu, 16, "BOOTS", Material.DIAMOND_BOOTS, "§b§lBoots Trim", mp, player);
 
-        menu.setButton(22, new SGButton(icon(Material.BARRIER, "§c§lClear All Trims", List.of(
-                "§7Click to remove all currently",
-                "§7equipped armor trims."
+        GuiService.control(menu, "clear-all-trims", 22, new SGButton(icon(Material.BARRIER, GuiService.text("armor-trim-command.clear-all-trims"), List.of(
+                GuiService.text("armor-trim-command.click-to-remove-all-currently"),
+                GuiService.text("armor-trim-command.equipped-armor-trims")
         ))).withListener(e -> {
             mp.clearArmorTrim("HELMET");
             mp.clearArmorTrim("CHESTPLATE");
             mp.clearArmorTrim("LEGGINGS");
             mp.clearArmorTrim("BOOTS");
-            player.sendMessage("§aDisabled all armor trims.");
+            Messages.send(player, "messages.armor-trim-command.disabled-all-armor-trims");
             openMainMenu(player);
         }));
 
-        player.openInventory(menu.getInventory());
+        GuiService.open(player, menu);
     }
 
     private void registerArmorPiece(SGMenu menu, int slot, String slotName, Material mat, String title, MainPlayer mp, Player player) {
@@ -63,17 +67,17 @@ public class ArmorTrimCommand extends BaseCommand {
         List<String> lore = new ArrayList<>();
         lore.add(" ");
         if (currentTrim == null) {
-            lore.add("§7Current: §cNone (Vanilla)");
+            lore.add(GuiService.text("armor-trim-command.current-none-vanilla"));
         } else {
             try {
                 TrimCombo combo = TrimCombo.valueOf(currentTrim);
-                lore.add("§7Current: §a" + combo.getDisplayName());
+                lore.add(GuiService.text("armor-trim-command.current", combo.getDisplayName()));
             } catch (Exception e) {
-                lore.add("§7Current: §cUnknown");
+                lore.add(GuiService.text("armor-trim-command.current-unknown"));
             }
         }
         lore.add(" ");
-        lore.add("§eClick to select a trim style!");
+        lore.add(GuiService.text("armor-trim-command.click-to-select-a-trim-style"));
 
         ItemStack displayItem = icon(mat, title, lore);
         displayItem = org.albi.core.util.ArmorTrimUtil.applyTrim(displayItem, mp, slotName);
@@ -84,7 +88,7 @@ public class ArmorTrimCommand extends BaseCommand {
     }
 
     private void openComboSelector(Player player, MainPlayer mp, String slotName) {
-        SGMenu menu = plugin.getGUI().create("§8✦ §b§lSelect Combo", 5);
+        SGMenu menu = plugin.getMenus().create("cosmetics.trim-combos", 5);
         
         // Fill background
         for (int i = 0; i < 45; i++) {
@@ -108,22 +112,22 @@ public class ArmorTrimCommand extends BaseCommand {
 
             String nameCol = unlocked ? "§a§l" : "§c§l";
             List<String> lore = new ArrayList<>();
-            lore.add("§8▸ §7Cosmetic Armor Trim");
+            lore.add(GuiService.text("armor-trim-command.cosmetic-armor-trim"));
             lore.add("");
 
             if (unlocked) {
-                lore.add("§a§l✔ Unlocked");
-                lore.add("§7Click to apply this trim.");
+                lore.add(GuiService.text("armor-trim-command.unlocked"));
+                lore.add(GuiService.text("armor-trim-command.click-to-apply-this-trim"));
             } else {
-                lore.add("§c§l✖ Locked");
-                lore.add("§7Required Level: §c" + combo.getLevelRequired());
-                lore.add("§7Your Level: §e" + mp.level());
+                lore.add(GuiService.text("armor-trim-command.locked"));
+                lore.add(GuiService.text("armor-trim-command.required-level", combo.getLevelRequired()));
+                lore.add(GuiService.text("armor-trim-command.your-level", mp.level()));
                 lore.add("");
-                lore.add("§8Unlock by reaching the required level.");
+                lore.add(GuiService.text("armor-trim-command.unlock-by-reaching-the-required-level"));
             }
 
             lore.add("");
-            lore.add("§8Level Req: §7" + combo.getLevelRequired());
+            lore.add(GuiService.text("armor-trim-command.level-req", combo.getLevelRequired()));
 
             ItemStack item = icon(unlocked ? previewMat : Material.BARRIER, nameCol + combo.getDisplayName(), lore);
             if (unlocked) {
@@ -132,14 +136,13 @@ public class ArmorTrimCommand extends BaseCommand {
             
             menu.setButton(slots[i], new SGButton(item).withListener(e -> {
                 if (!unlocked) {
-                    player.sendMessage("§cYou haven't unlocked §e" + combo.getDisplayName()
-                            + "§c yet! Reach §elevel " + combo.getLevelRequired() + "§c to unlock it.");
+                    Messages.send(player, "messages.armor-trim-command.you-haven-t-unlocked-yet-reach-level-to", combo.getDisplayName(), combo.getLevelRequired());
                     player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_VILLAGER_NO, 1f, 1f);
                     return;
                 }
                 
                 mp.setArmorTrim(slotName, combo.name());
-                player.sendMessage("§aApplied " + combo.getDisplayName() + " to your " + slotName.toLowerCase() + "!");
+                Messages.send(player, "messages.armor-trim-command.applied-to-your", combo.getDisplayName(), slotName.toLowerCase());
                 player.playSound(player.getLocation(), org.bukkit.Sound.UI_BUTTON_CLICK, 1f, 1f);
                 openMainMenu(player);
             }));
@@ -148,10 +151,10 @@ public class ArmorTrimCommand extends BaseCommand {
         }
 
         // Back button
-        menu.setButton(40, new SGButton(icon(Material.ARROW, "§c§lGo Back", List.of("§7Return to main menu.")))
+        GuiService.control(menu, "go-back", 40, new SGButton(icon(Material.ARROW, GuiService.text("armor-trim-command.go-back"), List.of(GuiService.text("armor-trim-command.return-to-main-menu"))))
                 .withListener(e -> openMainMenu(player)));
                 
-        player.openInventory(menu.getInventory());
+        GuiService.open(player, menu);
     }
 
     private void decorate(SGMenu menu, int... slots) {

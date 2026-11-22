@@ -1,5 +1,9 @@
 package org.albi.core.commands;
 
+import org.albi.core.gui.Messages;
+
+import org.albi.core.gui.GuiService;
+
 import com.samjakob.spigui.buttons.SGButton;
 import com.samjakob.spigui.menu.SGMenu;
 import org.albi.core.Core;
@@ -29,50 +33,49 @@ public class ProfileGUI {
     public void open(Player viewer, OfflinePlayer target) {
         MainPlayer targetMp = StatManagement.getMain(target.getUniqueId());
         if (targetMp == null) {
-            plugin.getMessageAPI().sendMessage(viewer, "&cError loading player data.");
+            plugin.getMessageAPI().sendMessage(viewer, Messages.text(viewer, "messages.profile-gui.error-loading-player-data"));
             return;
         }
 
         plugin.getTierManager().fetchAll(target.getUniqueId(), false).thenAccept(tiers -> {
             Bukkit.getScheduler().runTask(plugin, () -> {
-                String title = "§8✦ §b" + target.getName() + "'s Profile";
-                SGMenu menu = plugin.getGUI().create(title, 2);
+                SGMenu menu = plugin.getMenus().create("profile.main", 2, target.getName());
 
                 // Slot 4: Player Head
-                menu.setButton(4, new SGButton(getPlayerHead(target, targetMp)));
+                GuiService.control(menu, "slot-4", 4, new SGButton(getPlayerHead(target, targetMp)));
 
                 // Slot 8: General Stats
-                menu.setButton(8, new SGButton(getGeneralStats(targetMp)));
+                GuiService.control(menu, "slot-8", 8, new SGButton(getGeneralStats(targetMp)));
 
                 // Slot 9: PVPTIERS
-                menu.setButton(9, new SGButton(
+                GuiService.control(menu, "pvptiers", 9, new SGButton(
                         getTierItem(tiers.get(PvPTiersProfile.class), "PVPTIERS", Material.NETHERITE_SWORD)));
 
                 // Slot 10: MCTIERS
-                menu.setButton(10, new SGButton(
+                GuiService.control(menu, "mctiers", 10, new SGButton(
                         getTierItem(tiers.get(MCTiersProfile.class), "MCTIERS", Material.DIAMOND_CHESTPLATE)));
 
                 // Slot 11: SUBTIERS
-                menu.setButton(11,
+                GuiService.control(menu, "subtiers", 11,
                         new SGButton(getTierItem(tiers.get(SubtiersProfile.class), "SUBTIERS", Material.GOLDEN_APPLE)));
 
                 // Slot 12: View Stats Button
-                menu.setButton(12, new SGButton(icon(Material.BOOK, "§e§lView Stats", List.of(
-                        "§7Click to view detailed kit statistics.",
-                        "§b/stats " + target.getName())))
+                GuiService.control(menu, "view-stats", 12, new SGButton(icon(Material.BOOK, GuiService.text("profile-gui.view-stats"), List.of(
+                        GuiService.text("profile-gui.click-to-view-detailed-kit-statistics"),
+                        GuiService.text("profile-gui.stats", target.getName()))))
                         .withListener(e -> viewer.performCommand("stats " + target.getName())));
 
                 // Slot 13: Social Summary
-                menu.setButton(13, new SGButton(getSocialSummary(targetMp)));
+                GuiService.control(menu, "slot-13", 13, new SGButton(getSocialSummary(targetMp)));
 
                 // Slot 14: ACCOUNT INFO
-                menu.setButton(14, new SGButton(getAccountInfo(targetMp)));
+                GuiService.control(menu, "slot-14", 14, new SGButton(getAccountInfo(targetMp)));
 
                 // Slot 17: Exit
-                menu.setButton(17, new SGButton(icon(Material.BARRIER, "§c§lExit", List.of()))
+                GuiService.control(menu, "exit", 17, new SGButton(icon(Material.BARRIER, GuiService.text("profile-gui.exit"), List.of()))
                         .withListener(e -> viewer.closeInventory()));
 
-                viewer.openInventory(menu.getInventory());
+                GuiService.open(viewer, menu);
             });
         });
     }
@@ -84,11 +87,11 @@ public class ProfileGUI {
             meta.setOwningPlayer(target);
             meta.setDisplayName("§b§l" + target.getName());
             List<String> lore = new ArrayList<>();
-            lore.add("§fLevel: §b" + mp.level());
+            lore.add(GuiService.text("profile-gui.level", mp.level()));
             lore.add(getXPBar(mp.xp(), mp.xpNeeded()));
-            lore.add("§7(" + mp.xp() + " / " + mp.xpNeeded() + " XP)");
+            lore.add(GuiService.text("profile-gui.xp", mp.xp(), mp.xpNeeded()));
             lore.add(" ");
-            lore.add("§fStatus: " + (target.isOnline() ? "§aOnline" : "§cOffline"));
+            lore.add(GuiService.text("profile-gui.status", (target.isOnline() ? "§aOnline" : "§cOffline")));
             meta.setLore(lore);
             head.setItemMeta(meta);
         }
@@ -96,11 +99,11 @@ public class ProfileGUI {
     }
 
     private ItemStack getGeneralStats(MainPlayer mp) {
-        return icon(Material.PAPER, "§f§lGeneral Stats", List.of(
-                "§fTotal Playtime: §e" + formatTime(mp.timePlayed()),
-                "§fAccount Level: §b" + mp.level(),
+        return icon(Material.PAPER, GuiService.text("profile-gui.general-stats"), List.of(
+                GuiService.text("profile-gui.total-playtime", formatTime(mp.timePlayed())),
+                GuiService.text("profile-gui.account-level", mp.level()),
                 " ",
-                "§7Basic overview of the account."));
+                GuiService.text("profile-gui.basic-overview-of-the-account")));
     }
 
     private ItemStack getTierItem(SuperProfile profile, String name, Material material) {
@@ -109,11 +112,11 @@ public class ProfileGUI {
 
         if (profile != null && profile.status == Status.READY) {
             displayName = "§l§f" + name + " " + profile.getOverallRankName();
-            lore.add("§fRegion: §7" + profile.region);
-            lore.add("§fPoints: §e" + profile.points);
-            lore.add("§fOverall Rank: §7#" + profile.overallPosition);
+            lore.add(GuiService.text("profile-gui.region", profile.region));
+            lore.add(GuiService.text("profile-gui.points", profile.points));
+            lore.add(GuiService.text("profile-gui.overall-rank", profile.overallPosition));
             lore.add(" ");
-            lore.add("§6§lRankings:");
+            lore.add(GuiService.text("profile-gui.rankings"));
 
             boolean found = false;
             for (GameMode gm : profile.gameModes) {
@@ -128,14 +131,14 @@ public class ProfileGUI {
             }
 
             if (!found) {
-                lore.add("§7No active rankings found.");
+                lore.add(GuiService.text("profile-gui.no-active-rankings-found"));
             }
         } else if (profile != null && profile.status == Status.NOT_EXISTING) {
             displayName = "§l§f" + name + " §7(§8Not Ranked§7)";
-            lore.add("§7This player is not ranked on " + name + ".");
+            lore.add(GuiService.text("profile-gui.this-player-is-not-ranked-on", name));
         } else if (profile != null && profile.status == Status.API_ISSUE) {
             displayName = "§l§f" + name + " §7(§cAPI Error§7)";
-            lore.add("§cCould not reach the " + name + " API.");
+            lore.add(GuiService.text("profile-gui.could-not-reach-the-api", name));
         } else {
             displayName = "§l§f" + name + " §7(§eLoading...§7)";
         }
@@ -144,14 +147,14 @@ public class ProfileGUI {
     }
 
     private ItemStack getSocialSummary(MainPlayer mp) {
-        return icon(Material.GOLD_INGOT, "§6§lSocial Summary", List.of(
+        return icon(Material.GOLD_INGOT, GuiService.text("profile-gui.social-summary"), List.of(
                 "§fFriends: §b" + mp.getFriends().size(),
                 "§fBlocked: §c" + mp.getBlockedList().size()));
     }
 
     private ItemStack getAccountInfo(MainPlayer mp) {
         // Since we don't have join date easily in MainPlayer, we use level and playtime
-        return icon(Material.COMPASS, "§b§lAccount Info", List.of(
+        return icon(Material.COMPASS, GuiService.text("profile-gui.account-info"), List.of(
                 "§fPlaytime: §e" + formatTime(mp.timePlayed()),
                 "§fExperience: §d" + mp.xp() + " XP",
                 "§fRank: §b" + mp.level() // Or maybe use player rank if available

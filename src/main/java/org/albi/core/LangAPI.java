@@ -1,161 +1,109 @@
 package org.albi.core;
 
+import me.clip.placeholderapi.PlaceholderAPI;
 import net.md_5.bungee.api.chat.ClickEvent;
 import net.md_5.bungee.api.chat.TextComponent;
+import org.albi.core.gui.InterfaceFiles;
+import org.albi.core.gui.TextTemplates;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-import me.clip.placeholderapi.PlaceholderAPI;
 import org.bukkit.plugin.java.JavaPlugin;
 
-/**
- * LangAPI – Utility class to handle lang messages and color codes.
- * Supports placeholder parsing, lang keys from config, and clickable messages.
- *
- * @author Yahibni
+/** Formats localized messages and retains their configured click actions.
+ * @author Yahibni (original implementation)
  */
 public class LangAPI {
-
     private final JavaPlugin plugin;
+    private final InterfaceFiles files;
 
     public LangAPI(JavaPlugin plugin) {
+        this(plugin, null);
+    }
+
+    public LangAPI(JavaPlugin plugin, InterfaceFiles files) {
         this.plugin = plugin;
+        this.files = files;
     }
 
-    /**
-     * When parsing placeholders we need a Player-context.
-     * If <code>p</code> is null, PlaceholderAPI will still work (or
-     * simply return the raw string).
-     */
-    private Player ctx(Player p) {
-        return p;   // simple but keeps the hook in one place
-    }
-
-    /**
-     * Translate legacy '&' colour codes and run PlaceholderAPI if present.
-     *
-     * @param p    Placeholder context (may be null).
-     * @param text Raw text with '&' colours.
-     * @return Fully formatted string.
-     */
-    public String toColor(Player p, String text) {
+    public String toColor(Player player, String text) {
         String coloured = ChatColor.translateAlternateColorCodes('&', text);
         return Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI")
-                ? PlaceholderAPI.setPlaceholders(ctx(p), coloured)
-                : coloured;
+                ? PlaceholderAPI.setPlaceholders(player, coloured) : coloured;
     }
 
     public String toColor(String text) {
-        String coloured = ChatColor.translateAlternateColorCodes('&', text);
-        return Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI")
-                ? PlaceholderAPI.setPlaceholders(null, coloured)
-                : coloured;
+        return toColor(null, text);
     }
 
-    /* --------------------------------------------------------------------
-       Helpers that pull raw strings from config (lang.* section)
-       -------------------------------------------------------------------- */
+    public String format(Player viewer, String key, Object... values) {
+        String raw = files == null ? plugin.getConfig().getString("lang." + key) : files.message(key);
+        return raw == null ? "" : TextTemplates.format(toColor(viewer, raw), values);
+    }
 
     public String toColorLang(String key) {
-        String raw = plugin.getConfig().getString("lang." + key);
-        return raw == null ? "" : toColor(null, raw);
+        return format(null, key);
     }
 
-    public String toColorLang(Player p, String key) {
-        String raw = plugin.getConfig().getString("lang." + key);
-        return raw == null ? "" : toColor(p, raw);
+    public String toColorLang(Player player, String key) {
+        return format(player, key);
     }
 
-    public String toColorLang(Player p, String key, String[] repl) {
-        String raw = plugin.getConfig().getString("lang." + key);
-        if (raw == null) return "";
-        for (int i = 0; i < repl.length; i++)
-            raw = raw.replace("{" + (i + 1) + "}", repl[i]);
-        return toColor(p, raw);
+    public String toColorLang(Player player, String key, String[] replacements) {
+        return format(player, key, (Object[]) replacements);
     }
 
-    public String toColorLang(String key, String[] repl) {
-        String raw = plugin.getConfig().getString("lang." + key);
-        if (raw == null) return "";
-        for (int i = 0; i < repl.length; i++)
-            raw = raw.replace("{" + (i + 1) + "}", repl[i]);
-        return toColor(null, raw);
+    public String toColorLang(String key, String[] replacements) {
+        return format(null, key, (Object[]) replacements);
     }
-
-    /* --------------------------------------------------------------------
-       Basic senders
-       -------------------------------------------------------------------- */
 
     public void sendMessage(Player player, String text) {
-        if (player == null || text == null) return;
-        player.sendMessage(toColor(player, text));
+        sendMessage((CommandSender) player, text);
+    }
+
+    public void sendMessage(CommandSender sender, String text) {
+        if (sender != null && text != null) sender.sendMessage(toColor(viewer(sender), text));
     }
 
     public void sendMessageLang(Player player, String key) {
-        String raw = plugin.getConfig().getString("lang." + key);
-        if (raw != null) sendMessage(player, raw);
-    }
-
-    /* ------ Console-safe overloads (no unsafe cast) ------ */
-
-    public void sendMessage(CommandSender sender, String text) {
-        if (text == null) return;
-        if (sender instanceof Player p) sendMessage(p, text);
-        else sender.sendMessage(toColor(null, text));
+        sendMessageLang((CommandSender) player, key);
     }
 
     public void sendMessageLang(CommandSender sender, String key) {
-        String raw = plugin.getConfig().getString("lang." + key);
-        if (raw == null) return;
-        if (sender instanceof Player p) sendMessage(p, raw);
-        else sender.sendMessage(toColor(null, raw));
+        sendMessageLang(sender, key, new String[0]);
     }
 
-    public void sendMessageLang(Player player, String key, String[] repl) {
-        String raw = plugin.getConfig().getString("lang." + key);
-        if (raw == null) return;
-        for (int i = 0; i < repl.length; i++)
-            raw = raw.replace("{" + (i + 1) + "}", repl[i]);
-        sendMessage(player, raw);
+    public void sendMessageLang(Player player, String key, String[] replacements) {
+        sendMessageLang((CommandSender) player, key, replacements);
     }
 
-    public void sendMessageLang(CommandSender sender, String key, String[] repl) {
-        String raw = plugin.getConfig().getString("lang." + key);
-        if (raw == null) return;
-        for (int i = 0; i < repl.length; i++)
-            raw = raw.replace("{" + (i + 1) + "}", repl[i]);
-        if (sender instanceof Player p) sendMessage(p, raw);
-        else sender.sendMessage(toColor(null, raw));
+    public void sendMessageLang(CommandSender sender, String key, String[] replacements) {
+        if (sender == null) return;
+        String message = format(viewer(sender), key, (Object[]) replacements);
+        if (!message.isEmpty()) sender.sendMessage(message);
     }
-
-    /* --------------------------------------------------------------------
-       Clickable messages (Player-only, no console variant needed)
-       -------------------------------------------------------------------- */
 
     public void sendCommandMessageLang(Player player, String key, String command) {
-        String raw = plugin.getConfig().getString("lang." + key);
-        if (raw == null) return;
-        TextComponent tc = new TextComponent(toColor(player, raw));
-        tc.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, command));
-        player.spigot().sendMessage(tc);
+        sendClickable(player, format(player, key), ClickEvent.Action.RUN_COMMAND, command);
     }
 
-    public void sendCommandMessageLang(Player player, String key,
-                                       String[] repl, String command) {
-        String raw = plugin.getConfig().getString("lang." + key);
-        if (raw == null) return;
-        for (int i = 0; i < repl.length; i++)
-            raw = raw.replace("{" + (i + 1) + "}", repl[i]);
-        TextComponent tc = new TextComponent(toColor(player, raw));
-        tc.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, command));
-        player.spigot().sendMessage(tc);
+    public void sendCommandMessageLang(Player player, String key, String[] replacements, String command) {
+        sendClickable(player, format(player, key, (Object[]) replacements), ClickEvent.Action.RUN_COMMAND, command);
     }
 
     public void sendUrlMessage(Player player, String text, String url) {
-        if (player == null || text == null || url == null) return;
-        TextComponent tc = new TextComponent(toColor(player, text));
-        tc.setClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, url));
-        player.spigot().sendMessage(tc);
+        if (text != null) sendClickable(player, toColor(player, text), ClickEvent.Action.OPEN_URL, url);
+    }
+
+    private static void sendClickable(Player player, String message, ClickEvent.Action action, String value) {
+        if (player == null || message.isEmpty() || value == null) return;
+        TextComponent component = new TextComponent(message);
+        component.setClickEvent(new ClickEvent(action, value));
+        player.spigot().sendMessage(component);
+    }
+
+    private static Player viewer(CommandSender sender) {
+        return sender instanceof Player player ? player : null;
     }
 }

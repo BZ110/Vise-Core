@@ -1,5 +1,7 @@
 package org.albi.core.modules.Friends.commands;
 
+import org.albi.core.gui.Messages;
+
 import org.albi.core.Core;
 import org.albi.core.modules.Friends.FriendsManager;
 import org.bukkit.Bukkit;
@@ -31,19 +33,19 @@ public class FriendsCommand implements CommandExecutor {
         switch (args[0].toLowerCase()) {
             case "add" -> {
                 if (args.length < 2) {
-                    player.sendMessage("§cUse /friends add <player>");
+                    Messages.send(player, "messages.friends-command.use-friends-add-player");
                     return true;
                 }
                 Player target = Bukkit.getPlayerExact(args[1]);
                 if (target == null) {
-                    player.sendMessage("§cThat player is not online.");
+                    Messages.send(player, "messages.friends-command.that-player-is-not-online");
                     return true;
                 }
                 manager.sendRequest(player, target);
             }
             case "accept" -> {
                 if (args.length < 2) {
-                    player.sendMessage("§cUse /friends accept <player>");
+                    Messages.send(player, "messages.friends-command.use-friends-accept-player");
                     return true;
                 }
                 OfflinePlayer target = Bukkit.getOfflinePlayer(args[1]);
@@ -51,7 +53,7 @@ public class FriendsCommand implements CommandExecutor {
             }
             case "deny" -> {
                 if (args.length < 2) {
-                    player.sendMessage("§cUse /friends deny <player>");
+                    Messages.send(player, "messages.friends-command.use-friends-deny-player");
                     return true;
                 }
                 OfflinePlayer target = Bukkit.getOfflinePlayer(args[1]);
@@ -59,7 +61,7 @@ public class FriendsCommand implements CommandExecutor {
             }
             case "remove", "delete" -> {
                 if (args.length < 2) {
-                    player.sendMessage("§cUse /friends remove <player>");
+                    Messages.send(player, "messages.friends-command.use-friends-remove-player");
                     return true;
                 }
                 OfflinePlayer target = Bukkit.getOfflinePlayer(args[1]);

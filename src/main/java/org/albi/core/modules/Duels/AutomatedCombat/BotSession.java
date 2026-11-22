@@ -1,5 +1,7 @@
 package org.albi.core.modules.Duels.AutomatedCombat;
 
+import org.albi.core.gui.Messages;
+
 import org.albi.core.Core;
 import org.albi.core.data.ExtendedPlayer;
 import org.albi.core.modules.Duels.DuelManager;
@@ -101,25 +103,25 @@ public final class BotSession {
         this.arena = settings.getArena();
         this.kit = settings.getKit();
         if (arena == null || kit == null) {
-            player.sendMessage("§cYou need both a map and a kit selected.");
+            Messages.send(player, "messages.bot-session.you-need-both-a-map-and-a-kit");
             manager.remove(this);
             return;
         }
         if (!settings.isKitAllowed(kit) && !isCustomKit(kit)) {
-            player.sendMessage("§cThat kit is not whitelisted for bot duels.");
+            Messages.send(player, "messages.bot-session.that-kit-is-not-whitelisted-for-bot-duels");
             manager.remove(this);
             return;
         }
 
         ExtendedPlayer ep = plugin.getExtendedPlayer(player);
         if (ep == null) {
-            player.sendMessage("§cCould not load your profile.");
+            Messages.send(player, "messages.bot-session.could-not-load-your-profile");
             manager.remove(this);
             return;
         }
 
         if (ep.getPlayerDuelInstance() != null && ep.getPlayerDuelInstance().getStatus() != null) {
-            player.sendMessage("§cYou are already in a duel.");
+            Messages.send(player, "messages.bot-session.you-are-already-in-a-duel");
             manager.remove(this);
             return;
         }
@@ -127,7 +129,7 @@ public final class BotSession {
         if (usingPolarArena()) {
             polarReservation = DuelManager.polarArenaManager.reserveArena(arena);
             if (polarReservation == null) {
-                player.sendMessage("§cNo duel instances for that map are currently free.");
+                Messages.send(player, "messages.bot-session.no-duel-instances-for-that-map-are-currently");
                 manager.remove(this);
                 return;
             }
@@ -135,7 +137,7 @@ public final class BotSession {
         } else {
             motherLocation = reserveArena(arena);
             if (motherLocation == null) {
-                player.sendMessage("§cNo duel instances for that map are currently free.");
+                Messages.send(player, "messages.bot-session.no-duel-instances-for-that-map-are-currently");
                 manager.remove(this);
                 return;
             }
@@ -150,7 +152,7 @@ public final class BotSession {
         armWorldGuardGrace("start-duel-teleport");
         boolean teleported = player.teleport(playerSpawn);
         if (!teleported) {
-            player.sendMessage("§cFailed to move you into the duel arena.");
+            Messages.send(player, "messages.bot-session.failed-to-move-you-into-the-duel-arena");
             forceClose(false, "teleport-failed");
             return;
         }
@@ -171,12 +173,12 @@ public final class BotSession {
         ep.setPlayerDuelInstance(pdi);
 
         if (!spawnNpc()) {
-            player.sendMessage("§cThe bot NPC could not be created.");
+            Messages.send(player, "messages.bot-session.the-bot-npc-could-not-be-created");
             forceClose(false, "npc-spawn-failed");
             return;
         }
 
-        player.sendTitle("§d§lBot Duel", "§71", 0, 20, 0);
+        player.sendTitle(Messages.text(player, "messages.bot-session.bot-duel"), Messages.text(player, "messages.bot-session.1"), 0, 20, 0);
         if (callbacks != null)
             callbacks.onSessionCreated(this);
         startCountdown();
@@ -229,18 +231,17 @@ public final class BotSession {
                 }
                 lastSneak.put(player.getUniqueId(), sneaks);
 
-                player.sendActionBar(org.bukkit.ChatColor.translateAlternateColorCodes('&',
-                        "&7SHIFT TO SKIP COUNTDOWN (&f" + readyToggles.size() + "&7/1)"));
+                player.sendActionBar(Messages.text(player, "messages.match-hud.skip-countdown", readyToggles.size(), 1));
 
                 if (readyToggles.size() >= 1) {
                     ticks = 0;
-                    player.sendTitle("§a§lSkipped", "§7Readied up, starting now.", 0, 20, 10);
+                    player.sendTitle(Messages.text(player, "messages.bot-session.skipped"), Messages.text(player, "messages.bot-session.readied-up-starting-now"), 0, 20, 10);
                 }
 
                 if (ticks % 20 == 0) {
                     int seconds = Math.max(1, ticks / 20);
                     player.playSound(player, Sound.BLOCK_NOTE_BLOCK_HAT, 1.0f, 1.0f);
-                    player.sendTitle("§d§lRound " + currentRound, "§7" + seconds, 0, 20, 0);
+                    player.sendTitle(Messages.text(player, "messages.bot-session.round", currentRound), Messages.text(player, "messages.match-hud.countdown-seconds", seconds), 0, 20, 0);
                     if (!player.getWorld().equals(playerSpawn.getWorld())
                             || player.getLocation().distanceSquared(playerSpawn) > 4.0D) {
                         player.teleport(playerSpawn);
@@ -289,7 +290,7 @@ public final class BotSession {
         }
 
         TitleFx.playFight(plugin, player,
-                "§7Round " + currentRound + "  §f" + playerRoundsWon + " §7- §f" + botRoundsWon);
+                Messages.text(player, "messages.match-hud.bot-fight-subtitle", currentRound, playerRoundsWon, botRoundsWon));
         player.playSound(player, Sound.ENTITY_PLAYER_ATTACK_CRIT, 1.0f, 0.8f);
         if (callbacks != null)
             callbacks.onFightStarted(this);
@@ -1225,8 +1226,8 @@ public final class BotSession {
             botRoundsWon++;
 
         player.sendTitle(
-                playerWonRound ? "§a§lRound Won" : "§c§lRound Lost",
-                "§7Score: §f" + playerRoundsWon + " §7- §f" + botRoundsWon,
+                playerWonRound ? Messages.text(player, "messages.bot-session.round-won") : Messages.text(player, "messages.bot-session.round-lost"),
+                Messages.text(player, "messages.bot-session.score", playerRoundsWon, botRoundsWon),
                 0,
                 25,
                 8);
@@ -1234,7 +1235,7 @@ public final class BotSession {
         if (playerRoundsWon >= settings.getRounds()) {
             if (callbacks != null)
                 callbacks.onPlayerWin(this);
-            player.sendTitle("§a§lYou Won!", "§7Final score: §f" + playerRoundsWon + " §7- §f" + botRoundsWon, 0, 30,
+            player.sendTitle(Messages.text(player, "messages.bot-session.you-won"), Messages.text(player, "messages.bot-session.final-score", playerRoundsWon, botRoundsWon), 0, 30,
                     10);
             player.playSound(player, Sound.ENTITY_FIREWORK_ROCKET_LAUNCH, 1.0f, 1.0f);
             forceClose(true, reason);
@@ -1244,7 +1245,7 @@ public final class BotSession {
         if (botRoundsWon >= settings.getRounds()) {
             if (callbacks != null)
                 callbacks.onPlayerLoss(this);
-            player.sendTitle("§c§lYou Lost!", "§7Final score: §f" + playerRoundsWon + " §7- §f" + botRoundsWon, 0, 30,
+            player.sendTitle(Messages.text(player, "messages.bot-session.you-lost"), Messages.text(player, "messages.bot-session.final-score", playerRoundsWon, botRoundsWon), 0, 30,
                     10);
             player.playSound(player, Sound.ENTITY_VILLAGER_DEATH, 1.0f, 1.0f);
             forceClose(false, reason);

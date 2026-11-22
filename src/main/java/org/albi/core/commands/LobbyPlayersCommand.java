@@ -1,5 +1,7 @@
 package org.albi.core.commands;
 
+import org.albi.core.gui.Messages;
+
 import org.albi.core.Core;
 import org.albi.core.data.ExtendedPlayer;
 import org.bukkit.Bukkit;
@@ -33,7 +35,7 @@ public class LobbyPlayersCommand implements CommandExecutor, TabCompleter {
                              @NotNull String[] args) {
 
         if (!(sender instanceof Player player)) {
-            sender.sendMessage("Only players may run this command.");
+            Messages.send(sender, "messages.lobby-players-command.only-players-may-run-this-command");
             return true;
         }
 

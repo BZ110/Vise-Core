@@ -1,5 +1,7 @@
 package org.albi.core.commands;
 
+import org.albi.core.gui.Messages;
+
 import org.albi.core.Core;
 import org.albi.core.util.AutoRestartService;
 import org.bukkit.command.Command;
@@ -34,35 +36,35 @@ public final class AutoRestartCommand implements CommandExecutor {
             case "time":
             case "status":
                 if (service.getRemainingSeconds() < 0) {
-                    plugin.getMessageAPI().sendMessage(sender, "&cNo restart is currently scheduled.");
+                    plugin.getMessageAPI().sendMessage(sender, Messages.text(sender, "messages.auto-restart-command.no-restart-is-currently-scheduled"));
                 } else {
                     String timeStr = service.formatTime(service.getRemainingSeconds());
-                    plugin.getMessageAPI().sendMessage(sender, "&7The next restart is in &d" + timeStr + "&7.");
+                    plugin.getMessageAPI().sendMessage(sender, Messages.text(sender, "messages.auto-restart-command.the-next-restart-is-in", timeStr));
                 }
                 break;
 
             case "cancel":
                 service.cancelRestart();
-                plugin.getMessageAPI().sendMessage(sender, "&c&lRESTART CANCELLED &7The server will not restart automatically.");
+                plugin.getMessageAPI().sendMessage(sender, Messages.text(sender, "messages.auto-restart-command.restart-cancelled-the-server-will-not-restart-automatically"));
                 break;
 
             case "set":
                 if (args.length < 2) {
-                    plugin.getMessageAPI().sendMessage(sender, "&cUsage: /autorestart set <time> (e.g., 1h, 30m, 10s)");
+                    plugin.getMessageAPI().sendMessage(sender, Messages.text(sender, "messages.auto-restart-command.usage-autorestart-set-time-e-g-1h-30m"));
                     return true;
                 }
                 int seconds = parseTime(args[1]);
                 if (seconds <= 0) {
-                    plugin.getMessageAPI().sendMessage(sender, "&cInvalid time format. Use something like 1h, 30m, or 100s.");
+                    plugin.getMessageAPI().sendMessage(sender, Messages.text(sender, "messages.auto-restart-command.invalid-time-format-use-something-like-1h-30m"));
                     return true;
                 }
                 service.setRemainingSeconds(seconds);
-                plugin.getMessageAPI().sendMessage(sender, "&a&lRESTART SCHEDULED &7The server will restart in &d" + service.formatTime(seconds) + "&7.");
+                plugin.getMessageAPI().sendMessage(sender, Messages.text(sender, "messages.auto-restart-command.restart-scheduled-the-server-will-restart-in", service.formatTime(seconds)));
                 break;
 
             case "now":
                 service.setRemainingSeconds(10);
-                plugin.getMessageAPI().sendMessage(sender, "&c&lRESTART INITIATED &7Restarting in 10 seconds...");
+                plugin.getMessageAPI().sendMessage(sender, Messages.text(sender, "messages.auto-restart-command.restart-initiated-restarting-in-10-seconds"));
                 break;
 
             default:
@@ -74,13 +76,13 @@ public final class AutoRestartCommand implements CommandExecutor {
     }
 
     private void sendHelp(CommandSender sender) {
-        plugin.getMessageAPI().sendMessage(sender, "&8&m----------------------------------------");
-        plugin.getMessageAPI().sendMessage(sender, "&d&lAutoRestart Commands");
-        plugin.getMessageAPI().sendMessage(sender, "&7/autorestart time &8- &fSee time until restart");
-        plugin.getMessageAPI().sendMessage(sender, "&7/autorestart set <time> &8- &fSchedule a restart");
-        plugin.getMessageAPI().sendMessage(sender, "&7/autorestart cancel &8- &fCancel any scheduled restart");
-        plugin.getMessageAPI().sendMessage(sender, "&7/autorestart now &8- &fRestart in 10 seconds");
-        plugin.getMessageAPI().sendMessage(sender, "&8&m----------------------------------------");
+        plugin.getMessageAPI().sendMessage(sender, Messages.text(sender, "messages.auto-restart-command.send-help"));
+        plugin.getMessageAPI().sendMessage(sender, Messages.text(sender, "messages.auto-restart-command.auto-restart-commands"));
+        plugin.getMessageAPI().sendMessage(sender, Messages.text(sender, "messages.auto-restart-command.autorestart-time-see-time-until-restart"));
+        plugin.getMessageAPI().sendMessage(sender, Messages.text(sender, "messages.auto-restart-command.autorestart-set-time-schedule-a-restart"));
+        plugin.getMessageAPI().sendMessage(sender, Messages.text(sender, "messages.auto-restart-command.autorestart-cancel-cancel-any-scheduled-restart"));
+        plugin.getMessageAPI().sendMessage(sender, Messages.text(sender, "messages.auto-restart-command.autorestart-now-restart-in-10-seconds"));
+        plugin.getMessageAPI().sendMessage(sender, Messages.text(sender, "messages.auto-restart-command.send-help"));
     }
 
     private int parseTime(String input) {

@@ -1,5 +1,7 @@
 package org.albi.core.modules.FFA.managers;
 
+import org.albi.core.gui.Messages;
+
 import org.albi.core.Core;
 import org.albi.core.data.ExtendedPlayer;
 import org.albi.core.data.MainPlayer;
@@ -161,7 +163,7 @@ public final class EventManager implements Listener {
         Location loc = ep.getLastFFADearthLocation(); // last FFA location
 
         if (loc == null || kitName == null) {
-            p.sendMessage(ChatColor.RED + "No FFA session to return to!");
+            Messages.send(p, "messages.event-manager.no-ffa-session-to-return-to", ChatColor.RED);
             return;
         }
 

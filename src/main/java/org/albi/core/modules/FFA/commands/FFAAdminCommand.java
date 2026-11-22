@@ -1,5 +1,7 @@
 package org.albi.core.modules.FFA.commands;
 
+import org.albi.core.gui.Messages;
+
 import org.albi.core.Core;
 import org.albi.core.modules.Duels.DuelManager;
 import org.albi.core.modules.Duels.helpers.Kit;
@@ -37,7 +39,7 @@ public final class FFAAdminCommand extends org.albi.core.commands.BaseCommand {
         if (a.length >= 2 && a[0].equalsIgnoreCase("kit") && a[1].equalsIgnoreCase("create") && a.length >= 3) {
             String kitName = a[2];
             Kit k = findKit(kitName);
-            if (k == null) { p.sendMessage("§cUnknown kit: " + kitName); return true; }
+            if (k == null) { Messages.send(p, "messages.ffaadmin-command.unknown-kit", kitName); return true; }
             FFAKitSetup setup = FFAManager.stor.getOrCreate(k.getName());
             try {
                 // Best-effort copy of flags (method names may vary across builds)
@@ -53,7 +55,7 @@ public final class FFAAdminCommand extends org.albi.core.commands.BaseCommand {
                 setup.setLoseHunger(hunger);
             } catch (Exception ignored) {}
             FFAManager.persist(plugin);
-            p.sendMessage("§aCreated FFA kit profile for §b" + k.getName() + "§a.");
+            Messages.send(p, "messages.ffaadmin-command.created-ffa-kit-profile-for", k.getName());
             return true;
         }
 
@@ -61,29 +63,29 @@ public final class FFAAdminCommand extends org.albi.core.commands.BaseCommand {
             String kitName = a[1];
             String worldName = a[2];
             World w = Bukkit.getWorld(worldName);
-            if (w == null) { p.sendMessage("§cWorld not found: " + worldName); return true; }
+            if (w == null) { Messages.send(p, "messages.ffaadmin-command.world-not-found", worldName); return true; }
             FFAKitSetup setup = FFAManager.stor.getOrCreate(kitName);
             setup.setWorldName(worldName);
             FFAManager.persist(plugin);
             org.albi.core.modules.FFA.managers.EventManager.applyWorldRules(w, setup);
-            p.sendMessage("§aLinked kit §b" + kitName + " §ato world §e" + worldName + "§a.");
+            Messages.send(p, "messages.ffaadmin-command.linked-kit-to-world", kitName, worldName);
             return true;
         }
 
         if (a.length >= 2 && a[0].equalsIgnoreCase("world") && a[1].equalsIgnoreCase("teleport") && a.length >= 3) {
             int slot;
             try { slot = Integer.parseInt(a[2]); } catch (NumberFormatException ex) {
-                p.sendMessage("§cUsage: /ffaadmin world teleport <slot 0-8>");
+                Messages.send(p, "messages.ffaadmin-command.usage-ffaadmin-world-teleport-slot-0-8");
                 return true;
             }
             World w = p.getWorld();
             FFAKitSetup setup = null;
             for (FFAKitSetup s2 : FFAManager.stor.allSetups())
                 if (w.getName().equalsIgnoreCase(s2.getWorldName())) { setup = s2; break; }
-            if (setup == null) { p.sendMessage("§cThis world is not linked to any FFA kit."); return true; }
+            if (setup == null) { Messages.send(p, "messages.ffaadmin-command.this-world-is-not-linked-to-any-ffa"); return true; }
 
             if (p.getInventory().getItemInMainHand() == null || p.getInventory().getItemInMainHand().getType().isAir()) {
-                p.sendMessage("§cHold an item to use as the icon.");
+                Messages.send(p, "messages.ffaadmin-command.hold-an-item-to-use-as-the-icon");
                 return true;
             }
             SerializableItem icon = new SerializableItem(p.getInventory().getItemInMainHand());
@@ -91,14 +93,14 @@ public final class FFAAdminCommand extends org.albi.core.commands.BaseCommand {
             FFASpot spot = new FFASpot(slot, icon, loc);
             setup.setSpot(slot, spot);
             FFAManager.persist(plugin);
-            p.sendMessage("§aSaved FFA teleport spot at slot §e" + slot + "§a for kit §b" + setup.getKitName() + "§a.");
+            Messages.send(p, "messages.ffaadmin-command.saved-ffa-teleport-spot-at-slot-for-kit", slot, setup.getKitName());
             return true;
         }
 
-        p.sendMessage("§cUsage:");
-        p.sendMessage("§7/ffaadmin kit create <kitname>");
-        p.sendMessage("§7/ffaadmin setupworld <kit> <world>");
-        p.sendMessage("§7/ffaadmin world teleport <slot>");
+        Messages.send(p, "messages.ffaadmin-command.usage");
+        Messages.send(p, "messages.ffaadmin-command.ffaadmin-kit-create-kitname");
+        Messages.send(p, "messages.ffaadmin-command.ffaadmin-setupworld-kit-world");
+        Messages.send(p, "messages.ffaadmin-command.ffaadmin-world-teleport-slot");
         return true;
     }
 }

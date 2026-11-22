@@ -13,6 +13,10 @@ softdepend:
   - polarpaper
 
 commands:
+  coreconfig:
+    description: Reload Vise Core's language and menu files.
+    usage: /coreconfig reload
+    permission: core.config.reload
 
   bypass:
     description: The ability to bypass block usage in the lobby.
@@ -469,3 +473,8 @@ commands:
     description: Spectate or manage the next match in a tournament.
     permission: core.tournament
     usage: /next
+
+permissions:
+  core.config.reload:
+    description: Reload lang.yml and gui.yml.
+    default: op

@@ -1,5 +1,7 @@
 package org.albi.core.modules.Duels.commands;
 
+import org.albi.core.gui.Messages;
+
 import org.albi.core.Core;
 import org.albi.core.modules.Duels.DuelManager;
 import org.albi.core.modules.Duels.helpers.Arena;
@@ -23,7 +25,7 @@ public class RankedAdminCommand implements CommandExecutor {
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!sender.hasPermission("core.admin.ranked")) {
-            sender.sendMessage("§cNo permission.");
+            Messages.send(sender, "messages.ranked-admin-command.no-permission");
             return true;
         }
 
@@ -36,15 +38,15 @@ public class RankedAdminCommand implements CommandExecutor {
 
         if (sub.equals("list")) {
             if (args.length < 2) {
-                sender.sendMessage("§cUsage: /rankedadmin list <kit>");
+                Messages.send(sender, "messages.ranked-admin-command.usage-rankedadmin-list-kit");
                 return true;
             }
             String kitName = args[1];
             List<String> arenas = DuelManager.stor.getRankedArenas().get(kitName);
             if (arenas == null || arenas.isEmpty()) {
-                sender.sendMessage("§cNo ranked arenas configured for §f" + kitName + "§c.");
+                Messages.send(sender, "messages.ranked-admin-command.no-ranked-arenas-configured-for", kitName);
             } else {
-                sender.sendMessage("§6Ranked Arenas for §f" + kitName + "§6: §7" + String.join(", ", arenas));
+                Messages.send(sender, "messages.ranked-admin-command.ranked-arenas-for", kitName, String.join(", ", arenas));
             }
             return true;
         }
@@ -61,11 +63,11 @@ public class RankedAdminCommand implements CommandExecutor {
         Arena arena = DuelManager.stor.getArenaByName(arenaName);
 
         if (kit == null) {
-            sender.sendMessage("§cKit '" + kitName + "' not found.");
+            Messages.send(sender, "messages.ranked-admin-command.kit-not-found", kitName);
             return true;
         }
         if (arena == null) {
-            sender.sendMessage("§cArena '" + arenaName + "' not found.");
+            Messages.send(sender, "messages.ranked-admin-command.arena-not-found", arenaName);
             return true;
         }
 
@@ -73,16 +75,16 @@ public class RankedAdminCommand implements CommandExecutor {
 
         if (sub.equals("add")) {
             if (list.contains(arena.getName())) {
-                sender.sendMessage("§cArena already in ranked pool for this kit.");
+                Messages.send(sender, "messages.ranked-admin-command.arena-already-in-ranked-pool-for-this-kit");
             } else {
                 list.add(arena.getName());
-                sender.sendMessage("§aAdded arena §f" + arena.getName() + " §ato ranked pool for §f" + kit.getName() + "§a.");
+                Messages.send(sender, "messages.ranked-admin-command.added-arena-to-ranked-pool-for", arena.getName(), kit.getName());
             }
         } else if (sub.equals("remove")) {
             if (list.remove(arena.getName())) {
-                sender.sendMessage("§aRemoved arena §f" + arena.getName() + " §afrom ranked pool for §f" + kit.getName() + "§a.");
+                Messages.send(sender, "messages.ranked-admin-command.removed-arena-from-ranked-pool-for", arena.getName(), kit.getName());
             } else {
-                sender.sendMessage("§cArena not in ranked pool for this kit.");
+                Messages.send(sender, "messages.ranked-admin-command.arena-not-in-ranked-pool-for-this-kit");
             }
         } else {
             sendUsage(sender);
@@ -92,9 +94,9 @@ public class RankedAdminCommand implements CommandExecutor {
     }
 
     private void sendUsage(CommandSender sender) {
-        sender.sendMessage("§6§lRanked Admin Commands:");
-        sender.sendMessage("§e/rankedadmin add <kit> <arena>");
-        sender.sendMessage("§e/rankedadmin remove <kit> <arena>");
-        sender.sendMessage("§e/rankedadmin list <kit>");
+        Messages.send(sender, "messages.ranked-admin-command.ranked-admin-commands");
+        Messages.send(sender, "messages.ranked-admin-command.rankedadmin-add-kit-arena");
+        Messages.send(sender, "messages.ranked-admin-command.rankedadmin-remove-kit-arena");
+        Messages.send(sender, "messages.ranked-admin-command.rankedadmin-list-kit");
     }
 }

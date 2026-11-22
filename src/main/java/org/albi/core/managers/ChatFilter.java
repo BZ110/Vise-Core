@@ -1,5 +1,7 @@
 package org.albi.core.managers;
 
+import org.albi.core.gui.Messages;
+
 import org.albi.core.Core;
 import org.albi.core.data.StatManagement;
 import org.bukkit.Bukkit;
@@ -55,7 +57,7 @@ public final class ChatFilter {
         }
 
         event.setCancelled(true);
-        player.sendMessage(ChatColor.RED + "Your message has been blocked.");
+        Messages.send(player, "messages.chat-filter.your-message-has-been-blocked", ChatColor.RED);
         return true;
     }
 

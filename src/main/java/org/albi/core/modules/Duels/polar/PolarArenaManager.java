@@ -1,5 +1,7 @@
 package org.albi.core.modules.Duels.polar;
 
+import org.albi.core.gui.Messages;
+
 import org.albi.core.Core;
 import org.albi.core.modules.Duels.DuelManager;
 import org.albi.core.modules.Duels.helpers.Arena;
@@ -99,7 +101,7 @@ public final class PolarArenaManager {
                             boolean success = throwable == null && world != null;
                             if (success) {
                                 creator.teleportAsync(world.getSpawnLocation());
-                                creator.sendMessage("§aPolar origin world created: §f" + world.getName());
+                                Messages.send(creator, "messages.polar-arena-manager.polar-origin-world-created", world.getName());
                                 warmArena(arena);
                             } else if (throwable != null) {
                                 plugin.getLogger().severe("[PolarArena] Failed to load origin world for "

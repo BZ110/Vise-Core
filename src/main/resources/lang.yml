@@ -1,0 +1,774 @@
+# Vise Core language file. Use & for legacy Minecraft colors and {1}, {2}, etc. for inserted values.
+# PlaceholderAPI placeholders use the receiver when one is available. Use "" to silence a message.
+# Missing keys use the built-in defaults. Run /coreconfig reload to apply edits.
+
+# GLOBAL
+players_only: "&7Only players may run this command."
+spawn: "&7You were warped back to the hub."
+bad_word: "&7Your message has been blocked."
+cooldown: "&7You're currently on cooldown for this action."
+not_here: "&7You're not allowed to do this here."
+
+# Rules Command
+rules: "&7Rules for &d%core_name%\n&f1. No toxicity."
+
+# Bypass Command
+yes_region_bypass: "&7You're now bypassing restrictions in the lobby."
+no_region_bypass: "&7You're no longer bypassing restrictions in the lobby."
+
+# Fly Command
+fly_yes: "&7Flight has been &aenabled."
+fly_no: "&7Flight has been &cdisabled."
+
+# GM Commands
+# {1} is your gamemode.
+gamemode: "&7You have set your gamemode to &d{1}&7."
+
+# {1} is the target player.
+# {2} is the gamemode.
+gamemode_other: "&7You have set &d{1}&7's gamemode to &d{2}&7."
+gamemode_proper: "&7You must specify an online player's name."
+
+# Setspawn Command
+spawn_set: "&7You have set the spawn to your location."
+
+# Vanish Command
+vanish_enabled: "&7You are now &ainvisible &7to players without &dcore.vanish.see&7."
+vanish_disabled: "&7You are now &cvisible &7to all players."
+
+# Setspawnitem Command
+setspawnitem_usage: "&7Usage: /setspawnitem <slot> <command>"
+setspawnitem_int: "&7<slot> must be a number."
+setspawnitem_noitem: "&7Hold the item you want to register in your main hand."
+setspawnitem_success: "&7Saved item in slot &d{1} &7with command &d{2}"
+
+# Msg Command
+msg_usage: "&7Usage: /msg <player> <message>"
+msg_offline: "&7That person is offline."
+msg_you: "&7You can't message yourself."
+msg_to: "&f{3}" # The sender will see this
+msg_from: "&f{3}" # The receiver will see this.
+msg_blocked_by_target: "&7Unable to message this player."
+msg_you_blocked_target: "&7You've blocked this person, so you can't message them."
+
+# Block / Unblock Commands
+block_usage: "&7Usage: /block <player>"
+unblock_usage: "&7Usage: /unblock <player>"
+block_self: "&7You can't block yourself."
+block_already: "&7That player is already blocked."
+block_success: "&7You've blocked &d{1}&7."
+unblock_not_blocked: "&7That player isn't blocked."
+unblock_success: "&7You've unblocked &d{1}&7."
+
+# Reply Command
+r_usage: "&7Usage: /r <message>"
+r_no_target: "&7You don't have anyone to reply to."
+
+# Duel Stuff
+duel_request: "&d{1} &7challenged you to &f{2} &7(first to &f{3}&7)."
+party_duel_request: "&d{1}'s party &7challenged your squad in &f{2} &7(first to &f{3}&7)."
+duel_accept: "&a&lAccept"
+party_duel_accept: "&a&lAccept"
+
+duel_in: "&7Someone in this group is already tied to a duel."
+duel_no_arena: "&7No arena slot is open right now."
+duel_cancelled: "&7The duel was forcefully shut down."
+duel_blocked: "&7Sorry, we weren't able to send a duel to that player."
+
+duel_title: "&d&lPrepare Yourself"
+duel_subtitle: "&a{1} &8vs &c{2} &7unleashes in &f{3}&7…"
+
+duel_hp: "&f{1} &7survived on &c{2}❤&7."
+
+# {1} is 1 or 2 depending on who won.
+# {2} is rounds remaining.
+# {3} is Red or Blue coloured, depending on who won.
+duel_round_left: "\n   {3} Team &7has won this round.\n   &7They need &a{2} &7more rounds to win."
+
+# Countdown for winning a round.
+duel_count: "&dRound resumes in &f{1}&7…"
+duel_started: "&7Fight."
+duel_leave: "&e{1} &7left the duel."
+
+# {1} victim
+# {2} killer
+duel_kill: "&f{1} &7was dropped by &f{2}&7."
+duel_kill_themself: "&f{1} &7self-destructed."
+duel_death_xp: "&a+1 XP &8for the finish"
+
+duel_hit_team: "&7That player is on your side."
+
+# {1} winner
+# {2} loser
+# {3} winner rounds
+# {4} loser rounds
+duel_over: "&7\n  The duel has been concluded. {1} &7has won the game.\n    &7SCORE: &a{3} &7- &c{4}"
+
+duel_prefix_team_one: "&r"
+duel_prefix_team_two: "&r"
+
+duel_prefix_team_one_color: "&c"
+duel_prefix_team_two_color: "&9"
+
+
+# Duel Admin Commands
+# Probably don't want to change these, as they act as a guide to serve the player.
+duel_admin_begin: "&7Duel‑Setup Wizard\n&f• &e/dueladmin arena <id> &7→ build arenas\n&f• &e/dueladmin kit <id> &7→ make kits"
+
+# ─────────── ARENA GUIDE ───────────
+duel_admin_arena: "&7Arena Setup Commands:\n&f✓ &e/dueladmin arena create <id> &7→ Create a new arena\n&f✓ &e/dueladmin arena arenaready <id> &7→ Link the Multiverse world\n&f✓ &e/dueladmin arena setdisplayitem <id> &7→ Set icon in GUI\n&f✓ &e/dueladmin arena setspawn <id> <1|2> &7→ Set team spawn point\n&f✓ &e/dueladmin arena setcorner <id> <x1|z1|x2|z2> <value> &7→ Define arena bounds\n&f✓ &e/dueladmin arena setschematic <id> <file> &7→ Set schematic file\n&f✓ &e/dueladmin arena setoffset <id> <x|z> <blocks> &7→ Set schematic spacing\n&f✓ &e/dueladmin arena setmax <id> <perline|maxarenas> <num> &7→ Set grid size\n&f✓ &e/dueladmin arena info <id> &7→ View full arena info"
+
+duel_admin_arena_proper_name: "&7Specify an arena name."
+duel_admin_arena_exists: "&cThat arena already exists."
+
+duel_admin_arena_one: "&a✔ Arena &e{1}&a created\n&f1) Make its world: &e/mv create {1}-duel normal -g VoidGen\n&f2) Unload world: &e/mv unload {1}-duel\nNext ➜ &e/dueladmin arena arenaready {1}"
+
+duel_admin_arena_ready: "&aWorld linked!\nHold the arena icon in your hand.\nNext ➜ &e/dueladmin arena setdisplayitem {1}"
+
+duel_admin_arena_two: "&aIcon saved.\nStand at &9Team‑1 &fspawn.\nNext ➜ &e/dueladmin arena setspawn {1} 1\n\n&r&7To do this, we recommend creating a world called &earenacreation&7 with the command &e/mv create arenacreation -g VoidGen &7- Go to this world, then spawn the schematic at 0, 0, 0. Then use these commands. Ensure you use commands such as /tp and center your yaw and pitch."
+
+duel_admin_arena_setspawn_usage: "&7Usage: /dueladmin arena setspawn <name> <1|2>"
+duel_admin_arena_setspawn: "&aTeam‑{1} spawn saved.\nIf the other team is missing, set it next.\nOtherwise stand at a corner of the build area.\nNext ➜ &e/dueladmin arena setcorner {arena} x1 <value>"
+
+duel_admin_arena_setcorner_usage: "&7Usage: /dueladmin arena setcorner <name> <x1|z1|x2|z2> <value>"
+duel_admin_arena_setcorner: "&aCorner &d{1}&a = &d{2}\nRepeat for the remaining corners.\nNext ➜ &e/dueladmin arena setschematic {arena} <file>"
+
+duel_admin_arena_setschematic_usage: "&7Usage: /dueladmin arena setschematic <name> <file>"
+duel_admin_arena_setschematic: "&aSchematic linked.\nOptional tweaks: offsets or limits.\nType &e/dueladmin arena info {1} &7to review."
+
+# optional tweaks
+duel_admin_arena_setoffset_usage: "&7Usage: /dueladmin arena setoffset <name> <x|z> <blocks>"
+duel_admin_arena_setoffset: "&aOffset &d{1}&a set to &d{2}"
+duel_admin_arena_setmax_usage: "&7Usage: /dueladmin arena setmax <name> <perline|maxarenas> <num>"
+duel_admin_arena_setmax: "&aSet &d{1}&a to &d{2}"
+
+
+
+# ─────────── KIT GUIDE ───────────
+duel_admin_kit: "&7Kit Setup Commands: &f✓ &e/dueladmin kit create <id> &7→ Create a new kit &f✓ &e/dueladmin kit saveinv <id> &7→ Save your inventory &f✓ &e/dueladmin kit setdisplayitem <id> &7→ Set GUI icon &f✓ &e/dueladmin kit setslot <id> <slot> &7→ Set GUI position &f✓ &e/dueladmin kit setbuild <id> <true|false> &7→ Allow block placing &f✓ &e/dueladmin kit setnaturalregen <id> <true|false> &7→ Allow natural regen &f✓ &e/dueladmin kit sethealthindics <id> <true|false> &7→ Toggle health indicators &f✓ &e/dueladmin kit setlosehunger <id> <true|false> &7→ Toggle hunger loss &f✓ &e/dueladmin kit info <id> &7→ View kit details"
+
+duel_admin_kit_proper_name: "&7Specify a kit name."
+duel_admin_kit_exists: "&cThat kit already exists."
+
+duel_admin_kit_one: "&a✔ Kit &e{1}&a created.\nFill your inventory with kit items.\nNext ➜ &e/dueladmin kit saveinv {1}"
+
+duel_admin_kit_two: "&aInventory captured.\nHold the kit icon in your hand.\nNext ➜ &e/dueladmin kit setdisplayitem {1}"
+
+duel_admin_kit_three: "&aIcon saved.\nNext ➜ &e/dueladmin kit setslot {1} <slot>"
+
+duel_admin_kit_setslot_usage: "&7Usage: /dueladmin kit setslot <name> <slot>"
+duel_admin_kit_four: "&aKit ready!  Slot &d{1}\nType &e/dueladmin kit info {kit} &7to review."
+
+duels_duel_specify: "&7You must specify a player, or that player doesn't exist."
+duels_duel_unable: "&7That player is unable to initiate a duel with you."
+duel_admin_kit_bool_set: "&aSet &d{1} &ato &d{2}"
+duel_admin_kit_bool_usage: "&7Usage: /dueladmin kit {setting} <name> <true|false>"
+
+
+# LobbyPlayers Command
+lobbyplayers_on: "&7Other players are now &avisible&7."
+lobbyplayers_off: "&7Other players are now &chidden&7."
+lobbyplayers_usage: "&7Usage: /lobbyplayers [on|off]"
+lobbyplayers_not_in_lobby: "&7This command can only be used in the lobby."
+
+# Party Command
+party_usage: "&7Use &f/party help &7for the full command list."
+party_unknown_subcommand: "&7Unknown subcommand."
+
+party_created: "&aYour squad is live. &7Invite fighters with &f/party invite <player>&7."
+party_invite_sent: "&7Invite sent to &b{1}&7."
+party_invite_receive: "&b{1} &7invited you to their squad. Type &f/party accept &7to join."
+party_join: "&b{1} &7joined the squad."
+party_joined: "&7You joined &b{1}&7's squad."
+
+party_help: "&7Party Commands:\n&e/party create &7- Create a new party\n&e/party invite <player> &7- Invite a player\n&e/party accept &7- Accept an invite\n&e/party leave &7- Leave your party\n&e/party list &7- See your party members\n&e/party open &7- Toggle party privacy\n&e/party join <player> &7- Join an open party\n&e/party duel &7- Duel another party\n&e/party play &7- Duel your own party\n&e/party disband &7- Disband your party"
+
+party_opened: "&aYour party is now open to everyone."
+party_privated: "&cYour party is now private."
+party_open_cooldown: "&cYou must wait {1}s before opening your party again."
+party_opened_broadcast: "\n &d{1}'s &7party is now &a&lOPEN&7! &a&lᴊᴏɪɴ &7&o(Click to join)\n"
+party_join_not_open: "&cThis party is not open."
+party_join_usage: "&7Usage: /party join <player>"
+
+
+# Leaving & disband
+party_leave: "&e{1} &7left the squad."
+party_left: "&7You left the squad."
+party_disband: "&cThe squad was disbanded."
+
+# Errors / edge-cases
+party_not_leader: "&7Only the leader can do that."
+party_full: "&7Your squad is already full."
+party_already_in: "&7You are already in a squad."
+party_invite_fail_inparty: "&7That player is already in a squad."
+party_invite_already: "&7That invite is already pending."
+party_not_invited: "&7You do not have any pending squad invites."
+party_none: "&7You are not in a squad."
+
+party_list_header: "&6§lSquad Roster &8(&b{1}&7/&b{2}&8):"
+party_list_member: "&7  {1}{2}" # {1} = (Leader) or empty, {2} = player name
+
+party_duel_case: "&7Provide the enemy party leader's name."
+party_duel_unable: "&7You cannot challenge that party right now."
+party_blocked: "&7You cannot invite that player right now."
+
+
+duels_already_in_duel: "&7You can’t spectate while you’re in a duel."
+duels_duel_not_found: "&7No public duel was found for that player."
+duels_not_in_duel: "&7That player isn’t in a duel."
+duels_duel_already_over: "&7That duel has already finished."
+duels_invalid_arena: "&7Couldn’t load that arena – try again later."
+duels_spectate_blocked: "&7You can't spectate this player."
+duels_now_spectating: "&7You are now spectating &d{1}&7."
+duels_spectate_lobby: "&7Return to the lobby and leave any party or tournament before spectating across servers."
+duels_spectate_connecting: "&7Connecting you to the duel server."
+duels_spectate_unavailable: "&7The network spectate request expired or could not be completed. Try again."
+duels_transfer_busy: "&7A server transfer is already in progress."
+duels_return_unavailable: "&7Your original server could not be reached. You can stay here or use /travel."
+
+duel_sent: "&7Challenge sent."
+
+autorestart_warning: "&c&lSERVER RESTART &7The server will restart in &d{1}&7!"
+no_permission: "&cYou do not have permission to execute this command."
+
+tournament_created: "&aTournament created! &7Kit: &e{1}&7, Mode: &e{2}v{2}&7."
+tournament_joined: "&aYou have joined the tournament!"
+tournament_leave: "&cYou have left the tournament."
+tournament_started: "&aThe tournament has officially started! Matches are being prepared."
+tournament_kick: "&cYou were kicked from the tournament."
+tournament_next: "&aYou are now spectating another tournament match!"
+tournament_round: "&aRound &e{1}&a has officially begun!"
+tournament_spectate_next: "&7Use &f/next &7to spectate another ongoing tournament match."
+
+# Internal permission checks. The commands also enforce the nodes declared in plugin.yml.
+
+# /coreconfig reload
+ui_config_reloaded: "&aReloaded lang.yml and gui.yml. Reopen menus to see layout changes."
+ui_config_reload_failed: "&cCould not reload the interface files. Check the server log for the YAML error."
+
+# Player-facing feedback grouped by feature.
+messages:
+  lava-lobby-watcher:
+    joined: "&e{1} &7has joined. (&e{2}/{3}&7)"
+    starting: "\n\n  LAVA RISING EVENT IS STARTING!\n      "
+    join-button: "&e[Join]\n\n"
+    countdown: "&eMatch begins in &c{1} &eseconds."
+  match-hud:
+    fight: "Fight!"
+    skip-countdown: "&7SHIFT TO SKIP COUNTDOWN (&f{1}&7/{2})"
+    countdown-seconds: "&7{1}"
+    bot-fight-subtitle: "&7Round {1}  &f{2} &7- &f{3}"
+    party-ffa-fight-subtitle: "&7Last player standing wins."
+  announcement-service:
+    divider: "&8&m----------------------------------------"
+    send-one: ' '
+  armor-trim-command:
+    applied-to-your: "&aApplied {1} to your {2}!"
+    disabled-all-armor-trims: "&aDisabled all armor trims."
+    you-haven-t-unlocked-yet-reach-level-to: "&cYou haven't unlocked &e{1}&c yet! Reach &elevel {2}&c to unlock it."
+  auto-restart-command:
+    auto-restart-commands: "&d&lAutoRestart Commands"
+    autorestart-cancel-cancel-any-scheduled-restart: "&7/autorestart cancel &8- &fCancel any scheduled restart"
+    autorestart-now-restart-in-10-seconds: "&7/autorestart now &8- &fRestart in 10 seconds"
+    autorestart-set-time-schedule-a-restart: "&7/autorestart set <time> &8- &fSchedule a restart"
+    autorestart-time-see-time-until-restart: "&7/autorestart time &8- &fSee time until restart"
+    invalid-time-format-use-something-like-1h-30m: "&cInvalid time format. Use something like 1h, 30m, or 100s."
+    no-restart-is-currently-scheduled: "&cNo restart is currently scheduled."
+    restart-cancelled-the-server-will-not-restart-automatically: "&c&lRESTART CANCELLED &7The server will not restart automatically."
+    restart-initiated-restarting-in-10-seconds: "&c&lRESTART INITIATED &7Restarting in 10 seconds..."
+    restart-scheduled-the-server-will-restart-in: "&a&lRESTART SCHEDULED &7The server will restart in &d{1}&7."
+    send-help: "&8&m----------------------------------------"
+    the-next-restart-is-in: "&7The next restart is in &d{1}&7."
+    usage-autorestart-set-time-e-g-1h-30m: "&cUsage: /autorestart set <time> (e.g., 1h, 30m, 10s)"
+  automate-combat-command:
+    experimental-npc-practice-is-disabled-on-this-server: "&cExperimental NPC practice is disabled on this server."
+  back-command:
+    teleported-to-your-death-location: "{1}Teleported to your death location."
+    you-cannot-use-back-outside-the-rtp-worlds: "{1}You cannot use /back outside the rtp worlds."
+    you-have-no-location-to-return-to: "{1}You have no location to return to."
+  bot-menu:
+    you-do-not-have-a-selected-custom-kit: "&cYou do not have a selected custom kit."
+  bot-session:
+    '1': "&71"
+    bot-duel: "&d&lBot Duel"
+    could-not-load-your-profile: "&cCould not load your profile."
+    failed-to-move-you-into-the-duel-arena: "&cFailed to move you into the duel arena."
+    final-score: "&7Final score: &f{1} &7- &f{2}"
+    no-duel-instances-for-that-map-are-currently: "&cNo duel instances for that map are currently free."
+    readied-up-starting-now: "&7Readied up, starting now."
+    round: "&d&lRound {1}"
+    round-lost: "&c&lRound Lost"
+    round-won: "&a&lRound Won"
+    score: "&7Score: &f{1} &7- &f{2}"
+    skipped: "&a&lSkipped"
+    that-kit-is-not-whitelisted-for-bot-duels: "&cThat kit is not whitelisted for bot duels."
+    the-bot-npc-could-not-be-created: "&cThe bot NPC could not be created."
+    you-are-already-in-a-duel: "&cYou are already in a duel."
+    you-lost: "&c&lYou Lost!"
+    you-need-both-a-map-and-a-kit: "&cYou need both a map and a kit selected."
+    you-won: "&a&lYou Won!"
+  category-list-command:
+    custom-kit-categories: "&6Custom Kit Categories:"
+    no-categories-have-been-created-yet: "&cNo categories have been created yet."
+    slot: " &e• &a{1} &7(Slot: {2})"
+  change-category-logo-command:
+    category-logo-updated-successfully: "&aCategory &e{1}&a logo updated successfully."
+    category-not-found: "&cCategory not found: {1}"
+    hold-the-new-logo-item-in-your-main: "&cHold the new logo item in your main hand"
+    usage-changecategorylogo-name: "&cUsage: /changecategorylogo <name>"
+  chat-filter:
+    your-message-has-been-blocked: "{1}Your message has been blocked."
+  copy-kit-command:
+    no-kit-found-with-that-code: "&cNo kit found with that code."
+    usage-copykit-code: "&cUsage: /copykit <code>"
+  copy-kit-select-slot-gui:
+    copied-kit-into-slot: "&aCopied kit into slot &e{1}"
+  core:
+    your-profile-has-now-been-rebuilt: "&aYour profile has now been rebuilt."
+  create-custom-kit-category-command:
+    category-created-at-gui-slot: "&aCategory &e{1}&a created at GUI slot {2}"
+    hold-the-logo-item-in-your-main-hand: "&cHold the logo item in your main hand"
+    slot-must-be-a-number-0-53: "&cSlot must be a number 0‑53"
+    slot-must-be-between-0-and-53: "&cSlot must be between 0 and 53"
+    usage-createcustomkitcategory-name-gui-slot: "&cUsage: /createcustomkitcategory <name> <guiSlot>"
+  critical-discord-manager:
+    the-discord-invite-is-unavailable-on-this-server: "&7The Discord invite is unavailable on this server."
+    this-command-is-only-for-players: This command is only for players
+    your-discord-account-is-no-longer-linked-changes: "&aYour Discord account is no longer linked (changes may take a second)"
+  custom-kit-guimain:
+    all-effects-cleared: "&cAll effects cleared."
+    all-enchantments-cleared: "&aAll enchantments cleared."
+    current-inventory-stored-in-this-kit: "&aCurrent inventory stored in this kit."
+    damage-increase-set-to: "&aDamage Increase set to &f{1}%"
+    effect-added-level-s: "&aEffect added: &f{1} &7level &f{2}&7, &f{3}s"
+    effect-removed: "&cEffect removed."
+    enchantment-set: "&aEnchantment set."
+    enter-a-number-1-64-in-chat: "&bEnter a number 1-64 in chat."
+    enter-a-number-1-64-in-chat-2: "&bEnter a number 1‑64 in chat."
+    enter-damage-increase: "&bEnter Damage Increase %."
+    enter-mending-rng-value-type-0-to-disable: "&bEnter Mending RNG value. &7(Type 0 to disable)"
+    failed-to-share-kit-try-again: "&cFailed to share kit, try again."
+    invalid-format-use-level-seconds-example-1-120: "&cInvalid format. Use level:seconds, example 1:120"
+    invalid-numbers-use-level-seconds-example-1-120: "&cInvalid numbers. Use level:seconds, example 1:120"
+    kit-deleted: "&cKit {1} deleted."
+    level-must-be-1-10: "&cLevel must be 1-10."
+    level-must-be-1-the-event-has-been: "&cLevel must be ≥ 1. The event has been canceled."
+    level-must-be-10-the-event-has-been: "&cLevel must be ≤ 10. The event has been canceled."
+    mending-rng-disabled: "&cMending RNG disabled."
+    mending-rng-set-to: "&aMending RNG set to &f{1}"
+    must-be-0: "&cMust be ≥ 0."
+    name-set: "&aName set."
+    name-too-long: "&cName too long."
+    no-categories-configured: "&cNo categories configured"
+    no-item-in-that-slot: "&cNo item in that slot."
+    not-a-number: "&cNot a number."
+    not-a-number-the-event-has-been-canceled: "&cNot a number. The event has been canceled."
+    number-must-be-1-64: "&cNumber must be 1-64."
+    number-must-be-1-64-the-event-has: "&cNumber must be 1‑64. The event has been canceled."
+    seconds-must-be-1-3600: "&cSeconds must be 1-3600."
+    stack-size-set: "&aStack size set."
+    that-kit-is-empty: "&cThat kit is empty."
+    this-name-is-too-long-the-event-has: "&cThis name is too long. The event has been canceled."
+    type-level-seconds-example-1-120: "&bType &flevel:seconds&b, example &f1:120"
+    type-the-level-1-in-chat: "&bType the level (≥1) in chat."
+    type-the-new-name-in-chat: "&bType the new name in chat."
+    type-the-new-name-in-chat-colour-codes: "&bType the new name in chat (colour codes with &)."
+    type-the-new-shulker-name-in-chat: "&bType the new shulker name in chat."
+    you-can-t-place-a-shulker-box-inside: "&cYou can't place a shulker box inside the ender chest."
+    you-can-t-place-a-shulker-box-inside-2: "&cYou can't place a shulker box inside another."
+    your-inventory-has-been-cleared: "&cYour inventory has been cleared."
+    your-kit-has-been-shared-use-command-copykit: "&aYour kit has been shared. Use command &e/copykit {1} &ato copy it."
+  death-effects-command:
+    death-effects-gui-is-not-available: "&cDeath Effects GUI is not available."
+    only-players-can-use-this-command: Only players can use this command.
+  death-effects-gui:
+    you-haven-t-unlocked-yet-reach-level-to: "&cYou haven't unlocked &e{1}&c yet! Reach &elevel {2}&c to unlock it."
+    your-kill-effect-has-been-disabled: "&a&l☠ &aYour kill effect has been disabled."
+    your-kill-effect-has-been-set-to: "&a&l☠ &aYour kill effect has been set to &e{1}&a!"
+  delete-custom-kit-category-command:
+    category-deleted: "&aCategory &e{1}&a deleted"
+    no-category-named: "&cNo category named {1}"
+    usage-deletecustomkitcategory-name: "&cUsage: /deletecustomkitcategory <name>"
+  delete-page-duel-kit-category-command:
+    deleted-duel-kit-category-from-slot: "&aDeleted duel kit category from slot &f{1}&a."
+    gui-slot-must-be-a-number: "&cguiSlot must be a number."
+    gui-slot-must-be-between-0-and-26: "&cguiSlot must be between 0 and 26."
+    no-duel-kit-category-exists-in-slot: "&cNo duel kit category exists in slot {1}."
+    no-permission: "&cNo permission."
+    players-only: Players only.
+    usage-deletepageduelkitcategory-gui-slot: "&cUsage: /deletepageduelkitcategory <guiSlot>"
+  duel-admin-command:
+    an-arena-with-that-name-already-exists: "{1}An arena with that name already exists."
+    available-kits: "{1}Available kits:"
+    could-not-save-the-polar-origin-world: "{1}Could not save the polar origin world."
+    deleted-kit: "{1}Deleted kit {2}."
+    failed-to-create-the-polar-arena-world: "{1}Failed to create the polar arena world."
+    failed-to-load-the-polar-origin-world: "{1}Failed to load the polar origin world."
+    no-kits-defined: "{1}No kits defined."
+    origin-world: "{1}Origin world: {2}"
+    polar-arena-created-you-were-moved-into-the: "{1}Polar arena created. You were moved into the origin world for setup."
+    polar-arenas-are-disabled-or-polar-paper-is: "{1}Polar arenas are disabled or PolarPaper is not loaded."
+    saved-exact-world-coordinates-for-spawn-on: "{1}Saved exact world coordinates for spawn {2} on {3}."
+    saved-limit-corner-1-for: "{1}Saved limit corner 1 for {2}."
+    saved-limit-corner-2-for: "{1}Saved limit corner 2 for {2}."
+    saved-polar-origin-world-and-refreshed-preloads: "{1}Saved polar origin world and refreshed preloads."
+    slot: "{1} - {2}{3} (slot {4})"
+    that-polar-arena-does-not-exist: "{1}That polar arena does not exist."
+    updated-polar-arena-display-item-for: "{1}Updated polar arena display item for {2}."
+    usage-dueladmin-polar-arena-create-edit-arenaready-save: "{1}Usage: /dueladmin polar_arena <create|edit|arenaready|save|setdisplayitem|spawn1|spawn2|setspawn|set_limit|info> ..."
+    usage-dueladmin-polar-arena-create-name: "{1}Usage: /dueladmin polar_arena create <name>"
+    usage-dueladmin-polar-arena-edit-name: "{1}Usage: /dueladmin polar_arena edit <name>"
+    usage-dueladmin-polar-arena-info-name: "{1}Usage: /dueladmin polar_arena info <name>"
+    usage-dueladmin-polar-arena-save-name: "{1}Usage: /dueladmin polar_arena save <name>"
+    usage-dueladmin-polar-arena-set-limit-name-1: "{1}Usage: /dueladmin polar_arena set_limit <name> <1|2|min|max>"
+    usage-dueladmin-polar-arena-setdisplayitem-name: "{1}Usage: /dueladmin polar_arena setdisplayitem <name>"
+    usage-dueladmin-polar-arena-setspawn-name-1-2: "{1}Usage: /dueladmin polar_arena setspawn <name> <1|2>"
+    usage-dueladmin-polar-arena-spawn-name: "{1}Usage: /dueladmin polar_arena spawn{2} <name>"
+  duel-instance:
+    defeat: "&c&lDEFEAT"
+    everyone-readied-up-starting-now: "&7Everyone readied up, starting now."
+    finish: "&7{1} {2}{3} &8» {4}{5}"
+    score: "&7Score: &a{1}&7 - &c{2}"
+    skipped: "&a&lSkipped"
+    spec-vs-stakes: "&8[SPEC] &e{1} &7vs &c{2} &8| &e{3} &8| &fSTAKES: &a+{4}&7/&c-{5}"
+    victory: "&a&lVICTORY"
+    view-match: "{1} &8- &a&lView Match"
+    vs-stakes: "&e{1} &7vs &c{2} &8| &e{3} &8| &fSTAKES: &a+{4}&7/&c-{5}"
+    you-lost: "&c&lYou Lost!"
+    you-won: "&a&lYou Won!"
+  duel-main-command-guis:
+    pick-both-a-kit-and-an-arena-before: "&cPick both a kit and an arena before sending the duel."
+    you-do-not-have-a-custom-kit: "&cYou do not have a custom kit."
+  duel-queue-module:
+    a-custom-kit-is-missing-so-the-duel: "&cA custom kit is missing, so the duel could not start."
+    match-found: "&a&lMatch Found"
+    match-found-against: "&aMatch found against &f{1}&a."
+    queue-leave: "&c/queue [leave]"
+    queued-for-queue-leave-to-leave: "&r&7{1} Queued for &r{2}&r&7... (&r&f{3} &7- /queue leave to leave)"
+    queued-for-use-queue-leave-to-back-out: "&aQueued for &f{1}&a. &7Use &f/queue leave &7to back out."
+    quick-queue-enabled-you-will-match-into-any: "&bQuick queue enabled. &7You will match into any available queue."
+    return-to-the-lobby-and-finish-your-current: "&cReturn to the lobby and finish your current activity before joining the queue."
+    teleporting: "&7Teleporting..."
+    you-have-left-the-queue: "&eYou have left the queue."
+    you-left-quick-queue: "&eYou left quick queue."
+    you-left-the-queue: "&cYou left the queue."
+  event-manager:
+    no-ffa-session-to-return-to: "{1}No FFA session to return to!"
+  ffaadmin-command:
+    created-ffa-kit-profile-for: "&aCreated FFA kit profile for &b{1}&a."
+    ffaadmin-kit-create-kitname: "&7/ffaadmin kit create <kitname>"
+    ffaadmin-setupworld-kit-world: "&7/ffaadmin setupworld <kit> <world>"
+    ffaadmin-world-teleport-slot: "&7/ffaadmin world teleport <slot>"
+    hold-an-item-to-use-as-the-icon: "&cHold an item to use as the icon."
+    linked-kit-to-world: "&aLinked kit &b{1} &ato world &e{2}&a."
+    saved-ffa-teleport-spot-at-slot-for-kit: "&aSaved FFA teleport spot at slot &e{1}&a for kit &b{2}&a."
+    this-world-is-not-linked-to-any-ffa: "&cThis world is not linked to any FFA kit."
+    unknown-kit: "&cUnknown kit: {1}"
+    usage: "&cUsage:"
+    usage-ffaadmin-world-teleport-slot-0-8: "&cUsage: /ffaadmin world teleport <slot 0-8>"
+    world-not-found: "&cWorld not found: {1}"
+  ffacommand:
+    you-cannot-join-an-ffa-while-you-are: "&cYou cannot join an FFA while you are in a tournament."
+  ffakit-editor-command:
+    players-only: Players only.
+  ffakit-editor-gui:
+    kit-layout-saved: "{1}Kit layout saved!"
+    your-saved-items-don-t-match-this-kit: "{1}Your saved items don’t match this kit. Reverted to default."
+  food-cooldown-listener:
+    you-must-wait-seconds-before-you-can-eat: "{1}You must wait {2} seconds before you can eat another."
+  friends-command:
+    that-player-is-not-online: "&cThat player is not online."
+    use-friends-accept-player: "&cUse /friends accept <player>"
+    use-friends-add-player: "&cUse /friends add <player>"
+    use-friends-deny-player: "&cUse /friends deny <player>"
+    use-friends-remove-player: "&cUse /friends remove <player>"
+  friends-manager:
+    accepted-your-friend-request: "&a{1} accepted your friend request."
+    denied-friend-request-from: "&eDenied friend request from &f{1}&e."
+    denied-your-friend-request: "&c{1} denied your friend request."
+    friend-is: "&6Friend &8» &f{1} &7is {2}&7."
+    friend-request-sent-to: "&aFriend request sent to &f{1}&a."
+    removed-from-your-friends-list: "&eRemoved &f{1} &efrom your friends list."
+    removed-you-from-their-friends-list: "&e{1} removed you from their friends list."
+    sent-you-a-friend-request-friends-accept-or: "&6✦ &f{1} &7sent you a friend request. &a/friends accept {2} &7or &c/friends deny {3}"
+    that-player-is-not-accepting-friend-requests-right: "&cThat player is not accepting friend requests right now."
+    you-already-sent-a-friend-request-to: "&eYou already sent a friend request to &f{1}&e."
+    you-are-already-friends-with: "&eYou are already friends with &f{1}&e."
+    you-are-not-friends-with-that-player: "&cYou are not friends with that player."
+    you-are-now-friends-with: "&aYou are now friends with &f{1}&a."
+    you-cannot-friend-yourself: "&cYou cannot friend yourself."
+    you-do-not-have-a-pending-request-from: "&cYou do not have a pending request from that player."
+  global-matchmaking:
+    match-found-against: "&aMatch found against &f{1}&a."
+    match-found-connecting-to: "&aMatch found. Connecting to &f{1}&a."
+    match-found-waiting-for-your-opponent-to-arrive: "&aMatch found. Waiting for your opponent to arrive."
+    return-to-the-lobby-and-finish-your-current: "&cReturn to the lobby and finish your current activity before joining the queue."
+    select-a-personal-kit-before-joining-that-queue: "&cSelect a personal kit before joining that queue."
+    your-queued-match-could-not-start-you-can: "&eYour queued match could not start. You can join the queue again."
+    your-queued-match-is-already-being-prepared: "&eYour queued match is already being prepared."
+  goto-command:
+    no-goto-points-saved: "&cNo goto points saved."
+  health-command:
+    arch: "{1} • Arch: {2}{3}"
+    cores: "{1} • Cores: {2}{3}"
+    free: "{1} • Free: {2}{3}"
+    last-ping-s-ago: "{1}Last Ping: {2}{3} ({4}s ago)"
+    max: "{1} • Max: {2}{3}"
+    memory-mb: "{1}{2}» Memory (MB):"
+    online: "{1} • Online: {2}{3}"
+    os: "{1} • OS: {2}{3}"
+    performance: "{1}{2}» Performance:"
+    ping-ms: "{1} • Ping: {2}{3}ms"
+    players: "{1}{2}» Players:"
+    redis-latency: "{1}{2}» Redis Latency:"
+    server-data-not-found-for: "{1}Server data not found for {2}."
+    server-health: "{1}{2}✦ Server Health: {3}"
+    status: "{1}Status: {2}"
+    system: "{1}{2}» System:"
+    total: "{1} • Total: {2}{3}"
+    tps: "{1} • TPS: {2}{3}"
+    uptime: "{1} • Uptime: {2}{3}"
+    usage-health-server: "{1}Usage: /health <server>"
+    used: "{1} • Used: {2}{3}"
+  kit-command:
+    kit-does-not-exist: "&cKit {1} does not exist."
+    loaded-kit: "&aLoaded Kit {1}"
+  kit-editor-command:
+    players-only: Players only.
+  lava-arena-command:
+    arena-already-exists: "&cArena already exists."
+    arena-not-found: "&cArena not found."
+    bounds-set-for: "&aBounds set for '{1}'."
+    created-arena: "&aCreated arena '{1}'."
+    first-corner-recorded-run-lavaarena-setpos2-name-at: "&aFirst corner recorded, run /lavaarena setpos2 <name> at the opposite corner."
+    lava-arenas: "&eLava Arenas:"
+    lavaarena-create-name-lavaarena-delete-name-lavaarena-list: "&e/lavaarena create <name>\n&e/lavaarena delete <name>\n&e/lavaarena list\n&e/lavaarena setspawn <name>\n&e/lavaarena setschematic <name>\
+      \ <file>\n&e/lavaarena setpos1 <name>\n&e/lavaarena setpos2 <name>\n"
+    no-arenas-saved: "&7No arenas saved."
+    no-permission: "&cNo permission."
+    only-players-may-run-this: "&cOnly players may run this."
+    removed-arena: "&cRemoved arena '{1}'."
+    run-setpos1-first: "&cRun setpos1 first."
+    schem: " &6• &f{1} &7[schem={2}]"
+    schematic-set-to-for-arena: "&aSchematic set to '{1}' for arena '{2}'."
+    spawn-set-for: "&aSpawn set for '{1}'."
+    usage: "&cUsage: {1}"
+  lava-force-start-command:
+    a-lava-rising-match-is-already-running: "{1}A Lava Rising match is already running."
+    admin-has-force-started-a-lava-rising-match: "{1}» Admin has force‑started a Lava Rising match!"
+    no-permission: "{1}No permission."
+  lava-rising-game-instance:
+    500-xp: "{1}{2}>> +500 XP <<"
+    lava-rising: "{1}Lava Rising!"
+    survive-as-long-as-you-can: "{1}Survive as long as you can"
+    victory: "{1}VICTORY"
+  lava-rising-listener:
+    that-can-t-be-broken: That can't be broken.
+    you-are-eliminated-spectator-mode-enabled: "&cYou are eliminated! Spectator mode enabled."
+  leaderboard-command:
+    error: "&cError."
+    invalid-field: "&cInvalid field."
+    no-data: "&cNo data."
+    the-duel-leaderboard-menu-is-unavailable-on-this: "&7The duel leaderboard menu is unavailable on this server."
+  lobby-interact-listener:
+    this-shulker-box-is-corrupted-or-unreadable: "{1}This shulker box is corrupted or unreadable."
+  lobby-players-command:
+    only-players-may-run-this-command: Only players may run this command.
+  manager:
+    all-npc-practice-sessions-are-in-use-try: "&cAll NPC practice sessions are in use. Try again in a moment."
+  on-join-listener:
+    your-profile-is-now-ready: "&aYour profile is now ready."
+  party-command:
+    only-players-can-use-this-command: Only players can use this command.
+  party-ffainstance:
+    by: "&7By &f{1}"
+    eliminated: "&c&lEliminated"
+    everyone-readied-up-starting-now: "&7Everyone readied up, starting now."
+    match-over: "&c&lMatch Over"
+    organize: "&d&lOrganize"
+    pv-p-unlocks-in: "&7PvP unlocks in &f{1}&7…"
+    pv-p-unlocks-in-10: "&7PvP unlocks in &f10&7…"
+    scatter: "&6&lScatter!"
+    scatter-unlocks-in: "&7Scatter unlocks in &f{1}&7…"
+    skipped: "&a&lSkipped"
+    victory: "&a&lVictory!"
+    you-are-out: "&7You are out."
+    you-eliminated: "&a✦ &fYou eliminated &d{1}&f."
+    you-need-at-least-2-online-players-to: "&cYou need at least 2 online players to start a Party FFA."
+    you-were-the-last-fighter-standing: "&7You were the last fighter standing."
+  party-manager:
+    only-the-party-leader-can-change-party-settings: "&cOnly the party leader can change party settings."
+    party-created: "&6&lParty Created"
+    party-members: "&7Party Members &8(&b{1}&7/&b{2}&8):"
+    you-cannot-create-a-party-while-you-are: "&cYou cannot create a party while you are in a duel."
+  party-play-guis:
+    finish-assigning-players-before-continuing: "&cFinish assigning players before continuing."
+    invalid-format-example-2v5: "&cInvalid format, example &e2v5&c."
+    numbers-required: "&cNumbers required."
+    one-or-more-drafted-players-are-no-longer: "&cOne or more drafted players are no longer online."
+    party-vanished: "&cParty vanished."
+    please-type-the-sizes-in-chat-format-x: "&bPlease type the sizes in chat, format &e<X>v<Y>&b, example &e2v5&b."
+    session-expired: "&cSession expired."
+    team-sizes-must-both-be-at-least-1: "&cTeam sizes must both be at least 1."
+    that-team-is-already-full: "&cThat team is already full."
+    the-other-team-is-full: "&cThe other team is full."
+    you-are-no-longer-in-a-party: "&cYou are no longer in a party."
+    you-need-at-least-2-online-players-for: "&cYou need at least 2 online players for Party FFA."
+    your-party-no-longer-exists: "&cYour party no longer exists."
+    your-party-only-has-members: "&cYour party only has {1} members."
+    your-party-play-session-expired: "&cYour party play session expired."
+    your-party-play-setup-is-incomplete: "&cYour party play setup is incomplete."
+  polar-arena-manager:
+    polar-origin-world-created: "&aPolar origin world created: &f{1}"
+  profile-command:
+    that-player-has-never-played-on-this-server: "&cThat player has never played on this server."
+    that-player-s-profile-is-currently-private: "&cThat player's profile is currently private."
+  profile-gui:
+    error-loading-player-data: "&cError loading player data."
+  proxy-transfer:
+    could-not-request-the-server-transfer: "&cCould not request the server transfer."
+  ranked-admin-command:
+    added-arena-to-ranked-pool-for: "&aAdded arena &f{1} &ato ranked pool for &f{2}&a."
+    arena-already-in-ranked-pool-for-this-kit: "&cArena already in ranked pool for this kit."
+    arena-not-found: "&cArena '{1}' not found."
+    arena-not-in-ranked-pool-for-this-kit: "&cArena not in ranked pool for this kit."
+    kit-not-found: "&cKit '{1}' not found."
+    no-permission: "&cNo permission."
+    no-ranked-arenas-configured-for: "&cNo ranked arenas configured for &f{1}&c."
+    ranked-admin-commands: "&6&lRanked Admin Commands:"
+    ranked-arenas-for: "&6Ranked Arenas for &f{1}&6: &7{2}"
+    rankedadmin-add-kit-arena: "&e/rankedadmin add <kit> <arena>"
+    rankedadmin-list-kit: "&e/rankedadmin list <kit>"
+    rankedadmin-remove-kit-arena: "&e/rankedadmin remove <kit> <arena>"
+    removed-arena-from-ranked-pool-for: "&aRemoved arena &f{1} &afrom ranked pool for &f{2}&a."
+    usage-rankedadmin-list-kit: "&cUsage: /rankedadmin list <kit>"
+  ranked-commands:
+    average-reach-blocks: "&7Average Reach: {1}{2} blocks"
+    enter-the-player-s-exact-minecraft-name: "&cEnter the player's exact Minecraft name."
+    failed-to-save-match-report: "&cFailed to save match report."
+    file: "&7File: &f{1}"
+    kit: "&7Kit: &f{1}"
+    match-info: "&d&lMatch info: {1}"
+    match-not-found: "&cMatch not found."
+    no-recent-ranked-matches-found-for-this-player: "&cNo recent ranked matches found for this player."
+    players-vs: "&7Players: &f{1} &7vs &f{2}"
+    ranked-discord-webhook-delivery-queued: "&8[&dRanked&8] &eDiscord webhook delivery queued."
+    ranked-fetching-recent-games-for: "&8[&dRanked&8] &7Fetching recent games for &f{1}&7..."
+    ranked-report-generated-successfully: "&8[&dRanked&8] &aReport generated successfully!"
+    reason: "&cReason: {1}"
+    recent-ranked-matches: "&d&lRecent Ranked Matches - {1}"
+    show-match-info: "&8&m--------------------------------------"
+    show-recent-games: "&8&m--------------------------------------"
+    suspicious-activity-detected: "&c&lSuspicious Activity Detected!"
+    usage-matchinfo-id: "&cUsage: /matchinfo <id>"
+    usage-rankedreport-match-id: "&cUsage: /rankedreport <matchId>"
+    vs-id: "&8» {1} &7vs &f{2} &8| &7ID: &f{3}{4}"
+  ranked-queue-module:
+    opponent-found-teleporting: "&7Opponent found! Teleporting..."
+    ranked-match: "&6&lRANKED MATCH"
+    s-range: "&e{1}s &7| &6Range: ±{2}"
+    searching-mode-elo-range: " \n&6&lSEARCHING...\n&7Mode: &f{1}\n&7Elo: &f{2} &8(&7{3}&8)\n&7Range: &e±{4}\n "
+    wait-for-your-profile-to-load-before-joining: "&eWait for your profile to load before joining ranked."
+    you-cannot-join-solo-ranked-while-in-a: "&cYou cannot join solo ranked while in a party!"
+    you-cannot-queue-for-ranked-duels-while-you: "&cYou cannot queue for ranked duels while you are in a tournament."
+    you-cannot-queue-while-in-a-duel: "&cYou cannot queue while in a duel!"
+    you-cannot-queue-while-spectating: "&cYou cannot queue while spectating!"
+    you-have-joined-the-ranked-queue-for: "&aYou have joined the &6Ranked &aqueue for &f{1}&a."
+  set-goto-command:
+    set-goto-point-in-slot: "&aSet Goto point in slot &e{1}"
+    slot-must-be-a-number-between-0-and: "&cSlot must be a number between 0 and 53"
+    slot-must-be-between-0-and-53: "&cSlot must be between 0 and 53"
+    usage-setgoto-slot: "&cUsage: /setgoto <slot>"
+  set-item-in-custom-kit-category-command:
+    hold-the-item-you-want-to-store: "&cHold the item you want to store"
+    item-stored-in-category-at-gui-slot: "&aItem stored in category &e{1}&a at GUI slot {2}"
+    no-category-named: "&cNo category named {1}"
+    slot-must-be-a-number-0-53: "&cSlot must be a number 0‑53"
+    slot-must-be-between-0-and-53: "&cSlot must be between 0 and 53"
+    usage-setitemincustomkitcategory-name-gui-slot: "&cUsage: /setitemincustomkitcategory <name> <guiSlot>"
+  set-kit-data-command:
+    effect-meta-format-effect-amplifier-duration-ambient: "{1}EffectMeta format: EFFECT:AMPLIFIER:DURATION:AMBIENT"
+    invalid-value-for-type: "{1}Invalid value for type {2}."
+    key: "{1}Key: {2}{3}"
+    kit: "{1}Kit: {2}{3}"
+    kit-data-updated: "{1}Kit data updated:"
+    kit-not-found: "{1}Kit not found."
+    no-permission: "{1}No permission."
+    players-only: Players only.
+    type: "{1}Type: {2}{3}"
+    unsupported-type-for-command: "{1}Unsupported type for command."
+    usage-setkitdata-kit-type-key-value: "{1}Usage: /setkitdata <kit> <type> <key> <value>"
+    value: "{1}Value: {2}{3}"
+  set-page-duel-kit-category-command:
+    gui-slot-must-be-between-0-and-26: "&cguiSlot must be between 0 and 26."
+    hold-the-category-display-item-in-your-main: "&cHold the category display item in your main hand."
+    no-permission: "&cNo permission."
+    page-and-gui-slot-must-both-be-numbers: "&cPage and guiSlot must both be numbers."
+    page-must-be-0-or-greater: "&cPage must be 0 or greater."
+    players-only: Players only.
+    saved-duel-kit-category-for-page-at-gui: "&aSaved duel kit category for page &f{1}&a at GUI slot &f{2}&a."
+    usage-setpageduelkitcategory-page-gui-slot: "&cUsage: /setpageduelkitcategory <page> <guiSlot>"
+  settings-command:
+    "on": "&aON"
+    "off": "&cOFF"
+    chat-mentions-are-now: "&7Chat Mentions are now {1}"
+    direct-messages-are-now: "&7Direct messages are now {1}"
+    duel-invites-are-now: "&7Duel invites are now {1}"
+    friend-requests-are-now: "&7Friend requests are now {1}"
+    global-chat-receiving-is-now: "&7Global Chat receiving is now {1}"
+    global-chat-sending-is-now: "&7Global Chat sending is now {1}"
+    kill-effect-visibility-is-now: "&7Kill effect visibility is now {1}"
+    lobby-elytra-is-now: "&7Lobby elytra is now {1}"
+    lobby-jump-boost-is-now: "&7Lobby Jump Boost is now {1}"
+    lobby-speed-is-now: "&7Lobby Speed is now {1}"
+    party-duel-invites-are-now: "&7Party duel invites are now {1}"
+    party-invites-are-now: "&7Party invites are now {1}"
+    profile-visibility-is-now: "&7Profile visibility is now {1}"
+    ranked-particles-are-now: "&7Ranked particles are now {1}"
+    spectators-are-now: "&7Spectators are now {1}"
+  stats-command:
+    no-stats-found: "&cNo stats found."
+    no-valid-stats-to-display: "&cNo valid stats to display."
+    player-not-found: "&cPlayer not found."
+    that-player-s-stats-are-private: "&cThat player's stats are private."
+  store-command:
+    the-store-link-is-unavailable-on-this-server: "&7The store link is unavailable on this server."
+  tournament-command:
+    create-tournament: "&e&l==================================="
+    failed-to-reach-challonge-api-please-check-your: "&cFailed to reach Challonge API. Please check your credentials."
+    kit: "      &7Kit: &f{1}"
+    mode-v: "      &7Mode: &f{1}v{2}"
+    new-tournament-started: "      &b&lNEW TOURNAMENT STARTED!"
+    no-waiting-tournament-found: "&cNo waiting tournament found."
+    only-the-party-leader-can-join-the-tournament: "&cOnly the party leader can join the tournament for your group."
+    only-the-party-leader-can-leave-the-tournament: "&cOnly the party leader can leave the tournament."
+    players-only: Players only.
+    the-tournament-is-now-generating-matches-the-bracket: "&a&lThe Tournament is now generating matches! The bracket has been finalized."
+    there-is-no-active-tournament-waiting-for-players: "&cThere is no active tournament waiting for players right now."
+    type-tournament-join-to-play: "      &eType &a/tournament join &eto play!"
+    usage-tournament-join-leave-create-start: "&cUsage: /tournament <join|leave|create|start>"
+    you-are-not-in-a-tournament: "&cYou are not in a tournament."
+    your-party-is-too-large-for-this-tournament: "&cYour party is too large for this tournament ({1} maximum)."
+  tournament-manager:
+    no-active-matches-found-to-spectate-right-now: "&7No active matches found to spectate right now."
+    thanks-for-playing: "&7Thanks for playing!"
+    tournament-finished: "&6&lTournament Finished"
+  tp-accept-command:
+    no-pending-request-from-that-player: "&cNo pending request from that player."
+    teleporting-to: "&aTeleporting to &f{1}"
+    that-player-is-not-online: "&cThat player is not online."
+    usage-tpaccept-player: "&cUsage: /tpaccept <player>"
+  teleport-request:
+    invalid-player: "&cInvalid player."
+  tpa-command:
+    usage: "&cUsage: /tpa <player>"
+    sent-a-teleport-request-to: "&aSent a teleport request to &f{1}"
+    wants-to-teleport-to-you-type-tpaccept: "&e{1} wants to teleport to you. Type &a/tpaccept {2}"
+  tpahere-command:
+    usage: "&cUsage: /tpahere <player>"
+    sent-a-summon-request-to: "&aSent a summon request to &f{1}"
+    wants-you-to-teleport-to-them-type-tpaccept: "&e{1} wants you to teleport to them. Type &a/tpaccept {2}"
+  travel-command:
+    transferring-to: "&7Transferring to &b{1}&7..."
+  vanish-command:
+    only-players-can-run-this-command: Only players can run this command.

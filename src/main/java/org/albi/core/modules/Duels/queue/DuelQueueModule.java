@@ -1,5 +1,9 @@
 package org.albi.core.modules.Duels.queue;
 
+import org.albi.core.gui.Messages;
+
+import org.albi.core.gui.GuiService;
+
 import com.samjakob.spigui.buttons.SGButton;
 import com.samjakob.spigui.menu.SGMenu;
 import org.albi.core.Core;
@@ -82,11 +86,11 @@ public class DuelQueueModule implements Listener {
             }
             if (args[0].equalsIgnoreCase("leave")) {
                 leaveQueue(p);
-                p.sendMessage("§eYou have left the queue.");
-                p.sendActionBar(plugin.getMessageAPI().toColor("&cYou left the queue."));
+                Messages.send(p, "messages.duel-queue-module.you-have-left-the-queue");
+                p.sendActionBar(plugin.getMessageAPI().toColor(Messages.text(p, "messages.duel-queue-module.you-left-the-queue")));
                 return true;
             }
-            p.sendMessage("§c/queue [leave]");
+            Messages.send(p, "messages.duel-queue-module.queue-leave");
             return true;
         }
     }
@@ -97,7 +101,7 @@ public class DuelQueueModule implements Listener {
             if (!(snd instanceof Player p)) return false;
             if (args.length > 0 && args[0].equalsIgnoreCase("leave")) {
                 leaveQueue(p);
-                p.sendMessage("§eYou left quick queue.");
+                Messages.send(p, "messages.duel-queue-module.you-left-quick-queue");
                 return true;
             }
             queueQuick(p);
@@ -110,7 +114,7 @@ public class DuelQueueModule implements Listener {
         QueueCategoryGUI(Player viewer) { this.viewer = viewer; }
 
         void open() {
-            SGMenu menu = plugin.getGUI().create("§d§lQueue Categories", 3);
+            SGMenu menu = plugin.getMenus().create("queues.categories", 3);
             for (Map.Entry<Integer, DuelKitPageCategory> entry : getPageCategories().entrySet()) {
                 DuelKitPageCategory cat = entry.getValue();
                 if (cat == null || cat.getDisplayItem() == null) continue;
@@ -119,8 +123,8 @@ public class DuelQueueModule implements Listener {
                 ItemMeta meta = icon.getItemMeta();
                 List<String> lore = meta != null && meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
                 lore.add(" ");
-                lore.add("§dOpen page §f#" + cat.getPage());
-                lore.add("§7Jump into this ruleset family.");
+                lore.add(GuiService.text("duel-queue-module.open-page", cat.getPage()));
+                lore.add(GuiService.text("duel-queue-module.jump-into-this-ruleset-family"));
                 if (meta != null) {
                     meta.setLore(lore);
                     icon.setItemMeta(meta);
@@ -128,9 +132,9 @@ public class DuelQueueModule implements Listener {
                 menu.setButton(Math.max(0, Math.min(26, cat.getGuiSlot())),
                         new SGButton(icon).withListener(e -> new QueueGUI(viewer, cat.getPage()).open()));
             }
-            menu.setButton(22, new SGButton(button(Material.BARRIER, "§cClose", List.of("§7Close the queue browser.")))
+            GuiService.control(menu, "close", 22, new SGButton(button(Material.BARRIER, GuiService.text("duel-queue-module.close"), List.of(GuiService.text("duel-queue-module.close-the-queue-browser"))))
                     .withListener(e -> viewer.closeInventory()));
-            viewer.openInventory(menu.getInventory());
+            GuiService.open(viewer, menu);
         }
     }
 
@@ -148,7 +152,7 @@ public class DuelQueueModule implements Listener {
         }
 
         void open() {
-            SGMenu menu = plugin.getGUI().create("§8§lQueue Browser §7(" + (page + 1) + "/" + (maxPage + 1) + ")", 6);
+            SGMenu menu = plugin.getMenus().create("queues.casual", 6, (page + 1), (maxPage + 1));
 
             for (Kit k : DuelManager.stor.kits) {
                 int global = k.getSlot();
@@ -159,22 +163,22 @@ public class DuelQueueModule implements Listener {
                 ItemMeta im = icon.getItemMeta();
                 List<String> lore = im != null && im.hasLore() ? new ArrayList<>(im.getLore()) : new ArrayList<>();
                 lore.add(" ");
-                lore.add("§eQueued: §f" + getQueued(k));
-                lore.add("§dClick to queue this kit.");
+                lore.add(GuiService.text("duel-queue-module.queued", getQueued(k)));
+                lore.add(GuiService.text("duel-queue-module.click-to-queue-this-kit"));
                 if (im != null) {
                     im.setLore(lore);
                     icon.setItemMeta(im);
                 }
 
-                menu.setButton(local, new SGButton(icon).withListener(e -> {
+                GuiService.entry(menu, k.getName(), local, new SGButton(icon).withListener(e -> {
                     queue(viewer, k);
                     viewer.closeInventory();
                 }));
             }
 
-            ItemStack pkItem = button(Material.BLAZE_POWDER, "§ePer Custom Kit",
-                    List.of("§7Use every player's own selected custom kit.", "§8Queued: " + getQueuedPerCustom()));
-            menu.setButton(52, new SGButton(pkItem).withListener(e -> {
+            ItemStack pkItem = button(Material.BLAZE_POWDER, GuiService.text("duel-queue-module.per-custom-kit"),
+                    List.of(GuiService.text("duel-queue-module.use-every-player-s-own-selected-custom-kit"), GuiService.text("duel-queue-module.queued-2", getQueuedPerCustom())));
+            GuiService.control(menu, "pk-item", 52, new SGButton(pkItem).withListener(e -> {
                 Kit dummy = new Kit();
                 dummy.setPk(true);
                 dummy.setName("per-custom");
@@ -182,27 +186,27 @@ public class DuelQueueModule implements Listener {
                 viewer.closeInventory();
             }));
 
-            ItemStack quickItem = button(Material.LIGHTNING_ROD, "§bQuick Queue",
-                    List.of("§7Match into any live queue faster.", "§8Queued: " + getQueuedQuick()));
-            menu.setButton(53, new SGButton(quickItem).withListener(e -> {
+            ItemStack quickItem = button(Material.LIGHTNING_ROD, GuiService.text("duel-queue-module.quick-queue"),
+                    List.of(GuiService.text("duel-queue-module.match-into-any-live-queue-faster"), GuiService.text("duel-queue-module.queued-2", getQueuedQuick())));
+            GuiService.control(menu, "quick-item", 53, new SGButton(quickItem).withListener(e -> {
                 queueQuick(viewer);
                 viewer.closeInventory();
             }));
 
             if (!getPageCategories().isEmpty()) {
-                menu.setButton(49, new SGButton(button(Material.ARROW, "§dCategories", List.of("§7Return to category view.")))
+                GuiService.control(menu, "categories", 49, new SGButton(button(Material.ARROW, GuiService.text("duel-queue-module.categories"), List.of(GuiService.text("duel-queue-module.return-to-category-view"))))
                         .withListener(e -> new QueueCategoryGUI(viewer).open()));
             }
             if (page > 0) {
-                menu.setButton(44, new SGButton(button(Material.ARROW, "§e← Previous", List.of("§7View previous kit page.")))
+                GuiService.control(menu, "previous", 44, new SGButton(button(Material.ARROW, GuiService.text("duel-queue-module.previous"), List.of(GuiService.text("duel-queue-module.view-previous-kit-page"))))
                         .withListener(e -> new QueueGUI(viewer, page - 1).open()));
             }
             if (page < maxPage) {
-                menu.setButton(45, new SGButton(button(Material.ARROW, "§eNext →", List.of("§7View next kit page.")))
+                GuiService.control(menu, "next", 45, new SGButton(button(Material.ARROW, GuiService.text("duel-queue-module.next"), List.of(GuiService.text("duel-queue-module.view-next-kit-page"))))
                         .withListener(e -> new QueueGUI(viewer, page + 1).open()));
             }
 
-            viewer.openInventory(menu.getInventory());
+            GuiService.open(viewer, menu);
         }
     }
 
@@ -211,7 +215,7 @@ public class DuelQueueModule implements Listener {
         queues.computeIfAbsent(QUICK_QUEUE, k -> new ConcurrentLinkedDeque<>()).add(player.getUniqueId());
         queuedSince.put(player.getUniqueId(), System.currentTimeMillis());
         queuedKey.put(player.getUniqueId(), QUICK_QUEUE);
-        player.sendMessage("§bQuick queue enabled. §7You will match into any available queue.");
+        Messages.send(player, "messages.duel-queue-module.quick-queue-enabled-you-will-match-into-any");
         plugin.giveAppropriateLobbyItems(player);
         matchQueues();
     }
@@ -224,7 +228,7 @@ public class DuelQueueModule implements Listener {
         queuedSince.put(player.getUniqueId(), System.currentTimeMillis());
         queuedKey.put(player.getUniqueId(), qId);
 
-        player.sendMessage("§aQueued for §f" + KitSafety.queueDisplayName(kitClicked) + "§a. §7Use §f/queue leave §7to back out.");
+        Messages.send(player, "messages.duel-queue-module.queued-for-use-queue-leave-to-back-out", KitSafety.queueDisplayName(kitClicked));
         plugin.giveAppropriateLobbyItems(player);
         matchQueues();
     }
@@ -233,7 +237,7 @@ public class DuelQueueModule implements Listener {
         var matchmaking = DuelManager.getMatchmaking();
         if (matchmaking != null) return matchmaking.join(player, kit, false);
         if (!GlobalMatchmaking.eligible(player, false)) {
-            player.sendMessage("§cReturn to the lobby and finish your current activity before joining the queue.");
+            Messages.send(player, "messages.duel-queue-module.return-to-the-lobby-and-finish-your-current");
             return false;
         }
         leaveQueue(player);
@@ -270,7 +274,7 @@ public class DuelQueueModule implements Listener {
             String display = QUICK_QUEUE.equals(queueId)
                     ? plugin.getMessageAPI().toColor("&bQUICK MODE")
                     : plugin.getMessageAPI().toColor("&f" + KitSafety.queueDisplayName(playerChoice.get(player.getUniqueId())));
-            player.sendActionBar(plugin.getMessageAPI().toColor("&r&7" + timeEmoji((int) elapsed) + " Queued for &r" + display + "&r&7... (&r&f" + fmt((int) elapsed) + " &7- /queue leave to leave)"));
+            player.sendActionBar(plugin.getMessageAPI().toColor(Messages.text(player, "messages.duel-queue-module.queued-for-queue-leave-to-leave", timeEmoji((int) elapsed), display, fmt((int) elapsed))));
         }
     }
 
@@ -332,8 +336,8 @@ public class DuelQueueModule implements Listener {
                 Kit kitA = resolvePersonalKit(quickPlayer);
                 Kit kitB = resolvePersonalKit(target.player());
                 if (kitA == null || kitB == null) {
-                    quickPlayer.sendMessage("§cA custom kit is missing, so the duel could not start.");
-                    target.player().sendMessage("§cA custom kit is missing, so the duel could not start.");
+                    Messages.send(quickPlayer, "messages.duel-queue-module.a-custom-kit-is-missing-so-the-duel");
+                    Messages.send(target.player(), "messages.duel-queue-module.a-custom-kit-is-missing-so-the-duel");
                     continue;
                 }
                 startPendingQueuedDuel(quickPlayer, target.player(), kitA, kitB, true);
@@ -368,8 +372,8 @@ public class DuelQueueModule implements Listener {
                     Kit kitA = resolvePersonalKit(p1);
                     Kit kitB = resolvePersonalKit(p2);
                     if (kitA == null || kitB == null) {
-                        p1.sendMessage("§cA custom kit is missing, so the duel could not start.");
-                        p2.sendMessage("§cA custom kit is missing, so the duel could not start.");
+                        Messages.send(p1, "messages.duel-queue-module.a-custom-kit-is-missing-so-the-duel");
+                        Messages.send(p2, "messages.duel-queue-module.a-custom-kit-is-missing-so-the-duel");
                         continue;
                     }
                     startPendingQueuedDuel(p1, p2, kitA, kitB, true);
@@ -420,8 +424,8 @@ public class DuelQueueModule implements Listener {
         for (Player player : List.of(p1, p2)) {
             player.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 80, 4, false, false, false));
             player.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 80, 4, false, false, false));
-            player.sendTitle("§a§lMatch Found", "§7Teleporting...", 0, 50, 10);
-            player.sendMessage("§aMatch found against §f" + (player == p1 ? p2.getName() : p1.getName()) + "§a.");
+            player.sendTitle(Messages.text(player, "messages.duel-queue-module.match-found"), Messages.text(player, "messages.duel-queue-module.teleporting"), 0, 50, 10);
+            Messages.send(player, "messages.duel-queue-module.match-found-against", (player == p1 ? p2.getName() : p1.getName()));
             player.playSound(player, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1.0f, 1.0f);
         }
 

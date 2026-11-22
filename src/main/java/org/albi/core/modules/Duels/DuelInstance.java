@@ -1,5 +1,7 @@
 package org.albi.core.modules.Duels;
 
+import org.albi.core.gui.Messages;
+
 import org.albi.core.Core;
 import org.albi.core.util.ConfigValues;
 import org.albi.core.data.ExtendedPlayer;
@@ -442,15 +444,14 @@ public class DuelInstance implements Listener {
                     }
                     lastSneak.put(p.getUniqueId(), sneaks);
 
-                    p.sendActionBar(org.bukkit.ChatColor.translateAlternateColorCodes('&',
-                            "&7SHIFT TO SKIP COUNTDOWN (&f" + readyToggles.size() + "&7/" + curList.size() + ")"));
+                    p.sendActionBar(Messages.text(p, "messages.match-hud.skip-countdown", readyToggles.size(), curList.size()));
                 }
 
                 if (!skipped && readyToggles.size() >= curList.size() && !curList.isEmpty()) {
                     skipped = true;
                     ticksLeft = 0;
                     for (Player p : curList) {
-                        p.sendTitle("§a§lSkipped", "§7Everyone readied up, starting now.", 0, 20, 0);
+                        p.sendTitle(Messages.text(p, "messages.duel-instance.skipped"), Messages.text(p, "messages.duel-instance.everyone-readied-up-starting-now"), 0, 20, 0);
                     }
                 }
 
@@ -598,8 +599,7 @@ public class DuelInstance implements Listener {
                     }
                     lastSneak.put(p.getUniqueId(), sneaks);
 
-                    p.sendActionBar(org.bukkit.ChatColor.translateAlternateColorCodes('&',
-                            "&7SHIFT TO SKIP COUNTDOWN (&f" + readyToggles.size() + "&7/" + curList.size() + ")"));
+                    p.sendActionBar(Messages.text(p, "messages.match-hud.skip-countdown", readyToggles.size(), curList.size()));
                 }
 
                 // Only allow skip in the last 3 seconds (ticks <= 60) to give polar arena time
@@ -608,7 +608,7 @@ public class DuelInstance implements Listener {
                     skipped = true;
                     ticks = 0;
                     for (Player p : currentPlayers) {
-                        p.sendTitle("§a§lSkipped", "§7Everyone readied up, starting now.", 0, 20, 10);
+                        p.sendTitle(Messages.text(p, "messages.duel-instance.skipped"), Messages.text(p, "messages.duel-instance.everyone-readied-up-starting-now"), 0, 20, 10);
                     }
                 }
 
@@ -735,20 +735,20 @@ public class DuelInstance implements Listener {
                 String c = win ? "§a" : "§c";
 
                 if (win) {
-                    p.sendTitle("§a§lVICTORY", "§7" + tier + " " + c + oldE + " §8» " + c + newE, 0, 60, 20);
+                    p.sendTitle(Messages.text(p, "messages.duel-instance.victory"), Messages.text(p, "messages.duel-instance.finish", tier, c, oldE, c, newE), 0, 60, 20);
                     p.playSound(p, Sound.UI_TOAST_CHALLENGE_COMPLETE, 1.0f, 1.0f);
                     p.getWorld().strikeLightningEffect(p.getLocation()); // Winner lightning
                     addWin(p);
                 } else {
-                    p.sendTitle("§c§lDEFEAT", "§7" + tier + " " + c + oldE + " §8» " + c + newE, 0, 60, 20);
+                    p.sendTitle(Messages.text(p, "messages.duel-instance.defeat"), Messages.text(p, "messages.duel-instance.finish", tier, c, oldE, c, newE), 0, 60, 20);
                     addLoss(p);
                 }
             } else {
                 if (win) {
-                    p.sendTitle("§a§lYou Won!", "§7Score: §a" + winR + "§7 - §c" + loseR, 0, 20, 10);
+                    p.sendTitle(Messages.text(p, "messages.duel-instance.you-won"), Messages.text(p, "messages.duel-instance.score", winR, loseR), 0, 20, 10);
                     addWin(p);
                 } else {
-                    p.sendTitle("§c§lYou Lost!", "§7Score: §a" + loseR + "§7 - §c" + winR, 0, 20, 10);
+                    p.sendTitle(Messages.text(p, "messages.duel-instance.you-lost"), Messages.text(p, "messages.duel-instance.score", loseR, winR), 0, 20, 10);
                     addLoss(p);
                 }
             }
@@ -1488,7 +1488,7 @@ public class DuelInstance implements Listener {
             if (url == null) {
                 p.sendMessage(text);
             } else {
-                plugin.getMessageAPI().sendUrlMessage(p, text + " §8- §a&lView Match", url.toString());
+                plugin.getMessageAPI().sendUrlMessage(p, Messages.text(p, "messages.duel-instance.view-match", text), url.toString());
             }
         }
     }
@@ -1693,12 +1693,12 @@ public class DuelInstance implements Listener {
         String time = formatTime(getTimeRunning());
         
         // Update fighters
-        p1.sendActionBar("§e" + rs1.getElo() + " §7vs §c" + rs2.getElo() + " §8| §e" + time + " §8| §fSTAKES: §a+" + stak1.win + "§7/§c-" + stak1.loss);
-        p2.sendActionBar("§e" + rs2.getElo() + " §7vs §c" + rs1.getElo() + " §8| §e" + time + " §8| §fSTAKES: §a+" + stak2.win + "§7/§c-" + stak2.loss);
+        p1.sendActionBar(Messages.text(p1, "messages.duel-instance.vs-stakes", rs1.getElo(), rs2.getElo(), time, stak1.win, stak1.loss));
+        p2.sendActionBar(Messages.text(p2, "messages.duel-instance.vs-stakes", rs2.getElo(), rs1.getElo(), time, stak2.win, stak2.loss));
         
         // Update spectators (P1 perspective)
         for (Player spec : spectators) {
-            spec.sendActionBar("§8[SPEC] §e" + rs1.getElo() + " §7vs §c" + rs2.getElo() + " §8| §e" + time + " §8| §fSTAKES: §a+" + stak1.win + "§7/§c-" + stak1.loss);
+            spec.sendActionBar(Messages.text(spec, "messages.duel-instance.spec-vs-stakes", rs1.getElo(), rs2.getElo(), time, stak1.win, stak1.loss));
         }
     }
 

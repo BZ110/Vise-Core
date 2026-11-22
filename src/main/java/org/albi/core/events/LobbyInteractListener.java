@@ -1,5 +1,7 @@
 package org.albi.core.events;
 
+import org.albi.core.gui.Messages;
+
 import org.albi.core.Core;
 import org.albi.core.data.ExtendedPlayer;
 import org.albi.core.data.MainPlayer;
@@ -136,7 +138,7 @@ public class LobbyInteractListener implements Listener {
 
                 Inventory gui = Bukkit.createInventory(
                         null, 27,
-                        ChatColor.translateAlternateColorCodes('&', "&bShulker Editor &8(ESC to save)")
+                        plugin.getMenus().nativeTitle("lobby.shulker-editor", player)
                 );
                 gui.setContents(box.getInventory().getContents());
 
@@ -171,7 +173,7 @@ public class LobbyInteractListener implements Listener {
                 Bukkit.getPluginManager().registerEvents(close, plugin);
                 Bukkit.getScheduler().runTask(plugin, () -> player.openInventory(gui));
             } catch (Exception ex) {
-                player.sendMessage(ChatColor.RED + "This shulker box is corrupted or unreadable.");
+                Messages.send(player, "messages.lobby-interact-listener.this-shulker-box-is-corrupted-or-unreadable", ChatColor.RED);
             }
 
             return;

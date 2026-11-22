@@ -1,5 +1,9 @@
 package org.albi.core.modules.FFA.GUIs;
 
+import org.albi.core.gui.Messages;
+
+import org.albi.core.gui.GuiService;
+
 import com.samjakob.spigui.buttons.SGButton;
 import com.samjakob.spigui.menu.SGMenu;
 import org.albi.core.Core;
@@ -54,7 +58,7 @@ public final class FFAKitEditorGUI {
             if (s.getWorldName() != null && Bukkit.getWorld(s.getWorldName()) != null) setups.add(s);
         }
 
-        SGMenu m = plugin.getGUI().create("§bFFA Kits (Editor)", GUI_ROWS);
+        SGMenu m = plugin.getMenus().create("kits.ffa-browser", GUI_ROWS);
         int slot = 0;
         for (FFAKitSetup s : setups) {
             Kit k = findKit(s.getKitName());
@@ -72,7 +76,7 @@ public final class FFAKitEditorGUI {
             m.setButton(target, new SGButton(it).withListener(e -> openEditorPanel(p, s.getKitName(), k, false)));
             if (slot >= GUI_SIZE) break;
         }
-        p.openInventory(m.getInventory());
+        GuiService.open(p, m);
     }
 
 
@@ -96,7 +100,7 @@ public final class FFAKitEditorGUI {
     }
 
     private void openDuelKitCategoryMenu(Player p) {
-        SGMenu menu = plugin.getGUI().create("§dDuel Kit Categories", 3);
+        SGMenu menu = plugin.getMenus().create("kits.duel-categories", 3);
         for (Map.Entry<Integer, DuelKitPageCategory> entry : getDuelPageCategories().entrySet()) {
             DuelKitPageCategory cat = entry.getValue();
             if (cat == null || cat.getDisplayItem() == null) continue;
@@ -105,7 +109,7 @@ public final class FFAKitEditorGUI {
             ItemMeta meta = icon.getItemMeta();
             List<String> lore = meta != null && meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
             lore.add(" ");
-            lore.add("§dOpen editor page #" + cat.getPage());
+            lore.add(GuiService.text("ffakit-editor-gui.open-editor-page", cat.getPage()));
             if (meta != null) {
                 meta.setLore(lore);
                 icon.setItemMeta(meta);
@@ -113,7 +117,7 @@ public final class FFAKitEditorGUI {
             int slot = Math.max(0, Math.min(26, cat.getGuiSlot()));
             menu.setButton(slot, new SGButton(icon).withListener(e -> openDuelKitPageMenu(p, cat.getPage())));
         }
-        p.openInventory(menu.getInventory());
+        GuiService.open(p, menu);
     }
 
     private void openDuelKitPageMenu(Player p, int page) {
@@ -122,7 +126,7 @@ public final class FFAKitEditorGUI {
         int maxSlot = DuelManager.stor.kits.stream().mapToInt(Kit::getSlot).max().orElse(0);
         int maxPage = maxSlot / pageSize;
 
-        SGMenu menu = plugin.getGUI().create("§dDuel Kits (Editor) §7(" + (page + 1) + "/" + (maxPage + 1) + ")", rows);
+        SGMenu menu = plugin.getMenus().create("kits.duel-browser", rows, (page + 1), (maxPage + 1));
         for (Kit k : DuelManager.stor.kits) {
             if (k == null || k.getDisplayItem() == null) continue;
             int globalSlot = k.getSlot();
@@ -136,18 +140,18 @@ public final class FFAKitEditorGUI {
                 String clean = im.getDisplayName().split(" §8", 2)[0];
                 List<String> lore = im.hasLore() ? new ArrayList<>(im.getLore()) : new ArrayList<>();
                 lore.add(" ");
-                lore.add("§7Click to edit this duel kit layout.");
+                lore.add(GuiService.text("ffakit-editor-gui.click-to-edit-this-duel-kit-layout"));
                 im.setDisplayName(clean);
                 im.setLore(lore);
                 it.setItemMeta(im);
             }
             menu.setButton(local, new SGButton(it).withListener(e -> openEditorPanel(p, k.getName(), k, true)));        }
 
-        if (page > 0) menu.setButton(pageSize - 10, new SGButton(button(Material.ARROW, "§e← Prev")).withListener(e -> openDuelKitPageMenu(p, page - 1)));
-        if (page < maxPage) menu.setButton(pageSize - 9, new SGButton(button(Material.ARROW, "§eNext →")).withListener(e -> openDuelKitPageMenu(p, page + 1)));
-        if (hasDuelPageCategories()) menu.setButton(pageSize - 5, new SGButton(button(Material.ARROW, "§dCategories")).withListener(e -> openDuelKitCategoryMenu(p)));
+        if (page > 0) GuiService.control(menu, "prev", pageSize - 10, new SGButton(button(Material.ARROW, GuiService.text("ffakit-editor-gui.prev"))).withListener(e -> openDuelKitPageMenu(p, page - 1)));
+        if (page < maxPage) GuiService.control(menu, "next", pageSize - 9, new SGButton(button(Material.ARROW, GuiService.text("ffakit-editor-gui.next"))).withListener(e -> openDuelKitPageMenu(p, page + 1)));
+        if (hasDuelPageCategories()) GuiService.control(menu, "categories", pageSize - 5, new SGButton(button(Material.ARROW, GuiService.text("ffakit-editor-gui.categories"))).withListener(e -> openDuelKitCategoryMenu(p)));
 
-        p.openInventory(menu.getInventory());
+        GuiService.open(p, menu);
     }
 
 
@@ -156,20 +160,16 @@ public final class FFAKitEditorGUI {
         wipePlayerCompletely(p);
         giveKitStorageOnly(p, kit);
 
-        String title = duelMode
-                ? "§dDuel Kit Editor: " + editKey.toUpperCase()
-                : "§bKit Editor: " + editKey.toUpperCase();
+        String mode = GuiService.text(duelMode ? "ffakit-editor-gui.duel-editor" : "ffakit-editor-gui.ffa-editor");
+        var m = plugin.getMenus().create("kits.layout", GUI_ROWS, mode, editKey.toUpperCase(Locale.ROOT));
 
-        SGMenu m = plugin.getGUI().create(title, GUI_ROWS);
-        Inventory top = m.getInventory();
+        GuiService.control(m, "gui-slot-helm", GUI_SLOT_HELM,  new SGButton(safe(kitArmor(kit, SLOT_HELM ))).withListener(e -> e.setCancelled(true)));
+        GuiService.control(m, "gui-slot-chest", GUI_SLOT_CHEST, new SGButton(safe(kitArmor(kit, SLOT_CHEST))).withListener(e -> e.setCancelled(true)));
+        GuiService.control(m, "gui-slot-legs", GUI_SLOT_LEGS,  new SGButton(safe(kitArmor(kit, SLOT_LEGS ))).withListener(e -> e.setCancelled(true)));
+        GuiService.control(m, "gui-slot-boots", GUI_SLOT_BOOTS, new SGButton(safe(kitArmor(kit, SLOT_BOOTS))).withListener(e -> e.setCancelled(true)));
 
-        m.setButton(GUI_SLOT_HELM,  new SGButton(safe(kitArmor(kit, SLOT_HELM ))).withListener(e -> e.setCancelled(true)));
-        m.setButton(GUI_SLOT_CHEST, new SGButton(safe(kitArmor(kit, SLOT_CHEST))).withListener(e -> e.setCancelled(true)));
-        m.setButton(GUI_SLOT_LEGS,  new SGButton(safe(kitArmor(kit, SLOT_LEGS ))).withListener(e -> e.setCancelled(true)));
-        m.setButton(GUI_SLOT_BOOTS, new SGButton(safe(kitArmor(kit, SLOT_BOOTS))).withListener(e -> e.setCancelled(true)));
-
-        ItemStack defaultOff = kitOffhand(kit);
-        m.setButton(GUI_SLOT_OFF, new SGButton(safe(defaultOff)).withListener((InventoryClickEvent e) -> {
+        var offhand = new SGButton(safe(kitOffhand(kit)));
+        offhand.setListener(e -> {
             e.setCancelled(true);
 
             if (e.getClickedInventory() == null ||
@@ -178,28 +178,27 @@ public final class FFAKitEditorGUI {
 
             Inventory gui = e.getWhoClicked().getOpenInventory().getTopInventory();
             ItemStack cursor = e.getView().getCursor();
-            ItemStack current = gui.getItem(GUI_SLOT_OFF);
+            ItemStack current = offhand.getIcon();
 
             if (isAir(cursor)) cursor = null;
             if (isAir(current)) current = null;
 
-            gui.setItem(GUI_SLOT_OFF, cursor == null ? null : cursor.clone());
+            offhand.setIcon(safe(cursor));
+            gui.setItem(e.getRawSlot(), offhand.getIcon());
             e.getView().setCursor(current == null ? new ItemStack(Material.AIR) : current.clone());
 
             if (e.getWhoClicked() instanceof Player player) {
                 player.updateInventory();
             }
-        }));
+        });
+        m.setStorageButton("gui-slot-off", GUI_SLOT_OFF, offhand);
 
-        m.setButton(GUI_SLOT_SAVE,
-                new SGButton(button(Material.LIME_CONCRETE, ChatColor.GREEN + "" + ChatColor.BOLD + "SAVE KIT"))
+        GuiService.control(m, "save-kit", GUI_SLOT_SAVE,
+                new SGButton(button(Material.LIME_CONCRETE, GuiService.text("ffakit-editor-gui.save-kit", ChatColor.GREEN, ChatColor.BOLD)))
                         .withListener((InventoryClickEvent e) -> {
                             e.setCancelled(true);
 
-                            Inventory liveTop = ((Player) e.getWhoClicked())
-                                    .getOpenInventory().getTopInventory();
-
-                            ItemStack chosenOffhand = liveTop.getItem(GUI_SLOT_OFF);
+                            ItemStack chosenOffhand = offhand.getIcon();
                             if (isAir(chosenOffhand)) chosenOffhand = null;
 
                             ItemStack cursorBefore = e.getView().getCursor();
@@ -214,7 +213,7 @@ public final class FFAKitEditorGUI {
                                 e.getWhoClicked().closeInventory();
                                 wipePlayerCompletely(p);
                                 if (!kit.isBuild()) p.setGameMode(GameMode.ADVENTURE);
-                                p.sendMessage(ChatColor.RED + "Your saved items don’t match this kit. Reverted to default.");
+                                Messages.send(p, "messages.ffakit-editor-gui.your-saved-items-don-t-match-this-kit", ChatColor.RED);
                                 plugin.applyLobbyShortcutItems(p);
                                 return;
                             }
@@ -228,13 +227,13 @@ public final class FFAKitEditorGUI {
                             if (ep != null && ep.isReady()) ep.getMainPlayer().putKitEdit(snap);
 
                             e.getWhoClicked().closeInventory();
-                            p.sendMessage(ChatColor.GREEN + "Kit layout saved!");
+                            Messages.send(p, "messages.ffakit-editor-gui.kit-layout-saved", ChatColor.GREEN);
 
                             plugin.applyLobbyShortcutItems(p);
                         })
         );
 
-        p.openInventory(m.getInventory());
+        GuiService.open(p, m);
     }
 
     /* ───────────────── Helper bits ───────────────── */

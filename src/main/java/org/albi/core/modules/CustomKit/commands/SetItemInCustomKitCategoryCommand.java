@@ -1,5 +1,7 @@
 package org.albi.core.modules.CustomKit.commands;
 
+import org.albi.core.gui.Messages;
+
 import org.albi.core.Core;
 import org.albi.core.modules.CustomKit.helpers.CustomKitCategory;
 import org.albi.core.serializable.SerializableItem;
@@ -30,7 +32,7 @@ public class SetItemInCustomKitCategoryCommand extends BaseCommand {
             return true;
         }
         if (args.length < 2) {
-            player.sendMessage("§cUsage: /setitemincustomkitcategory <name> <guiSlot>");
+            Messages.send(player, "messages.set-item-in-custom-kit-category-command.usage-setitemincustomkitcategory-name-gui-slot");
             return true;
         }
 
@@ -38,24 +40,24 @@ public class SetItemInCustomKitCategoryCommand extends BaseCommand {
         int guiSlot;
         try { guiSlot = Integer.parseInt(args[1]); }
         catch (NumberFormatException ex) {
-            player.sendMessage("§cSlot must be a number 0‑53");
+            Messages.send(player, "messages.set-item-in-custom-kit-category-command.slot-must-be-a-number-0-53");
             return true;
         }
         if (guiSlot < 0 || guiSlot > 53) {
-            player.sendMessage("§cSlot must be between 0 and 53");
+            Messages.send(player, "messages.set-item-in-custom-kit-category-command.slot-must-be-between-0-and-53");
             return true;
         }
 
         ItemStack hand = player.getInventory().getItemInMainHand();
         if (hand == null || hand.getType().isAir()) {
-            player.sendMessage("§cHold the item you want to store");
+            Messages.send(player, "messages.set-item-in-custom-kit-category-command.hold-the-item-you-want-to-store");
             return true;
         }
 
         Map<String, CustomKitCategory> categories =
                 (Map<String, CustomKitCategory>) plugin.getData().get("customKitCategories");
         if (categories == null || !categories.containsKey(name)) {
-            player.sendMessage("§cNo category named " + name);
+            Messages.send(player, "messages.set-item-in-custom-kit-category-command.no-category-named", name);
             return true;
         }
 
@@ -63,8 +65,7 @@ public class SetItemInCustomKitCategoryCommand extends BaseCommand {
         cat.setItem(guiSlot, new SerializableItem(hand));
         plugin.getData().set("customKitCategories", categories);
 
-        player.sendMessage("§aItem stored in category §e" + name +
-                "§a at GUI slot " + guiSlot);
+        Messages.send(player, "messages.set-item-in-custom-kit-category-command.item-stored-in-category-at-gui-slot", name, guiSlot);
         return true;
     }
 }

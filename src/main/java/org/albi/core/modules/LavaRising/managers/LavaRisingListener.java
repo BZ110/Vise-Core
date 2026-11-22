@@ -1,5 +1,7 @@
 package org.albi.core.modules.LavaRising.managers;
 
+import org.albi.core.gui.Messages;
+
 import org.albi.core.Core;
 import org.albi.core.modules.LavaRising.helpers.LavaRisingGameInstance;
 import org.bukkit.Bukkit;
@@ -108,7 +110,7 @@ public class LavaRisingListener implements Listener {
             p.setGameMode(GameMode.SPECTATOR);
             // inside onLethalDamage, right after p.setGameMode(SPECTATOR);
             match.checkForWin();
-            p.sendMessage("§cYou are eliminated! Spectator mode enabled.");
+            Messages.send(p, "messages.lava-rising-listener.you-are-eliminated-spectator-mode-enabled");
             match.broadcast("§c" + p.getName() + " has been ELIMINATED!");
         }
     }
@@ -127,7 +129,7 @@ public class LavaRisingListener implements Listener {
         if (!inMatchWorld(e.getPlayer())) return;
         if (e.getBlock().getType() == Material.ENCHANTING_TABLE
                 || e.getBlock().getType() == Material.BOOKSHELF) {
-            e.getPlayer().sendMessage("That can't be broken.");
+            Messages.send(e.getPlayer(), "messages.lava-rising-listener.that-can-t-be-broken");
             e.setCancelled(true);
         }
         if (!insideShiftedBounds(e.getBlock().getLocation())) e.setCancelled(true);

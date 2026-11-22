@@ -1,6 +1,10 @@
 
 package org.albi.core.commands;
 
+import org.albi.core.gui.Messages;
+
+import org.albi.core.gui.GuiService;
+
 import com.samjakob.spigui.buttons.SGButton;
 import com.samjakob.spigui.menu.SGMenu;
 import org.albi.core.Core;
@@ -39,11 +43,11 @@ public class GotoCommand extends BaseCommand {
         Map<Integer, SerializableItem> icons = (Map<Integer, SerializableItem>) plugin.getData().get("gotoIcons:73b35c83-19fa-46d1-b6fe-e8ea2f144c72");
 
         if (locs == null || icons == null || locs.isEmpty() || icons.isEmpty()) {
-            player.sendMessage("§cNo goto points saved.");
+            Messages.send(player, "messages.goto-command.no-goto-points-saved");
             return true;
         }
 
-        SGMenu menu = plugin.getGUI().create("&bGoto Menu", 6);
+        SGMenu menu = plugin.getMenus().create("travel.goto", 6);
         for (int i = 0; i <= 53; i++) {
             if (!locs.containsKey(i) || !icons.containsKey(i)) continue;
             SerializableLocation loc = locs.get(i);
@@ -57,7 +61,7 @@ public class GotoCommand extends BaseCommand {
             }
         }
 
-        player.openInventory(menu.getInventory());
+        GuiService.open(player, menu);
         return true;
     }
 }

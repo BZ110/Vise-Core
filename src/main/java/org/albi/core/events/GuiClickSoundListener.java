@@ -1,5 +1,8 @@
 package org.albi.core.events;
 
+import com.samjakob.spigui.menu.SGMenu;
+import org.albi.core.Core;
+import org.albi.core.gui.GuiService;
 import org.albi.core.util.GuiSoundUtil;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -18,17 +21,17 @@ public class GuiClickSoundListener implements Listener {
         if (!(event.getWhoClicked() instanceof Player player)) return;
         if (event.getView() == null || event.getClickedInventory() == null) return;
         if (event.getClickedInventory().getType() == InventoryType.PLAYER) return;
-        String title = event.getView().getTitle();
-        if (title == null) return;
-        String key = title.toLowerCase(Locale.ROOT);
-        if (!(key.contains("queue") || key.contains("duel") || key.contains("party") || key.contains("friends")
-                || key.contains("settings") || key.contains("kit") || key.contains("draft") || key.contains("selector")
-                || key.contains("browser") || key.contains("teleporter") || key.contains("travel") || key.contains("stats"))) {
+        if (!(event.getView().getTopInventory().getHolder() instanceof SGMenu menu)) return;
+        if (GuiService.isConfiguredView(menu)) {
+            var core = Core.getInstance();
+            if (core != null && core.getMenus().handleClickSound(menu, event.getRawSlot(), player)) return;
+        } else if (!isLegacyMenu(event.getView().getTitle())) {
             return;
         }
 
         ItemStack item = event.getCurrentItem();
-        Material type = item == null ? Material.AIR : item.getType();
+        if (item == null || item.getType().isAir()) return;
+        Material type = item.getType();
         if (type == Material.BARRIER || type == Material.RED_CONCRETE || type == Material.RED_STAINED_GLASS_PANE) {
             GuiSoundUtil.negative(player);
             return;
@@ -44,5 +47,13 @@ public class GuiClickSoundListener implements Listener {
             return;
         }
         GuiSoundUtil.click(player);
+    }
+
+    private boolean isLegacyMenu(String title) {
+        if (title == null) return false;
+        String key = title.toLowerCase(Locale.ROOT);
+        return key.contains("queue") || key.contains("duel") || key.contains("party") || key.contains("friends")
+                || key.contains("settings") || key.contains("kit") || key.contains("draft") || key.contains("selector")
+                || key.contains("browser") || key.contains("teleporter") || key.contains("travel") || key.contains("stats");
     }
 }

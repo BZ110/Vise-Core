@@ -1,5 +1,9 @@
 package org.albi.core.modules.CustomKit.GUIs;
 
+import org.albi.core.gui.Messages;
+
+import org.albi.core.gui.GuiService;
+
 import com.samjakob.spigui.buttons.SGButton;
 import com.samjakob.spigui.menu.SGMenu;
 import org.albi.core.Core;
@@ -22,6 +26,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryAction;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
@@ -140,11 +145,11 @@ public class CustomKitGUIMain {
     private void openEnderChestEditor(Player p, int kitIdx) {
 
         CustomKit kit = plugin.getExtendedPlayer(p).getMainPlayer().getKits()[kitIdx];
-        SGMenu menu   = plugin.getGUI().create("&bEdit Ender Chest", 4);
+        SGMenu menu   = plugin.getMenus().create("custom-kits.ender-chest", 4);
 
         /* 0-26  — storage grid */
         ItemStack filler = new ItemStack(Material.LIGHT_BLUE_STAINED_GLASS_PANE);
-        ItemMeta fm = filler.getItemMeta(); fm.setDisplayName("§7Click to edit"); filler.setItemMeta(fm);
+        ItemMeta fm = filler.getItemMeta(); fm.setDisplayName(GuiService.text("custom-kit-guimain.click-to-edit")); filler.setItemMeta(fm);
 
         for (int ecSlot = 0; ecSlot < 27; ecSlot++) {
             ItemStack icon = kit.getEnderSlot(ecSlot) != null
@@ -163,10 +168,10 @@ public class CustomKitGUIMain {
 
         /* slot 31 — FINISH */
         ItemStack done = new ItemStack(Material.LIME_CONCRETE);
-        ItemMeta dm = done.getItemMeta(); dm.setDisplayName("§aFINISH"); done.setItemMeta(dm);
-        menu.setButton(31, new SGButton(done).withListener(e -> openSettings(kitIdx, p)));
+        ItemMeta dm = done.getItemMeta(); dm.setDisplayName(GuiService.text("custom-kit-guimain.finish")); done.setItemMeta(dm);
+        GuiService.control(menu, "done", 31, new SGButton(done).withListener(e -> openSettings(kitIdx, p)));
 
-        p.openInventory(menu.getInventory());
+        GuiService.open(p, menu);
     }
 
     private void openItemEditorForEnder(Player p, int kitIdx, int ecSlot) {
@@ -174,49 +179,49 @@ public class CustomKitGUIMain {
         CustomKit kit = plugin.getExtendedPlayer(p).getMainPlayer().getKits()[kitIdx];
         ItemStack working = kit.getEnderSlot(ecSlot).convertToItem();
 
-        SGMenu menu = plugin.getGUI().create("&bEdit Item", 2);
+        SGMenu menu = plugin.getMenus().create("custom-kits.ender-item", 2);
 
         /* delete */
         ItemStack bar = new ItemStack(Material.BARRIER);
-        ItemMeta bm = bar.getItemMeta(); bm.setDisplayName("§cDelete"); bar.setItemMeta(bm);
-        menu.setButton(10, new SGButton(bar).withListener(e -> {
+        ItemMeta bm = bar.getItemMeta(); bm.setDisplayName(GuiService.text("custom-kit-guimain.delete")); bar.setItemMeta(bm);
+        GuiService.control(menu, "bar", 10, new SGButton(bar).withListener(e -> {
             kit.setEnderSlot(ecSlot, null);
             openEnderChestEditor(p, kitIdx);
         }));
 
         /* rename */
         ItemStack sign = new ItemStack(Material.OAK_SIGN);
-        ItemMeta sm = sign.getItemMeta(); sm.setDisplayName("§eRename"); sign.setItemMeta(sm);
-        menu.setButton(12, new SGButton(sign).withListener(e -> {
+        ItemMeta sm = sign.getItemMeta(); sm.setDisplayName(GuiService.text("custom-kit-guimain.rename")); sign.setItemMeta(sm);
+        GuiService.control(menu, "sign", 12, new SGButton(sign).withListener(e -> {
             p.closeInventory();
-            p.sendMessage("§bType the new name in chat.");
+            Messages.send(p, "messages.custom-kit-guimain.type-the-new-name-in-chat");
             RENAME_EC.put(p.getUniqueId(), new PendingRenameEc(kitIdx, ecSlot));
         }));
 
         /* enchant */
         ItemStack book = new ItemStack(Material.ENCHANTED_BOOK);
-        ItemMeta em = book.getItemMeta(); em.setDisplayName("§9Add / Change Enchant"); book.setItemMeta(em);
-        menu.setButton(13, new SGButton(book).withListener(
+        ItemMeta em = book.getItemMeta(); em.setDisplayName(GuiService.text("custom-kit-guimain.add-change-enchant")); book.setItemMeta(em);
+        GuiService.control(menu, "book", 13, new SGButton(book).withListener(
                 e -> openEnchantmentPickerForEnder(p, kitIdx, ecSlot)));
 
         /* stack size */
         ItemStack paper = new ItemStack(Material.PAPER);
-        ItemMeta pm = paper.getItemMeta(); pm.setDisplayName("§fSet Stack Size"); paper.setItemMeta(pm);
-        menu.setButton(14, new SGButton(paper).withListener(e -> {
+        ItemMeta pm = paper.getItemMeta(); pm.setDisplayName(GuiService.text("custom-kit-guimain.set-stack-size")); paper.setItemMeta(pm);
+        GuiService.control(menu, "paper", 14, new SGButton(paper).withListener(e -> {
             p.closeInventory();
-            p.sendMessage("§bEnter a number 1-64 in chat.");
+            Messages.send(p, "messages.custom-kit-guimain.enter-a-number-1-64-in-chat");
             STACK_EC.put(p.getUniqueId(), new PendingIntegerEc(kitIdx, ecSlot));
         }));
 
         /* finish */
         ItemStack done = new ItemStack(Material.LIME_CONCRETE);
-        ItemMeta dm = done.getItemMeta(); dm.setDisplayName("§aFINISH"); done.setItemMeta(dm);
-        menu.setButton(16, new SGButton(done).withListener(e -> openEnderChestEditor(p, kitIdx)));
+        ItemMeta dm = done.getItemMeta(); dm.setDisplayName(GuiService.text("custom-kit-guimain.finish")); done.setItemMeta(dm);
+        GuiService.control(menu, "done", 16, new SGButton(done).withListener(e -> openEnderChestEditor(p, kitIdx)));
 
         /* preview */
-        menu.setButton(4, new SGButton(working));
+        GuiService.control(menu, "working", 4, new SGButton(working));
 
-        p.openInventory(menu.getInventory());
+        GuiService.open(p, menu);
     }
     private void openEnchantmentPickerForEnder(Player p, int kitIdx, int ecSlot) {
 
@@ -224,7 +229,7 @@ public class CustomKitGUIMain {
         ItemStack target = kit.getEnderSlot(ecSlot).convertToItem();
         ItemMeta targetMeta = target.getItemMeta();
 
-        SGMenu enchMenu = plugin.getGUI().create("&bPick Enchantment", 6);
+        SGMenu enchMenu = plugin.getMenus().create("custom-kits.ender-enchantments", 6);
         int gui = 0;
 
         for (Enchantment ench : Enchantment.values()) {
@@ -245,29 +250,29 @@ public class CustomKitGUIMain {
 
             enchMenu.setButton(gui++, new SGButton(icon).withListener(e -> {
                 p.closeInventory();
-                p.sendMessage("§bType the level (≥1) in chat.");
+                Messages.send(p, "messages.custom-kit-guimain.type-the-level-1-in-chat");
                 ENCHANT_EC.put(p.getUniqueId(), new PendingEnchantEc(kitIdx, ecSlot, ench));
             }));
         }
 
         /* clear all */
         ItemStack anvil = new ItemStack(Material.ANVIL);
-        ItemMeta am = anvil.getItemMeta(); am.setDisplayName("§cClear All Enchants"); anvil.setItemMeta(am);
-        enchMenu.setButton(52, new SGButton(anvil).withListener(e -> {
+        ItemMeta am = anvil.getItemMeta(); am.setDisplayName(GuiService.text("custom-kit-guimain.clear-all-enchants")); anvil.setItemMeta(am);
+        GuiService.control(enchMenu, "anvil", 52, new SGButton(anvil).withListener(e -> {
             ItemMeta meta = target.getItemMeta();
             meta.getEnchants().keySet().forEach(meta::removeEnchant);
             target.setItemMeta(meta);
             kit.setEnderSlot(ecSlot, target);
-            p.sendMessage("§aAll enchantments cleared.");
+            Messages.send(p, "messages.custom-kit-guimain.all-enchantments-cleared");
             openItemEditorForEnder(p, kitIdx, ecSlot);
         }));
 
         /* finish */
         ItemStack done = new ItemStack(Material.LIME_CONCRETE);
-        ItemMeta dm = done.getItemMeta(); dm.setDisplayName("§aFINISH"); done.setItemMeta(dm);
-        enchMenu.setButton(53, new SGButton(done).withListener(e -> openItemEditorForEnder(p, kitIdx, ecSlot)));
+        ItemMeta dm = done.getItemMeta(); dm.setDisplayName(GuiService.text("custom-kit-guimain.finish")); done.setItemMeta(dm);
+        GuiService.control(enchMenu, "done", 53, new SGButton(done).withListener(e -> openItemEditorForEnder(p, kitIdx, ecSlot)));
 
-        p.openInventory(enchMenu.getInventory());
+        GuiService.open(p, enchMenu);
     }
 
     /** Returns true if 'ench' conflicts with any *other* enchant already on the item. */
@@ -287,9 +292,9 @@ public class CustomKitGUIMain {
 
         Map<String, CustomKitCategory> cats =
                 (Map<String, CustomKitCategory>) plugin.getData().get("customKitCategories");
-        if (cats == null || cats.isEmpty()) { p.sendMessage("§cNo categories configured"); return; }
+        if (cats == null || cats.isEmpty()) { Messages.send(p, "messages.custom-kit-guimain.no-categories-configured"); return; }
 
-        SGMenu catMenu = plugin.getGUI().create("&bPick a Category", 4);
+        SGMenu catMenu = plugin.getMenus().create("custom-kits.ender-categories", 4);
 
         for (CustomKitCategory cat : cats.values()) {
             ItemStack logo = cat.getDisplayItem().convertToItem();
@@ -297,7 +302,7 @@ public class CustomKitGUIMain {
                     new SGButton(logo).withListener(e ->
                             openCategoryItemsForEnder(p, cat, kitIdx, ecSlot)));
         }
-        p.openInventory(catMenu.getInventory());
+        GuiService.open(p, catMenu);
     }
 
     private void openCategoryItemsForEnder(Player p,
@@ -305,7 +310,7 @@ public class CustomKitGUIMain {
                                            int kitIdx,
                                            int ecSlot) {
 
-        SGMenu itemMenu = plugin.getGUI().create("&bSelect an Item", 6);
+        SGMenu itemMenu = plugin.getMenus().create("custom-kits.ender-items", 6);
 
         for (Map.Entry<Integer, SerializableItem> entry : cat.getItems().entrySet()) {
             ItemStack icon = entry.getValue().convertToItem();
@@ -313,7 +318,7 @@ public class CustomKitGUIMain {
 
             itemMenu.setButton(guiSlot, new SGButton(icon).withListener(e -> {
                 if (icon.getType().name().endsWith("SHULKER_BOX")) {
-                    p.sendMessage("§cYou can't place a shulker box inside the ender chest.");
+                    Messages.send(p, "messages.custom-kit-guimain.you-can-t-place-a-shulker-box-inside");
                     return;
                 }
                 CustomKit kit = plugin.getExtendedPlayer(p).getMainPlayer().getKits()[kitIdx];
@@ -321,13 +326,13 @@ public class CustomKitGUIMain {
                 openEnderChestEditor(p, kitIdx);
             }));
         }
-        p.openInventory(itemMenu.getInventory());
+        GuiService.open(p, itemMenu);
     }
     public static boolean handleChatRenameEc(Player p, String msg, CustomKitGUIMain inst) {
         PendingRenameEc pr = RENAME_EC.remove(p.getUniqueId());
         if (pr == null) return false;
 
-        if (msg.length() > 20) { p.sendMessage("§cName too long."); return true; }
+        if (msg.length() > 20) { Messages.send(p, "messages.custom-kit-guimain.name-too-long"); return true; }
 
         CustomKit kit = inst.plugin.getExtendedPlayer(p).getMainPlayer().getKits()[pr.kitIdx()];
         ItemStack it  = kit.getEnderSlot(pr.ecSlot()).convertToItem();
@@ -336,7 +341,7 @@ public class CustomKitGUIMain {
         it.setItemMeta(im);
         kit.setEnderSlot(pr.ecSlot(), it);
 
-        p.sendMessage("§aName set.");
+        Messages.send(p, "messages.custom-kit-guimain.name-set");
         inst.openEnderChestEditor(p, pr.kitIdx());
         return true;
     }
@@ -347,15 +352,15 @@ public class CustomKitGUIMain {
 
         int amt;
         try { amt = Integer.parseInt(msg); }
-        catch (NumberFormatException ex) { p.sendMessage("§cNot a number."); return true; }
-        if (amt < 1 || amt > 64) { p.sendMessage("§cNumber must be 1-64."); return true; }
+        catch (NumberFormatException ex) { Messages.send(p, "messages.custom-kit-guimain.not-a-number"); return true; }
+        if (amt < 1 || amt > 64) { Messages.send(p, "messages.custom-kit-guimain.number-must-be-1-64"); return true; }
 
         CustomKit kit = inst.plugin.getExtendedPlayer(p).getMainPlayer().getKits()[pi.kitIdx()];
         ItemStack it  = kit.getEnderSlot(pi.ecSlot()).convertToItem();
         it.setAmount(Math.min(amt, it.getMaxStackSize()));
         kit.setEnderSlot(pi.ecSlot(), it);
 
-        p.sendMessage("§aStack size set.");
+        Messages.send(p, "messages.custom-kit-guimain.stack-size-set");
         inst.openEnderChestEditor(p, pi.kitIdx());
         return true;
     }
@@ -366,14 +371,14 @@ public class CustomKitGUIMain {
 
         String in = msg.trim();
         if (!in.contains(":")) {
-            p.sendMessage("§cInvalid format. Use level:seconds, example 1:120");
+            Messages.send(p, "messages.custom-kit-guimain.invalid-format-use-level-seconds-example-1-120");
             inst.openEffectPicker(p, pe.kitIdx(), 0);
             return true;
         }
 
         String[] parts = in.split(":");
         if (parts.length != 2) {
-            p.sendMessage("§cInvalid format. Use level:seconds, example 1:120");
+            Messages.send(p, "messages.custom-kit-guimain.invalid-format-use-level-seconds-example-1-120");
             inst.openEffectPicker(p, pe.kitIdx(), 0);
             return true;
         }
@@ -384,18 +389,18 @@ public class CustomKitGUIMain {
             level = Integer.parseInt(parts[0].trim());
             seconds = Integer.parseInt(parts[1].trim());
         } catch (Exception e) {
-            p.sendMessage("§cInvalid numbers. Use level:seconds, example 1:120");
+            Messages.send(p, "messages.custom-kit-guimain.invalid-numbers-use-level-seconds-example-1-120");
             inst.openEffectPicker(p, pe.kitIdx(), 0);
             return true;
         }
 
         if (level < 1 || level > 10) {
-            p.sendMessage("§cLevel must be 1-10.");
+            Messages.send(p, "messages.custom-kit-guimain.level-must-be-1-10");
             inst.openEffectPicker(p, pe.kitIdx(), 0);
             return true;
         }
         if (seconds < 1 || seconds > 3600) {
-            p.sendMessage("§cSeconds must be 1-3600.");
+            Messages.send(p, "messages.custom-kit-guimain.seconds-must-be-1-3600");
             inst.openEffectPicker(p, pe.kitIdx(), 0);
             return true;
         }
@@ -407,7 +412,7 @@ public class CustomKitGUIMain {
         if (kit == null) return true;
 
         kit.addEffect(new EffectMeta(pe.effectKey(), level, seconds));
-        p.sendMessage("§aEffect added: §f" + pe.effectKey() + " §7level §f" + level + "§7, §f" + seconds + "s");
+        Messages.send(p, "messages.custom-kit-guimain.effect-added-level-s", pe.effectKey(), level, seconds);
 
         inst.openEffectsMenu(p, pe.kitIdx());
         return true;
@@ -420,8 +425,8 @@ public class CustomKitGUIMain {
 
         int lvl;
         try { lvl = Integer.parseInt(msg); }
-        catch (NumberFormatException ex) { p.sendMessage("§cNot a number."); return true; }
-        if (lvl < 1 || lvl > 10) { p.sendMessage("§cLevel must be 1-10."); return true; }
+        catch (NumberFormatException ex) { Messages.send(p, "messages.custom-kit-guimain.not-a-number"); return true; }
+        if (lvl < 1 || lvl > 10) { Messages.send(p, "messages.custom-kit-guimain.level-must-be-1-10"); return true; }
 
         CustomKit kit = inst.plugin.getExtendedPlayer(p).getMainPlayer().getKits()[pe.kitIdx()];
         ItemStack it  = kit.getEnderSlot(pe.ecSlot()).convertToItem();
@@ -430,7 +435,7 @@ public class CustomKitGUIMain {
         it.setItemMeta(im);
         kit.setEnderSlot(pe.ecSlot(), it);
 
-        p.sendMessage("§aEnchantment set.");
+        Messages.send(p, "messages.custom-kit-guimain.enchantment-set");
         inst.openEnderChestEditor(p, pe.kitIdx());
         return true;
     }
@@ -448,12 +453,12 @@ public class CustomKitGUIMain {
 
         ItemStack working = inv.getItem(boxSlot).clone();   // never null here
 
-        SGMenu menu = plugin.getGUI().create("&bChoose a Category", 4);
+        SGMenu menu = plugin.getMenus().create("custom-kits.shulker-ender-categories", 4);
 
         /* slot 10 – delete */
         ItemStack bar = new ItemStack(Material.BARRIER);
-        ItemMeta  bm  = bar.getItemMeta(); bm.setDisplayName("§cDelete"); bar.setItemMeta(bm);
-        menu.setButton(10, new SGButton(bar).withListener(e -> {
+        ItemMeta  bm  = bar.getItemMeta(); bm.setDisplayName(GuiService.text("custom-kit-guimain.delete")); bar.setItemMeta(bm);
+        GuiService.control(menu, "bar", 10, new SGButton(bar).withListener(e -> {
             inv.clear(boxSlot);
             saveShulkerBack(kit, shulkerSlot, sh, sb, bsm, inv);
             openShulkerEditor(p, kitIdx, shulkerSlot);
@@ -461,44 +466,44 @@ public class CustomKitGUIMain {
 
         /* slot 12 – rename */
         ItemStack sign = new ItemStack(Material.OAK_SIGN);
-        ItemMeta  sm   = sign.getItemMeta(); sm.setDisplayName("§eRename"); sign.setItemMeta(sm);
-        menu.setButton(12, new SGButton(sign).withListener(e -> {
+        ItemMeta  sm   = sign.getItemMeta(); sm.setDisplayName(GuiService.text("custom-kit-guimain.rename")); sign.setItemMeta(sm);
+        GuiService.control(menu, "sign", 12, new SGButton(sign).withListener(e -> {
             p.closeInventory();
-            p.sendMessage("§bType the new name in chat.");
+            Messages.send(p, "messages.custom-kit-guimain.type-the-new-name-in-chat");
             RENAME_BOX.put(p.getUniqueId(), new PendingRenameBox(kitIdx, shulkerSlot, boxSlot));
         }));
 
         /* slot 13 – enchant */
         ItemStack book = new ItemStack(Material.ENCHANTED_BOOK);
-        ItemMeta  em   = book.getItemMeta(); em.setDisplayName("§9Add / Change Enchant"); book.setItemMeta(em);
-        menu.setButton(13, new SGButton(book).withListener(e ->
+        ItemMeta  em   = book.getItemMeta(); em.setDisplayName(GuiService.text("custom-kit-guimain.add-change-enchant")); book.setItemMeta(em);
+        GuiService.control(menu, "book", 13, new SGButton(book).withListener(e ->
                 openEnchantmentPickerForBox(p, kitIdx, shulkerSlot, boxSlot)));
 
         /* slot 14 – stack size */
         ItemStack paper = new ItemStack(Material.PAPER);
-        ItemMeta  pm    = paper.getItemMeta(); pm.setDisplayName("§fSet Stack Size"); paper.setItemMeta(pm);
-        menu.setButton(14, new SGButton(paper).withListener(e -> {
+        ItemMeta  pm    = paper.getItemMeta(); pm.setDisplayName(GuiService.text("custom-kit-guimain.set-stack-size")); paper.setItemMeta(pm);
+        GuiService.control(menu, "paper", 14, new SGButton(paper).withListener(e -> {
             p.closeInventory();
-            p.sendMessage("§bEnter a number 1‑64 in chat.");
+            Messages.send(p, "messages.custom-kit-guimain.enter-a-number-1-64-in-chat-2");
             STACK_BOX.put(p.getUniqueId(), new PendingIntegerBox(kitIdx, shulkerSlot, boxSlot));
         }));
 
         /* slot 16 – finish */
         ItemStack done = new ItemStack(Material.LIME_CONCRETE);
-        ItemMeta  dm   = done.getItemMeta(); dm.setDisplayName("§aFINISH"); done.setItemMeta(dm);
-        menu.setButton(16, new SGButton(done).withListener(e -> openShulkerEditor(p, kitIdx, shulkerSlot)));
+        ItemMeta  dm   = done.getItemMeta(); dm.setDisplayName(GuiService.text("custom-kit-guimain.finish")); done.setItemMeta(dm);
+        GuiService.control(menu, "done", 16, new SGButton(done).withListener(e -> openShulkerEditor(p, kitIdx, shulkerSlot)));
 
         /* preview item in slot 4 */
-        menu.setButton(4, new SGButton(working));
+        GuiService.control(menu, "working", 4, new SGButton(working));
 
-        p.openInventory(menu.getInventory());
+        GuiService.open(p, menu);
     }
 
 
     private void openEnchantmentPickerForBox(Player p,
                                              int kitIdx, int shulkerSlot, int boxSlot) {
 
-        SGMenu enchMenu = plugin.getGUI().create("&bPick Enchantment", 6);
+        SGMenu enchMenu = plugin.getMenus().create("custom-kits.shulker-ender-enchantments", 6);
         int gui = 0;
 
         CustomKit kit = plugin.getExtendedPlayer(p).getMainPlayer().getKits()[kitIdx];
@@ -509,7 +514,7 @@ public class CustomKitGUIMain {
         Inventory inv = sb.getInventory();
         ItemStack target = inv.getItem(boxSlot);
         if (target == null) {
-            p.sendMessage("§cNo item in that slot.");
+            Messages.send(p, "messages.custom-kit-guimain.no-item-in-that-slot");
             return;
         }
         ItemMeta targetMeta = target.getItemMeta();
@@ -530,7 +535,7 @@ public class CustomKitGUIMain {
 
             enchMenu.setButton(gui++, new SGButton(book).withListener(e -> {
                 p.closeInventory();
-                p.sendMessage("§bType the level (≥1) in chat.");
+                Messages.send(p, "messages.custom-kit-guimain.type-the-level-1-in-chat");
                 ENCHANT_BOX.put(p.getUniqueId(),
                         new PendingEnchantBox(kitIdx, shulkerSlot, boxSlot, ench));
             }));
@@ -540,10 +545,10 @@ public class CustomKitGUIMain {
         {
             ItemStack anvil = new ItemStack(Material.ANVIL);
             ItemMeta im = anvil.getItemMeta();
-            im.setDisplayName("§cClear All Enchants");
+            im.setDisplayName(GuiService.text("custom-kit-guimain.clear-all-enchants"));
             anvil.setItemMeta(im);
 
-            enchMenu.setButton(52, new SGButton(anvil).withListener(e -> {
+            GuiService.control(enchMenu, "anvil", 52, new SGButton(anvil).withListener(e -> {
                 ItemStack item = inv.getItem(boxSlot);
                 if (item == null) return;
 
@@ -555,7 +560,7 @@ public class CustomKitGUIMain {
                 inv.setItem(boxSlot, item);
 
                 saveShulkerBack(kit, shulkerSlot, sh, sb, bsm, inv);
-                p.sendMessage("§aAll enchantments cleared.");
+                Messages.send(p, "messages.custom-kit-guimain.all-enchantments-cleared");
                 openItemEditorForBox(p, kitIdx, shulkerSlot, boxSlot);
             }));
         }
@@ -564,14 +569,14 @@ public class CustomKitGUIMain {
         {
             ItemStack done = new ItemStack(Material.LIME_CONCRETE);
             ItemMeta dm = done.getItemMeta();
-            dm.setDisplayName("§aFINISH");
+            dm.setDisplayName(GuiService.text("custom-kit-guimain.finish"));
             done.setItemMeta(dm);
 
-            enchMenu.setButton(53, new SGButton(done).withListener(e ->
+            GuiService.control(enchMenu, "done", 53, new SGButton(done).withListener(e ->
                     openItemEditorForBox(p, kitIdx, shulkerSlot, boxSlot)));
         }
 
-        p.openInventory(enchMenu.getInventory());
+        GuiService.open(p, enchMenu);
     }
 
 
@@ -586,7 +591,7 @@ public class CustomKitGUIMain {
         ShulkerBox sb  = (ShulkerBox) bsm.getBlockState();
         Inventory  inv = sb.getInventory();
         if (msg.length() > 20) {
-            p.sendMessage("§cThis name is too long. The event has been canceled.");
+            Messages.send(p, "messages.custom-kit-guimain.this-name-is-too-long-the-event-has");
             return true;
         }
         ItemStack it = inv.getItem(pr.boxSlot()).clone();
@@ -596,7 +601,7 @@ public class CustomKitGUIMain {
 
         inv.setItem(pr.boxSlot(), it);
         inst.saveShulkerBack(kit, pr.shulkerSlot(), sh, sb, bsm, inv);
-        p.sendMessage("§aName set.");
+        Messages.send(p, "messages.custom-kit-guimain.name-set");
         inst.openShulkerEditor(p, pr.kitIdx(), pr.shulkerSlot());
         return true;
     }
@@ -606,8 +611,8 @@ public class CustomKitGUIMain {
         if (pi == null) return false;
 
         int amt;
-        try { amt = Integer.parseInt(msg); } catch (NumberFormatException ex) { p.sendMessage("§cNot a number."); return true; }
-        if (amt < 1 || amt > 64) { p.sendMessage("§cNumber must be 1‑64. The event has been canceled."); return true; }
+        try { amt = Integer.parseInt(msg); } catch (NumberFormatException ex) { Messages.send(p, "messages.custom-kit-guimain.not-a-number"); return true; }
+        if (amt < 1 || amt > 64) { Messages.send(p, "messages.custom-kit-guimain.number-must-be-1-64-the-event-has"); return true; }
 
         CustomKit kit = inst.plugin.getExtendedPlayer(p).getMainPlayer().getKits()[pi.kitIdx()];
         ItemStack sh  = kit.getSlot(pi.shulkerSlot()).convertToItem();
@@ -620,7 +625,7 @@ public class CustomKitGUIMain {
         inv.setItem(pi.boxSlot(), it);
 
         inst.saveShulkerBack(kit, pi.shulkerSlot(), sh, sb, bsm, inv);
-        p.sendMessage("§aStack size set.");
+        Messages.send(p, "messages.custom-kit-guimain.stack-size-set");
         inst.openShulkerEditor(p, pi.kitIdx(), pi.shulkerSlot());
         return true;
     }
@@ -630,13 +635,13 @@ public class CustomKitGUIMain {
         if (pe == null) return false;
 
         int lvl;
-        try { lvl = Integer.parseInt(msg); } catch (NumberFormatException ex) { p.sendMessage("§cNot a number. The event has been canceled."); return true; }
+        try { lvl = Integer.parseInt(msg); } catch (NumberFormatException ex) { Messages.send(p, "messages.custom-kit-guimain.not-a-number-the-event-has-been-canceled"); return true; }
         if (lvl < 1) {
-            p.sendMessage("§cLevel must be ≥ 1. The event has been canceled.");
+            Messages.send(p, "messages.custom-kit-guimain.level-must-be-1-the-event-has-been");
             return true;
         }
         if (lvl > 10) {
-            p.sendMessage("§cLevel must be ≤ 10. The event has been canceled.");
+            Messages.send(p, "messages.custom-kit-guimain.level-must-be-10-the-event-has-been");
             return true;
         }
 
@@ -653,7 +658,7 @@ public class CustomKitGUIMain {
 
         inv.setItem(pe.boxSlot(), it);
         inst.saveShulkerBack(kit, pe.shulkerSlot(), sh, sb, bsm, inv);
-        p.sendMessage("§aEnchantment set.");
+        Messages.send(p, "messages.custom-kit-guimain.enchantment-set");
         inst.openShulkerEditor(p, pe.kitIdx(), pe.shulkerSlot());
         return true;
     }
@@ -672,12 +677,12 @@ public class CustomKitGUIMain {
         ShulkerBox     sb  = (ShulkerBox) bsm.getBlockState();
         Inventory      inv = sb.getInventory();           // 27 slots
 
-        SGMenu menu = plugin.getGUI().create("&bEdit Shulker", 4);
+        SGMenu menu = plugin.getMenus().create("custom-kits.shulker", 4);
 
         /* 0‑26 : internal storage ------------------------------------------------*/
         ItemStack filler = new ItemStack(Material.LIME_STAINED_GLASS_PANE);
         ItemMeta  fMeta  = filler.getItemMeta();
-        fMeta.setDisplayName("§7Click to edit");
+        fMeta.setDisplayName(GuiService.text("custom-kit-guimain.click-to-edit"));
         filler.setItemMeta(fMeta);
 
         for (int i = 0; i < 27; i++) {
@@ -699,10 +704,10 @@ public class CustomKitGUIMain {
         {
             ItemStack bar = new ItemStack(Material.BARRIER);
             ItemMeta  im  = bar.getItemMeta();
-            im.setDisplayName("§cDelete Shulker");
+            im.setDisplayName(GuiService.text("custom-kit-guimain.delete-shulker"));
             bar.setItemMeta(im);
 
-            menu.setButton(30, new SGButton(bar).withListener(e -> {
+            GuiService.control(menu, "bar", 30, new SGButton(bar).withListener(e -> {
                 kit.setSlot(kitSlot, null);
                 editKit(kitIndex, p);
             }));
@@ -712,12 +717,12 @@ public class CustomKitGUIMain {
         {
             ItemStack sign = new ItemStack(Material.OAK_SIGN);
             ItemMeta  im   = sign.getItemMeta();
-            im.setDisplayName("§eRename Shulker");
+            im.setDisplayName(GuiService.text("custom-kit-guimain.rename-shulker"));
             sign.setItemMeta(im);
 
-            menu.setButton(31, new SGButton(sign).withListener(e -> {
+            GuiService.control(menu, "sign", 31, new SGButton(sign).withListener(e -> {
                 p.closeInventory();
-                p.sendMessage("§bType the new shulker name in chat.");
+                Messages.send(p, "messages.custom-kit-guimain.type-the-new-shulker-name-in-chat");
                 RENAME.put(p.getUniqueId(), new PendingRename(kitIndex, kitSlot));
             }));
         }
@@ -726,13 +731,13 @@ public class CustomKitGUIMain {
         {
             ItemStack done = new ItemStack(Material.LIME_CONCRETE);
             ItemMeta  im   = done.getItemMeta();
-            im.setDisplayName("§aFINISH");
+            im.setDisplayName(GuiService.text("custom-kit-guimain.finish"));
             done.setItemMeta(im);
 
-            menu.setButton(32, new SGButton(done).withListener(e -> editKit(kitIndex, p)));
+            GuiService.control(menu, "done", 32, new SGButton(done).withListener(e -> editKit(kitIndex, p)));
         }
 
-        p.openInventory(menu.getInventory());
+        GuiService.open(p, menu);
     }
 
     /* save helper */
@@ -754,11 +759,11 @@ public class CustomKitGUIMain {
         Map<String, CustomKitCategory> cats =
                 (Map<String, CustomKitCategory>) plugin.getData().get("customKitCategories");
         if (cats == null || cats.isEmpty()) {
-            p.sendMessage("§cNo categories configured");
+            Messages.send(p, "messages.custom-kit-guimain.no-categories-configured");
             return;
         }
 
-        SGMenu catMenu = plugin.getGUI().create("&bPick a Category", 4);
+        SGMenu catMenu = plugin.getMenus().create("custom-kits.shulker-categories", 4);
 
         for (CustomKitCategory cat : cats.values()) {
             ItemStack logo = cat.getDisplayItem().convertToItem();
@@ -767,7 +772,7 @@ public class CustomKitGUIMain {
             });
             catMenu.setButton(cat.getCategoryGuiSlot(), b);
         }
-        p.openInventory(catMenu.getInventory());
+        GuiService.open(p, catMenu);
     }
 
     /** the 6‑row item picker for a shulker slot                              */
@@ -777,7 +782,7 @@ public class CustomKitGUIMain {
                                              int kitSlotShulker,
                                              int boxSlot) {
 
-        SGMenu itemMenu = plugin.getGUI().create("&bSelect an Item", 6);
+        SGMenu itemMenu = plugin.getMenus().create("custom-kits.shulker-items", 6);
 
         for (Map.Entry<Integer, SerializableItem> entry : cat.getItems().entrySet()) {
             ItemStack icon = entry.getValue().convertToItem();
@@ -791,7 +796,7 @@ public class CustomKitGUIMain {
                 ShulkerBox sb = (ShulkerBox) bsm.getBlockState();
                 Inventory inv = sb.getInventory();
                 if (icon.getType().name().endsWith("SHULKER_BOX")) {
-                    p.sendMessage("§cYou can't place a shulker box inside another.");
+                    Messages.send(p, "messages.custom-kit-guimain.you-can-t-place-a-shulker-box-inside-2");
                     return;
                 }
 
@@ -802,7 +807,7 @@ public class CustomKitGUIMain {
 
             itemMenu.setButton(guiSlot, b);
         }
-        p.openInventory(itemMenu.getInventory());
+        GuiService.open(p, itemMenu);
     }
 
 
@@ -812,7 +817,7 @@ public class CustomKitGUIMain {
      *  ───────────────────────────────────────────────────────────── */
     private void openItemEditor(Player p, int kitIndex, int kitSlot) {
 
-        SGMenu menu = plugin.getGUI().create("&bEdit Item", 2);
+        SGMenu menu = plugin.getMenus().create("custom-kits.item", 2);
 
         CustomKit kit = plugin.getExtendedPlayer(p).getMainPlayer().getKits()[kitIndex];
         ItemStack working = kit.getSlot(kitSlot).convertToItem();   // copy we will mutate
@@ -821,72 +826,72 @@ public class CustomKitGUIMain {
         {
             ItemStack barrier = new ItemStack(Material.BARRIER);
             ItemMeta im = barrier.getItemMeta();
-            im.setDisplayName("§cDelete");
+            im.setDisplayName(GuiService.text("custom-kit-guimain.delete"));
             barrier.setItemMeta(im);
 
             SGButton del = new SGButton(barrier).withListener(e -> {
                 kit.setSlot(kitSlot, null);
                 editKit(kitIndex, p);
             });
-            menu.setButton(10, del);
+            GuiService.control(menu, "slot-10", 10, del);
         }
 
         /* slot 12 – Rename */
         {
             ItemStack sign = new ItemStack(Material.OAK_SIGN);
             ItemMeta im = sign.getItemMeta();
-            im.setDisplayName("§eRename");
+            im.setDisplayName(GuiService.text("custom-kit-guimain.rename"));
             sign.setItemMeta(im);
 
             SGButton ren = new SGButton(sign).withListener(e -> {
                 p.closeInventory();
-                p.sendMessage("§bType the new name in chat (colour codes with &).");
+                Messages.send(p, "messages.custom-kit-guimain.type-the-new-name-in-chat-colour-codes");
                 RENAME.put(p.getUniqueId(), new PendingRename(kitIndex, kitSlot));
             });
-            menu.setButton(12, ren);
+            GuiService.control(menu, "slot-12", 12, ren);
         }
 
         /* slot 13 – Enchant */
         {
             ItemStack book = new ItemStack(Material.ENCHANTED_BOOK);
             ItemMeta im = book.getItemMeta();
-            im.setDisplayName("§9Add / Change Enchant");
+            im.setDisplayName(GuiService.text("custom-kit-guimain.add-change-enchant"));
             book.setItemMeta(im);
 
             SGButton enchBtn = new SGButton(book).withListener(e -> openEnchantmentPicker(p, kitIndex, kitSlot));
-            menu.setButton(13, enchBtn);
+            GuiService.control(menu, "slot-13", 13, enchBtn);
         }
 
         /* slot 14 – Stack size */
         {
             ItemStack paper = new ItemStack(Material.PAPER);
             ItemMeta im = paper.getItemMeta();
-            im.setDisplayName("§fSet Stack Size");
+            im.setDisplayName(GuiService.text("custom-kit-guimain.set-stack-size"));
             paper.setItemMeta(im);
 
             SGButton stack = new SGButton(paper).withListener(e -> {
                 p.closeInventory();
-                p.sendMessage("§bEnter a number 1‑64 in chat.");
+                Messages.send(p, "messages.custom-kit-guimain.enter-a-number-1-64-in-chat-2");
                 STACK.put(p.getUniqueId(), new PendingInteger(kitIndex, kitSlot));
             });
-            menu.setButton(14, stack);
+            GuiService.control(menu, "slot-14", 14, stack);
         }
 
         /* slot 16 –  FINISH */
         {
             ItemStack done = new ItemStack(Material.LIME_CONCRETE);
             ItemMeta im = done.getItemMeta();
-            im.setDisplayName("§aFINISH");
+            im.setDisplayName(GuiService.text("custom-kit-guimain.finish"));
             done.setItemMeta(im);
 
             SGButton fin = new SGButton(done).withListener(e -> editKit(kitIndex, p));
-            menu.setButton(16, fin);
+            GuiService.control(menu, "slot-16", 16, fin);
         }
 
         /* centre display of the current item (slot 4) */
-        menu.setButton(4, new SGButton(working));
+        GuiService.control(menu, "working", 4, new SGButton(working));
 
-        p.openInventory(menu.getInventory());
+        GuiService.open(p, menu);
     }
 
     /*  ────────────────────────────────────────────────────────────────
@@ -894,7 +899,7 @@ public class CustomKitGUIMain {
      *  ───────────────────────────────────────────────────────────── */
     private void openEnchantmentPicker(Player p, int kitIndex, int kitSlot) {
 
-        SGMenu enchMenu = plugin.getGUI().create("&bPick Enchantment", 6);
+        SGMenu enchMenu = plugin.getMenus().create("custom-kits.enchantments", 6);
         int slot = 0;
 
         CustomKit kit = plugin.getExtendedPlayer(p).getMainPlayer().getKits()[kitIndex];
@@ -917,7 +922,7 @@ public class CustomKitGUIMain {
 
             SGButton b = new SGButton(book).withListener(e2 -> {
                 p.closeInventory();
-                p.sendMessage("§bType the level (≥1) in chat.");
+                Messages.send(p, "messages.custom-kit-guimain.type-the-level-1-in-chat");
                 ENCHANT.put(p.getUniqueId(), new PendingEnchant(kitIndex, kitSlot, ench));
             });
             enchMenu.setButton(slot++, b);
@@ -927,10 +932,10 @@ public class CustomKitGUIMain {
         {
             ItemStack anvil = new ItemStack(Material.ANVIL);
             ItemMeta im = anvil.getItemMeta();
-            im.setDisplayName("§cClear All Enchants");
+            im.setDisplayName(GuiService.text("custom-kit-guimain.clear-all-enchants"));
             anvil.setItemMeta(im);
 
-            enchMenu.setButton(52, new SGButton(anvil).withListener(e -> {
+            GuiService.control(enchMenu, "anvil", 52, new SGButton(anvil).withListener(e -> {
                 ItemStack item = kit.getSlot(kitSlot).convertToItem();
                 ItemMeta meta = item.getItemMeta();
                 if (meta != null) {
@@ -938,7 +943,7 @@ public class CustomKitGUIMain {
                     item.setItemMeta(meta);
                     kit.setSlot(kitSlot, item);
                 }
-                p.sendMessage("§aAll enchantments cleared.");
+                Messages.send(p, "messages.custom-kit-guimain.all-enchantments-cleared");
                 openItemEditor(p, kitIndex, kitSlot);  // Return to item editor
             }));
         }
@@ -947,14 +952,14 @@ public class CustomKitGUIMain {
         {
             ItemStack done = new ItemStack(Material.LIME_CONCRETE);
             ItemMeta dm = done.getItemMeta();
-            dm.setDisplayName("§aFINISH");
+            dm.setDisplayName(GuiService.text("custom-kit-guimain.finish"));
             done.setItemMeta(dm);
 
-            enchMenu.setButton(53, new SGButton(done).withListener(e ->
+            GuiService.control(enchMenu, "done", 53, new SGButton(done).withListener(e ->
                     openItemEditor(p, kitIndex, kitSlot)));
         }
 
-        p.openInventory(enchMenu.getInventory());
+        GuiService.open(p, enchMenu);
     }
 
 
@@ -969,13 +974,13 @@ public class CustomKitGUIMain {
         ItemStack item = kit.getSlot(pr.kitSlot()).convertToItem();
         ItemMeta im = item.getItemMeta();
         if (msg.length() > 20) {
-            p.sendMessage("§cThis name is too long. The event has been canceled.");
+            Messages.send(p, "messages.custom-kit-guimain.this-name-is-too-long-the-event-has");
             return true;
         }
         im.setDisplayName(ChatColor.translateAlternateColorCodes('&', msg));
         item.setItemMeta(im);
         kit.setSlot(pr.kitSlot(), item);
-        p.sendMessage("§aName set.");
+        Messages.send(p, "messages.custom-kit-guimain.name-set");
         inst.editKit(pr.kitIndex(), p);
         return true;
     }
@@ -986,15 +991,15 @@ public class CustomKitGUIMain {
 
         int amt;
         try { amt = Integer.parseInt(msg); }
-        catch (NumberFormatException ex) { p.sendMessage("§cNot a number. The event has been canceled."); return true; }
+        catch (NumberFormatException ex) { Messages.send(p, "messages.custom-kit-guimain.not-a-number-the-event-has-been-canceled"); return true; }
 
-        if (amt < 1 || amt > 64) { p.sendMessage("§cNumber must be 1‑64. The event has been canceled."); return true; }
+        if (amt < 1 || amt > 64) { Messages.send(p, "messages.custom-kit-guimain.number-must-be-1-64-the-event-has"); return true; }
 
         CustomKit kit = inst.plugin.getExtendedPlayer(p).getMainPlayer().getKits()[pi.kitIndex()];
         ItemStack item = kit.getSlot(pi.kitSlot()).convertToItem();
         item.setAmount(Math.min(amt, item.getMaxStackSize()));
         kit.setSlot(pi.kitSlot(), item);
-        p.sendMessage("§aStack size set.");
+        Messages.send(p, "messages.custom-kit-guimain.stack-size-set");
         inst.editKit(pi.kitIndex(), p);
         return true;
     }
@@ -1005,14 +1010,14 @@ public class CustomKitGUIMain {
 
         int lvl;
         try { lvl = Integer.parseInt(msg); }
-        catch (NumberFormatException ex) { p.sendMessage("§cNot a number. The event has been canceled."); return true; }
+        catch (NumberFormatException ex) { Messages.send(p, "messages.custom-kit-guimain.not-a-number-the-event-has-been-canceled"); return true; }
 
         if (lvl < 1) {
-            p.sendMessage("§cLevel must be ≥ 1. The event has been canceled.");
+            Messages.send(p, "messages.custom-kit-guimain.level-must-be-1-the-event-has-been");
             return true;
         }
         if (lvl > 10) {
-            p.sendMessage("§cLevel must be ≤ 10. The event has been canceled.");
+            Messages.send(p, "messages.custom-kit-guimain.level-must-be-10-the-event-has-been");
             return true;
         }
         CustomKit kit = inst.plugin.getExtendedPlayer(p).getMainPlayer().getKits()[pe.kitIndex()];
@@ -1023,7 +1028,7 @@ public class CustomKitGUIMain {
         item.setItemMeta(im);
 
         kit.setSlot(pe.kitSlot(), item);
-        p.sendMessage("§aEnchantment set.");
+        Messages.send(p, "messages.custom-kit-guimain.enchantment-set");
         inst.editKit(pe.kitIndex(), p);
         return true;
     }
@@ -1037,11 +1042,11 @@ public class CustomKitGUIMain {
         Map<String, CustomKitCategory> cats =
                 (Map<String, CustomKitCategory>) plugin.getData().get("customKitCategories");
         if (cats == null || cats.isEmpty()) {
-            p.sendMessage("§cNo categories configured");
+            Messages.send(p, "messages.custom-kit-guimain.no-categories-configured");
             return;
         }
 
-        SGMenu catMenu = plugin.getGUI().create("&bPick a Category", 4);
+        SGMenu catMenu = plugin.getMenus().create("custom-kits.categories", 4);
         for (CustomKitCategory cat : cats.values()) {
             ItemStack logo = cat.getDisplayItem().convertToItem();
             SGButton b = new SGButton(logo)
@@ -1049,7 +1054,7 @@ public class CustomKitGUIMain {
 
             catMenu.setButton(cat.getCategoryGuiSlot(), b);
         }
-        p.openInventory(catMenu.getInventory());
+        GuiService.open(p, catMenu);
     }
 
     /** Opens the 6‑row item list for one category. */
@@ -1058,7 +1063,7 @@ public class CustomKitGUIMain {
                                    int kitIndex,
                                    int kitSlot) {
 
-        SGMenu itemMenu = plugin.getGUI().create("&bSelect an Item", 6);
+        SGMenu itemMenu = plugin.getMenus().create("custom-kits.items", 6);
         for (Map.Entry<Integer, SerializableItem> entry : cat.getItems().entrySet()) {
             ItemStack icon = entry.getValue().convertToItem();
             int guiSlot = entry.getKey();
@@ -1077,13 +1082,13 @@ public class CustomKitGUIMain {
 
             itemMenu.setButton(guiSlot, b);
         }
-        p.openInventory(itemMenu.getInventory());
+        GuiService.open(p, itemMenu);
     }
 
 
     public void displayMain(Player p) {
 
-        SGMenu menu = plugin.getGUI().create("&bEdit Your Kit", 6);
+        SGMenu menu = plugin.getMenus().create("custom-kits.list", 6);
 
         // Create the black stained-glass panes.
         ItemStack pane = new ItemStack(Material.BLACK_STAINED_GLASS_PANE);
@@ -1110,22 +1115,22 @@ public class CustomKitGUIMain {
 
         ItemStack selectedItem = new ItemStack(Material.GREEN_CONCRETE);
         ItemMeta selectedMeta = selectedItem.getItemMeta();
-        selectedMeta.setDisplayName("§aSelected Kit");
+        selectedMeta.setDisplayName(GuiService.text("custom-kit-guimain.selected-kit"));
         selectedItem.setItemMeta(selectedMeta);
 
         ItemStack existingItem = new ItemStack(Material.RED_CONCRETE);
         ItemMeta existingMeta = existingItem.getItemMeta();
-        existingMeta.setDisplayName("§7Available Kit");
+        existingMeta.setDisplayName(GuiService.text("custom-kit-guimain.available-kit"));
         existingItem.setItemMeta(existingMeta);
 
         ItemStack creatableItem = new ItemStack(Material.WRITABLE_BOOK);
         ItemMeta creatableMeta = creatableItem.getItemMeta();
-        creatableMeta.setDisplayName("§6Create New Kit");
+        creatableMeta.setDisplayName(GuiService.text("custom-kit-guimain.create-new-kit"));
         creatableItem.setItemMeta(creatableMeta);
 
         ItemStack lockedItem = new ItemStack(Material.BEDROCK);
         ItemMeta lockedMeta = lockedItem.getItemMeta();
-        lockedMeta.setDisplayName("§8Locked Slot");
+        lockedMeta.setDisplayName(GuiService.text("custom-kit-guimain.locked-slot"));
         lockedItem.setItemMeta(lockedMeta);
 
         int sel = getSelectedKit(p);
@@ -1163,7 +1168,7 @@ public class CustomKitGUIMain {
             i--;
         }
 
-        p.openInventory(menu.getInventory());
+        GuiService.open(p, menu);
     }
 
     private void createEditSelectKit(int slot, Player p) {
@@ -1204,7 +1209,7 @@ public class CustomKitGUIMain {
         mp.setKit(slotKit, kit);
 
         // 5‑row chest GUI (45 slots)
-        SGMenu menu = plugin.getGUI().create("&bEditing Kit " + slotKit, 5);
+        SGMenu menu = plugin.getMenus().create("custom-kits.edit", 5, slotKit);
 
         /* -------------------------------------------------------------
          *  1) ‑‑‑‑‑‑‑‑‑‑ ARMOUR SLOTS  (menu slots 0‑3) ‑‑‑‑‑‑‑‑‑‑
@@ -1222,7 +1227,7 @@ public class CustomKitGUIMain {
             } else {
                 icon = new ItemStack(Material.LIGHT_BLUE_STAINED_GLASS_PANE);
                 ItemMeta im = icon.getItemMeta();
-                im.setDisplayName("§7Click to edit (" + armorNames[i] + ")");
+                im.setDisplayName(GuiService.text("custom-kit-guimain.click-to-edit-2", armorNames[i]));
                 icon.setItemMeta(im);
             }
 
@@ -1242,20 +1247,20 @@ public class CustomKitGUIMain {
             SGButton off = new SGButton(icon)
                     .withListener(e -> editSlot(kitSlot, slotKit, p));
 
-            menu.setButton(4, off);                              // 6th slot (index 5)
+            GuiService.control(menu, "slot-4", 4, off);                              // 6th slot (index 5)
         }
 
         {
 
             ItemStack icon = new ItemStack(Material.NETHER_STAR);
             ItemMeta meta = icon.getItemMeta();
-            meta.setDisplayName("§eDirect Kit Room");
+            meta.setDisplayName(GuiService.text("custom-kit-guimain.direct-kit-room"));
             icon.setItemMeta(meta);
 
             SGButton off = new SGButton(icon)
                     .withListener(e -> kitRoom(slotKit, p));
 
-            menu.setButton(5, off);
+            GuiService.control(menu, "slot-5", 5, off);
 
         }
 
@@ -1291,7 +1296,7 @@ public class CustomKitGUIMain {
         // LAST THING, settings button
         ItemStack comp = new ItemStack(Material.COMPARATOR);
         ItemMeta compItemMeta = comp.getItemMeta();
-        compItemMeta.setDisplayName("§7Settings");
+        compItemMeta.setDisplayName(GuiService.text("custom-kit-guimain.settings"));
         comp.setItemMeta(compItemMeta);
         SGButton button = new SGButton(comp);
         button.withListener(e -> openSettings(slotKit, p));
@@ -1300,20 +1305,20 @@ public class CustomKitGUIMain {
         {
             ItemStack del = new ItemStack(Material.RED_CONCRETE);
             ItemMeta  dm  = del.getItemMeta();
-            dm.setDisplayName("§cDelete Kit");
+            dm.setDisplayName(GuiService.text("custom-kit-guimain.delete-kit"));
             del.setItemMeta(dm);
 
             SGButton delBtn = new SGButton(del)
                     .withListener(e -> openDeleteConfirm(slotKit, p));
 
-            menu.setButton(8, delBtn);   // index 6 = GUI slot 7 (0‑based)
+            GuiService.control(menu, "slot-8", 8, delBtn);   // index 6 = GUI slot 7 (0‑based)
         }
 
         // Share‑Kit button (nametag) – GUI slot 6
         {
             ItemStack tag = new ItemStack(Material.NAME_TAG);
             ItemMeta  im  = tag.getItemMeta();
-            im.setDisplayName("§bShare Kit");
+            im.setDisplayName(GuiService.text("custom-kit-guimain.share-kit"));
             tag.setItemMeta(im);
 
 
@@ -1323,12 +1328,12 @@ public class CustomKitGUIMain {
 
 
 
-            menu.setButton(6, share);   // last slot on the top row
+            GuiService.control(menu, "slot-6", 6, share);   // last slot on the top row
         }
 
-        menu.setButton(7, button);
+        GuiService.control(menu, "slot-7", 7, button);
 
-        p.openInventory(menu.getInventory());                           // whatever your SGMenu uses
+        GuiService.open(p, menu);                           // whatever your SGMenu uses
     }
 
     /* ================================================================
@@ -1343,7 +1348,7 @@ public class CustomKitGUIMain {
         if (kit == null) return;
 
         /* five-row selector (one extra row for utility buttons) */
-        SGMenu menu = plugin.getGUI().create("&bKit Room", 5);
+        SGMenu menu = plugin.getMenus().create("custom-kits.room", 5);
 
 
         /* -------------------------  category icons  ------------------------- */
@@ -1364,23 +1369,23 @@ public class CustomKitGUIMain {
         {
             ItemStack clear = new ItemStack(Material.BARRIER);
             ItemMeta cm = clear.getItemMeta();
-            cm.setDisplayName("§cClear Inventory");
+            cm.setDisplayName(GuiService.text("custom-kit-guimain.clear-inventory"));
             clear.setItemMeta(cm);
 
-            menu.setButton(41, new SGButton(clear).withListener(e -> {
+            GuiService.control(menu, "clear", 41, new SGButton(clear).withListener(e -> {
                 p.closeInventory();
                 p.getInventory().clear();
-                p.sendMessage("§cYour inventory has been cleared.");
+                Messages.send(p, "messages.custom-kit-guimain.your-inventory-has-been-cleared");
                 kitRoom(kitIdx, p);                 // reopen
             }));
         }
         {
             ItemStack back = new ItemStack(Material.NETHER_STAR);
             ItemMeta  bm   = back.getItemMeta();
-            bm.setDisplayName("§eGO BACK");
+            bm.setDisplayName(GuiService.text("custom-kit-guimain.go-back"));
             back.setItemMeta(bm);
 
-            menu.setButton(39, new SGButton(back).withListener(e ->
+            GuiService.control(menu, "back", 39, new SGButton(back).withListener(e ->
                     editKit(kitIdx, p)));                       // back to kit editor
         }
 
@@ -1388,12 +1393,12 @@ public class CustomKitGUIMain {
         {
             ItemStack save = new ItemStack(Material.LIME_CONCRETE);
             ItemMeta sm = save.getItemMeta();
-            sm.setDisplayName("§aSave Inventory to Kit");
+            sm.setDisplayName(GuiService.text("custom-kit-guimain.save-inventory-to-kit"));
             save.setItemMeta(sm);
 
-            menu.setButton(40, new SGButton(save).withListener(e -> {
+            GuiService.control(menu, "save", 40, new SGButton(save).withListener(e -> {
                 savePlayerInventoryToKit(p, kitIdx);
-                p.sendMessage("§aCurrent inventory stored in this kit.");
+                Messages.send(p, "messages.custom-kit-guimain.current-inventory-stored-in-this-kit");
             }));
         }
 
@@ -1401,32 +1406,32 @@ public class CustomKitGUIMain {
         {
             ItemStack info = new ItemStack(Material.OAK_SIGN);
             ItemMeta im = info.getItemMeta();
-            im.setDisplayName("§7What is this?");
+            im.setDisplayName(GuiService.text("custom-kit-guimain.what-is-this"));
             im.setLore(List.of(
-                    "§7This menu allows you to create",
-                    "§7your own custom kits faster!",
+                    GuiService.text("custom-kit-guimain.this-menu-allows-you-to-create"),
+                    GuiService.text("custom-kit-guimain.your-own-custom-kits-faster"),
                     " ",
-                    "§7When you're finished, remember",
-                    "§7to save your kit."
+                    GuiService.text("custom-kit-guimain.when-you-re-finished-remember"),
+                    GuiService.text("custom-kit-guimain.to-save-your-kit")
             ));
             info.setItemMeta(im);
 
-            menu.setButton(4, new SGButton(info));   // no click action
+            GuiService.control(menu, "info", 4, new SGButton(info));   // no click action
         }
 
         // composter  ➜ trash bin
         {
             ItemStack trash = new ItemStack(Material.COMPOSTER);
             ItemMeta tm = trash.getItemMeta();
-            tm.setDisplayName("§7TRASH");
+            tm.setDisplayName(GuiService.text("custom-kit-guimain.trash"));
             trash.setItemMeta(tm);
 
-            menu.setButton(44, new SGButton(trash).withListener(e ->
+            GuiService.control(menu, "trash", 44, new SGButton(trash).withListener(e ->
                     openTrashBin(p, kitIdx)));
         }
 
 
-        p.openInventory(menu.getInventory());
+        GuiService.open(p, menu);
     }
 
     /* ================================================================
@@ -1440,9 +1445,8 @@ public class CustomKitGUIMain {
         // create vanilla chest (size = 6×9)
         Inventory inv = Bukkit.createInventory(
                 null,
-                54,
-                ChatColor.translateAlternateColorCodes('&',
-                        "&bKit Room &8(ESC to finish)"));
+                plugin.getMenus().nativeRows("custom-kits.room-items", 6) * 9,
+                plugin.getMenus().nativeTitle("custom-kits.room-items", p));
 
         // fill it with real ItemStacks
         cat.getItems().forEach((slot, ser) -> {
@@ -1467,16 +1471,16 @@ public class CustomKitGUIMain {
     /** Trash bin – items placed here vanish; ESC goes back to Kit-Room. */
     private void openTrashBin(Player p, int kitIdx) {
 
-        Inventory bin = Bukkit.createInventory(
-                null, 54,
-                ChatColor.translateAlternateColorCodes('&',
-                        "&8Trash Bin &7(ESC or click FINISH)"));
+        String menuId = "custom-kits.trash";
+        int size = plugin.getMenus().nativeRows(menuId, 1) * 9;
+        int finishSlot = plugin.getMenus().nativeSlot(menuId, "finish", Math.min(49, size - 1), size);
+        Inventory bin = Bukkit.createInventory(null, size, plugin.getMenus().nativeTitle(menuId, p));
 
         ItemStack fin = new ItemStack(Material.LIME_CONCRETE);
         ItemMeta fm = fin.getItemMeta();
-        fm.setDisplayName("§aFINISH");
+        fm.setDisplayName(GuiService.text("custom-kit-guimain.finish"));
         fin.setItemMeta(fm);
-        bin.setItem(49, fin);
+        bin.setItem(finishSlot, plugin.getMenus().nativeItem(menuId, "finish", fin, p));
 
         /* ---- click listener just for this bin ---- */
         Listener clickLock = new Listener() {
@@ -1485,9 +1489,16 @@ public class CustomKitGUIMain {
                 if (!e.getInventory().equals(bin)) return;
 
                 // lock the FINISH concrete
-                if (e.getSlot() == 49) {
+                if (e.getRawSlot() == finishSlot) {
                     e.setCancelled(true);
                     ((Player) e.getWhoClicked()).closeInventory();  // triggers onCloseOnce
+                }
+            }
+
+            @EventHandler
+            public void onDrag(InventoryDragEvent event) {
+                if (event.getInventory().equals(bin) && event.getRawSlots().contains(finishSlot)) {
+                    event.setCancelled(true);
                 }
             }
         };
@@ -1538,11 +1549,11 @@ public class CustomKitGUIMain {
     /** Opens a 1‑row confirm/delete GUI for a kit. */
     private void openDeleteConfirm(int slotKit, Player p) {
 
-        SGMenu confirm = plugin.getGUI().create("§cDelete Kit?", 1);
+        SGMenu confirm = plugin.getMenus().create("custom-kits.delete", 1);
 
         ItemStack yes = new ItemStack(Material.LIME_CONCRETE);
         ItemMeta ym = yes.getItemMeta();
-        ym.setDisplayName("§aYes, delete");
+        ym.setDisplayName(GuiService.text("custom-kit-guimain.yes-delete"));
         yes.setItemMeta(ym);
 
         SGButton yesBtn = new SGButton(yes).withListener(e -> {
@@ -1553,22 +1564,22 @@ public class CustomKitGUIMain {
 
             kits[slotKit] = null;                        // remove kit
             ep.getMainPlayer().setKit(slotKit, null);    // mark dirty
-            p.sendMessage("§cKit " + slotKit + " deleted.");
+            Messages.send(p, "messages.custom-kit-guimain.kit-deleted", slotKit);
             displayMain(p);                              // back to main GUI
         });
-        confirm.setButton(2, yesBtn);
+        GuiService.control(confirm, "slot-2", 2, yesBtn);
 
         // NO    – slot 7 (index 6)
         ItemStack no = new ItemStack(Material.RED_CONCRETE);
         ItemMeta nm = no.getItemMeta();
-        nm.setDisplayName("§cNo, go back");
+        nm.setDisplayName(GuiService.text("custom-kit-guimain.no-go-back"));
         no.setItemMeta(nm);
 
         SGButton noBtn = new SGButton(no)
                 .withListener(e -> editKit(slotKit, p));
-        confirm.setButton(5, noBtn);
+        GuiService.control(confirm, "slot-5", 5, noBtn);
 
-        p.openInventory(confirm.getInventory());
+        GuiService.open(p, confirm);
     }
 
 
@@ -1582,7 +1593,7 @@ public class CustomKitGUIMain {
 
         CustomKit kit = mp.getKits()[slotKit];
         if (kit == null || kit.getInventory().isEmpty()) {
-            p.sendMessage("§cThat kit is empty.");
+            Messages.send(p, "messages.custom-kit-guimain.that-kit-is-empty");
             return;
         }
 
@@ -1620,10 +1631,9 @@ public class CustomKitGUIMain {
              * --------------------------------------------------------- */
             plugin.getServer().getScheduler().runTask(plugin, () -> {
                 if (outCode[0] == null) {
-                    p.sendMessage("§cFailed to share kit, try again.");
+                    Messages.send(p, "messages.custom-kit-guimain.failed-to-share-kit-try-again");
                 } else {
-                    p.sendMessage("§aYour kit has been shared. Use command §e/copykit " +
-                            outCode[0] + " §ato copy it.");
+                    Messages.send(p, "messages.custom-kit-guimain.your-kit-has-been-shared-use-command-copykit", outCode[0]);
                     p.closeInventory();
                 }
             });
@@ -1644,14 +1654,14 @@ public class CustomKitGUIMain {
         /* ─────────────────────────────────────────────
          * 2 ROW SETTINGS GUI
          * ─────────────────────────────────────────── */
-        SGMenu menu = plugin.getGUI().create("§bSettings", 2);
+        SGMenu menu = plugin.getMenus().create("custom-kits.settings", 2);
 
         /* =========================================================
          * ROW 1
          * ======================================================= */
 
         /* Health Indicators */
-        menu.setButton(0, new SGButton(
+        GuiService.control(menu, "health-indicators", 0, new SGButton(
                 settingCreator(
                         new ItemStack(Material.RED_DYE),
                         "§dHealth Indicators",
@@ -1669,24 +1679,24 @@ public class CustomKitGUIMain {
 
             int value = kit.getMetaData().getInt("mending_rng");
 
-            im.setDisplayName("§dMending RNG");
+            im.setDisplayName(GuiService.text("custom-kit-guimain.mending-rng"));
             im.setLore(List.of(
-                    "§7Current: §f" + value,
+                    GuiService.text("custom-kit-guimain.current", value),
                     " ",
-                    "§7Type a number in chat.",
-                    "§7Type 0 to disable."
+                    GuiService.text("custom-kit-guimain.type-a-number-in-chat"),
+                    GuiService.text("custom-kit-guimain.type-0-to-disable")
             ));
             xp.setItemMeta(im);
 
-            menu.setButton(9, new SGButton(xp).withListener(e -> {
+            GuiService.control(menu, "xp", 9, new SGButton(xp).withListener(e -> {
                 p.closeInventory();
-                p.sendMessage("§bEnter Mending RNG value. §7(Type 0 to disable)");
+                Messages.send(p, "messages.custom-kit-guimain.enter-mending-rng-value-type-0-to-disable");
                 PENDING_MENDING.put(p.getUniqueId(), slotKit);
             }));
         }
 
         /* Hunger */
-        menu.setButton(1, new SGButton(
+        GuiService.control(menu, "hunger", 1, new SGButton(
                 settingCreator(
                         new ItemStack(Material.COOKED_BEEF),
                         "§dHunger",
@@ -1707,7 +1717,7 @@ public class CustomKitGUIMain {
                 enabled = true;
             }
 
-            menu.setButton(10, new SGButton(
+            GuiService.control(menu, "tnt-auto-ignition", 10, new SGButton(
                     settingCreator(
                             new ItemStack(Material.TNT),
                             "§dTNT Auto Ignition",
@@ -1720,7 +1730,7 @@ public class CustomKitGUIMain {
         }
 
         /* Saturation */
-        menu.setButton(2, new SGButton(
+        GuiService.control(menu, "saturation", 2, new SGButton(
                 settingCreator(
                         new ItemStack(Material.GOLDEN_APPLE),
                         "§dSaturation",
@@ -1738,23 +1748,23 @@ public class CustomKitGUIMain {
 
             int value = kit.getMetaData().getInt("dmg_inc_%");
 
-            im.setDisplayName("§dDamage Increase %");
+            im.setDisplayName(GuiService.text("custom-kit-guimain.damage-increase"));
             im.setLore(List.of(
-                    "§7Current: §f" + value + "%",
+                    GuiService.text("custom-kit-guimain.current-2", value),
                     " ",
-                    "§7Type a number in chat."
+                    GuiService.text("custom-kit-guimain.type-a-number-in-chat")
             ));
             sword.setItemMeta(im);
 
-            menu.setButton(11, new SGButton(sword).withListener(e -> {
+            GuiService.control(menu, "sword", 11, new SGButton(sword).withListener(e -> {
                 p.closeInventory();
-                p.sendMessage("§bEnter Damage Increase %.");
+                Messages.send(p, "messages.custom-kit-guimain.enter-damage-increase");
                 PENDING_DAMAGE.put(p.getUniqueId(), slotKit);
             }));
         }
 
         /* Building */
-        menu.setButton(3, new SGButton(
+        GuiService.control(menu, "block-modification", 3, new SGButton(
                 settingCreator(
                         new ItemStack(Material.GRASS_BLOCK),
                         "§dBlock Modification",
@@ -1766,7 +1776,7 @@ public class CustomKitGUIMain {
         }));
 
         /* Ender Chest */
-        menu.setButton(4, new SGButton(
+        GuiService.control(menu, "ender-chest", 4, new SGButton(
                 settingCreator(
                         new ItemStack(Material.ENDER_CHEST),
                         "§dEnder Chest",
@@ -1775,7 +1785,7 @@ public class CustomKitGUIMain {
         ).withListener(e -> openEnderChestEditor(p, slotKit)));
 
         /* Effects */
-        menu.setButton(5, new SGButton(
+        GuiService.control(menu, "effects", 5, new SGButton(
                 settingCreator(
                         new ItemStack(Material.POTION),
                         "§dEffects",
@@ -1786,13 +1796,13 @@ public class CustomKitGUIMain {
         /* DONE — LAST SLOT */
         ItemStack doneItem = new ItemStack(Material.LIME_CONCRETE);
         ItemMeta dIM = doneItem.getItemMeta();
-        dIM.setDisplayName("§aDONE");
+        dIM.setDisplayName(GuiService.text("custom-kit-guimain.done"));
         doneItem.setItemMeta(dIM);
 
-        menu.setButton(17, new SGButton(doneItem)
+        GuiService.control(menu, "slot-17", 17, new SGButton(doneItem)
                 .withListener(e -> editKit(slotKit, p)));
 
-        p.openInventory(menu.getInventory());
+        GuiService.open(p, menu);
     }
 
 
@@ -1803,38 +1813,38 @@ public class CustomKitGUIMain {
         CustomKit kit = ep.getMainPlayer().getKits()[kitIdx];
         if (kit == null) return;
 
-        SGMenu menu = plugin.getGUI().create("§bEffects", 3);
+        SGMenu menu = plugin.getMenus().create("custom-kits.effects", 3);
 
         // info in middle
         ItemStack info = new ItemStack(Material.BOOK);
         ItemMeta im = info.getItemMeta();
         int count = kit.getEffects().size();
-        im.setDisplayName("§bCurrent Effects: §f" + count);
+        im.setDisplayName(GuiService.text("custom-kit-guimain.current-effects", count));
         info.setItemMeta(im);
-        menu.setButton(13, new SGButton(info));
+        GuiService.control(menu, "info", 13, new SGButton(info));
 
         // create
         ItemStack create = new ItemStack(Material.LIME_CONCRETE);
         ItemMeta cm = create.getItemMeta();
-        cm.setDisplayName("§aCreate New Effect");
+        cm.setDisplayName(GuiService.text("custom-kit-guimain.create-new-effect"));
         create.setItemMeta(cm);
-        menu.setButton(11, new SGButton(create).withListener(e -> openEffectPicker(p, kitIdx, 0)));
+        GuiService.control(menu, "create", 11, new SGButton(create).withListener(e -> openEffectPicker(p, kitIdx, 0)));
 
         // list
         ItemStack list = new ItemStack(Material.PAPER);
         ItemMeta lm = list.getItemMeta();
-        lm.setDisplayName("§eList Effects (click to delete)");
+        lm.setDisplayName(GuiService.text("custom-kit-guimain.list-effects-click-to-delete"));
         list.setItemMeta(lm);
-        menu.setButton(15, new SGButton(list).withListener(e -> openEffectList(p, kitIdx, 0)));
+        GuiService.control(menu, "list", 15, new SGButton(list).withListener(e -> openEffectList(p, kitIdx, 0)));
 
         // back
         ItemStack back = new ItemStack(Material.NETHER_STAR);
         ItemMeta bm = back.getItemMeta();
-        bm.setDisplayName("§7Back");
+        bm.setDisplayName(GuiService.text("custom-kit-guimain.back"));
         back.setItemMeta(bm);
-        menu.setButton(26, new SGButton(back).withListener(e -> openSettings(kitIdx, p)));
+        GuiService.control(menu, "back", 26, new SGButton(back).withListener(e -> openSettings(kitIdx, p)));
 
-        p.openInventory(menu.getInventory());
+        GuiService.open(p, menu);
     }
 
     private void openEffectPicker(Player p, int kitIdx, int page) {
@@ -1852,7 +1862,7 @@ public class CustomKitGUIMain {
         int maxPage = Math.max(0, (all.size() - 1) / pageSize);
         int safePage = Math.max(0, Math.min(page, maxPage));
 
-        SGMenu menu = plugin.getGUI().create("§bPick Effect §7(" + (safePage + 1) + "/" + (maxPage + 1) + ")", 6);
+        SGMenu menu = plugin.getMenus().create("custom-kits.pick-effect", 6, (safePage + 1), (maxPage + 1));
 
         int start = safePage * pageSize;
         int end = Math.min(all.size(), start + pageSize);
@@ -1866,16 +1876,16 @@ public class CustomKitGUIMain {
             String key = type.getName().toLowerCase();
             im.setDisplayName("§b" + key);
             im.setLore(List.of(
-                    "§7Click, then type in chat",
-                    "§flevel:seconds §7(example §f1:120§7)",
-                    "§7Level 1 means Potion I"
+                    GuiService.text("custom-kit-guimain.click-then-type-in-chat"),
+                    GuiService.text("custom-kit-guimain.level-seconds-example-1-120"),
+                    GuiService.text("custom-kit-guimain.level-1-means-potion-i")
             ));
             icon.setItemMeta(im);
 
             final String chosenKey = key;
             menu.setButton(slot++, new SGButton(icon).withListener(e -> {
                 p.closeInventory();
-                p.sendMessage("§bType §flevel:seconds§b, example §f1:120");
+                Messages.send(p, "messages.custom-kit-guimain.type-level-seconds-example-1-120");
                 EFFECT_CREATE.put(p.getUniqueId(), new PendingEffectCreate(kitIdx, chosenKey));
             }));
         }
@@ -1883,25 +1893,25 @@ public class CustomKitGUIMain {
         // prev
         ItemStack prev = new ItemStack(Material.ARROW);
         ItemMeta pm = prev.getItemMeta();
-        pm.setDisplayName("§7Previous");
+        pm.setDisplayName(GuiService.text("custom-kit-guimain.previous"));
         prev.setItemMeta(pm);
-        menu.setButton(45, new SGButton(prev).withListener(e -> openEffectPicker(p, kitIdx, safePage - 1)));
+        GuiService.control(menu, "prev", 45, new SGButton(prev).withListener(e -> openEffectPicker(p, kitIdx, safePage - 1)));
 
         // back
         ItemStack back = new ItemStack(Material.NETHER_STAR);
         ItemMeta bm = back.getItemMeta();
-        bm.setDisplayName("§7Back");
+        bm.setDisplayName(GuiService.text("custom-kit-guimain.back"));
         back.setItemMeta(bm);
-        menu.setButton(49, new SGButton(back).withListener(e -> openEffectsMenu(p, kitIdx)));
+        GuiService.control(menu, "back", 49, new SGButton(back).withListener(e -> openEffectsMenu(p, kitIdx)));
 
         // next
         ItemStack next = new ItemStack(Material.ARROW);
         ItemMeta nm = next.getItemMeta();
-        nm.setDisplayName("§7Next");
+        nm.setDisplayName(GuiService.text("custom-kit-guimain.next"));
         next.setItemMeta(nm);
-        menu.setButton(53, new SGButton(next).withListener(e -> openEffectPicker(p, kitIdx, safePage + 1)));
+        GuiService.control(menu, "next", 53, new SGButton(next).withListener(e -> openEffectPicker(p, kitIdx, safePage + 1)));
 
-        p.openInventory(menu.getInventory());
+        GuiService.open(p, menu);
     }
 
     private void openEffectList(Player p, int kitIdx, int page) {
@@ -1917,7 +1927,7 @@ public class CustomKitGUIMain {
         int maxPage = Math.max(0, (effects.size() - 1) / pageSize);
         int safePage = Math.max(0, Math.min(page, maxPage));
 
-        SGMenu menu = plugin.getGUI().create("§eEffects List §7(" + (safePage + 1) + "/" + (maxPage + 1) + ")", 6);
+        SGMenu menu = plugin.getMenus().create("custom-kits.effect-list", 6, (safePage + 1), (maxPage + 1));
 
         int start = safePage * pageSize;
         int end = Math.min(effects.size(), start + pageSize);
@@ -1930,17 +1940,17 @@ public class CustomKitGUIMain {
             ItemMeta im = icon.getItemMeta();
             im.setDisplayName("§b" + em.getKey());
             im.setLore(List.of(
-                    "§7Level: §f" + em.getLevel(),
-                    "§7Seconds: §f" + em.getSeconds(),
+                    GuiService.text("custom-kit-guimain.level", em.getLevel()),
+                    GuiService.text("custom-kit-guimain.seconds", em.getSeconds()),
                     " ",
-                    "§cClick to delete"
+                    GuiService.text("custom-kit-guimain.click-to-delete")
             ));
             icon.setItemMeta(im);
 
             final int removeIndex = idx;
             menu.setButton(slot++, new SGButton(icon).withListener(e -> {
                 kit.removeEffect(removeIndex);
-                p.sendMessage("§cEffect removed.");
+                Messages.send(p, "messages.custom-kit-guimain.effect-removed");
                 openEffectList(p, kitIdx, safePage);
             }));
         }
@@ -1948,35 +1958,35 @@ public class CustomKitGUIMain {
         // clear all
         ItemStack clear = new ItemStack(Material.ANVIL);
         ItemMeta cm = clear.getItemMeta();
-        cm.setDisplayName("§cClear All Effects");
+        cm.setDisplayName(GuiService.text("custom-kit-guimain.clear-all-effects"));
         clear.setItemMeta(cm);
-        menu.setButton(52, new SGButton(clear).withListener(e -> {
+        GuiService.control(menu, "clear", 52, new SGButton(clear).withListener(e -> {
             kit.clearEffects();
-            p.sendMessage("§cAll effects cleared.");
+            Messages.send(p, "messages.custom-kit-guimain.all-effects-cleared");
             openEffectList(p, kitIdx, 0);
         }));
 
         // back
         ItemStack back = new ItemStack(Material.NETHER_STAR);
         ItemMeta bm = back.getItemMeta();
-        bm.setDisplayName("§7Back");
+        bm.setDisplayName(GuiService.text("custom-kit-guimain.back"));
         back.setItemMeta(bm);
-        menu.setButton(49, new SGButton(back).withListener(e -> openEffectsMenu(p, kitIdx)));
+        GuiService.control(menu, "back", 49, new SGButton(back).withListener(e -> openEffectsMenu(p, kitIdx)));
 
         // prev, next
         ItemStack prev = new ItemStack(Material.ARROW);
         ItemMeta pm = prev.getItemMeta();
-        pm.setDisplayName("§7Previous");
+        pm.setDisplayName(GuiService.text("custom-kit-guimain.previous"));
         prev.setItemMeta(pm);
-        menu.setButton(45, new SGButton(prev).withListener(e -> openEffectList(p, kitIdx, safePage - 1)));
+        GuiService.control(menu, "prev", 45, new SGButton(prev).withListener(e -> openEffectList(p, kitIdx, safePage - 1)));
 
         ItemStack next = new ItemStack(Material.ARROW);
         ItemMeta nm = next.getItemMeta();
-        nm.setDisplayName("§7Next");
+        nm.setDisplayName(GuiService.text("custom-kit-guimain.next"));
         next.setItemMeta(nm);
-        menu.setButton(53, new SGButton(next).withListener(e -> openEffectList(p, kitIdx, safePage + 1)));
+        GuiService.control(menu, "next", 53, new SGButton(next).withListener(e -> openEffectList(p, kitIdx, safePage + 1)));
 
-        p.openInventory(menu.getInventory());
+        GuiService.open(p, menu);
     }
 
 
@@ -2000,7 +2010,7 @@ public class CustomKitGUIMain {
 
         ItemStack pane = new ItemStack(fillerMat);
         ItemMeta  im   = pane.getItemMeta();
-        im.setDisplayName("§7Click to edit");
+        im.setDisplayName(GuiService.text("custom-kit-guimain.click-to-edit"));
         pane.setItemMeta(im);
         return pane;
     }
@@ -2064,12 +2074,12 @@ public class CustomKitGUIMain {
         try {
             value = Integer.parseInt(msg);
         } catch (Exception e) {
-            p.sendMessage("§cNot a number.");
+            Messages.send(p, "messages.custom-kit-guimain.not-a-number");
             return true;
         }
 
         if (value < 0) {
-            p.sendMessage("§cMust be ≥ 0.");
+            Messages.send(p, "messages.custom-kit-guimain.must-be-0");
             return true;
         }
 
@@ -2081,9 +2091,9 @@ public class CustomKitGUIMain {
         kit.getMetaData().set("mending_rng", value);
 
         if (value == 0) {
-            p.sendMessage("§cMending RNG disabled.");
+            Messages.send(p, "messages.custom-kit-guimain.mending-rng-disabled");
         } else {
-            p.sendMessage("§aMending RNG set to §f" + value);
+            Messages.send(p, "messages.custom-kit-guimain.mending-rng-set-to", value);
         }
 
         inst.openSettings(kitIdx, p);
@@ -2099,12 +2109,12 @@ public class CustomKitGUIMain {
         try {
             value = Integer.parseInt(msg);
         } catch (Exception e) {
-            p.sendMessage("§cNot a number.");
+            Messages.send(p, "messages.custom-kit-guimain.not-a-number");
             return true;
         }
 
         if (value < 0) {
-            p.sendMessage("§cMust be ≥ 0.");
+            Messages.send(p, "messages.custom-kit-guimain.must-be-0");
             return true;
         }
 
@@ -2115,7 +2125,7 @@ public class CustomKitGUIMain {
 
         kit.getMetaData().set("dmg_inc_%", value);
 
-        p.sendMessage("§aDamage Increase set to §f" + value + "%");
+        Messages.send(p, "messages.custom-kit-guimain.damage-increase-set-to", value);
 
         inst.openSettings(kitIdx, p);
         return true;

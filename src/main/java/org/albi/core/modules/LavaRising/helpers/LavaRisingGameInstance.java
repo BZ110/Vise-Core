@@ -1,5 +1,7 @@
 package org.albi.core.modules.LavaRising.helpers;
 
+import org.albi.core.gui.Messages;
+
 import com.google.gson.JsonObject;
 import org.albi.core.Core;
 import org.albi.core.util.ConfigValues;
@@ -128,8 +130,8 @@ public class LavaRisingGameInstance {
                 p.getInventory().addItem(kit);
                 p.setGameMode(GameMode.SURVIVAL);
                 sendBorder(p);
-                p.sendTitle(ChatColor.RED + "Lava Rising!",
-                        ChatColor.GOLD + "Survive as long as you can",
+                p.sendTitle(Messages.text(p, "messages.lava-rising-game-instance.lava-rising", ChatColor.RED),
+                        Messages.text(p, "messages.lava-rising-game-instance.survive-as-long-as-you-can", ChatColor.GOLD),
                         10, 60, 20);
             }
             world.getEntities().stream()
@@ -315,14 +317,14 @@ public class LavaRisingGameInstance {
                     + ChatColor.GOLD + " wins Lava Rising!");
 
             // optional: title / sound
-            winner.sendTitle(ChatColor.GREEN + "VICTORY", "", 10, 100, 20);
+            winner.sendTitle(Messages.text(winner, "messages.lava-rising-game-instance.victory", ChatColor.GREEN), "", 10, 100, 20);
             world.playSound(winner.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1, 1);
 
             ExtendedPlayer eW = plugin.getExtendedPlayer(winner);
             MainPlayer mW = eW.getMainPlayer();
             mW.addXp(500);
 
-            winner.sendMessage(ChatColor.YELLOW + "" + ChatColor.BOLD + ">> +500 XP <<");
+            Messages.send(winner, "messages.lava-rising-game-instance.500-xp", ChatColor.YELLOW, ChatColor.BOLD);
 
             stop();            // ends match, cleans borders, etc.
         } else if (alive.isEmpty()) {

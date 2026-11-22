@@ -1,5 +1,7 @@
 package org.albi.core.modules.LavaRising.commands;
 
+import org.albi.core.gui.Messages;
+
 import org.albi.core.Core;
 import org.albi.core.modules.LavaRising.helpers.LavaArena;
 import org.albi.core.modules.LavaRising.helpers.LavaRisingStorage;
@@ -33,7 +35,7 @@ public class LavaArenaCommand extends BaseCommand implements CommandExecutor, Ta
     public boolean onCommand(CommandSender s, Command c, String lbl, String[] a) {
 
         if (!s.hasPermission("core.lavaarena")) {
-            s.sendMessage("§cNo permission.");
+            Messages.send(s, "messages.lava-arena-command.no-permission");
             return true;
         }
         if (a.length == 0) {
@@ -49,25 +51,24 @@ public class LavaArenaCommand extends BaseCommand implements CommandExecutor, Ta
             case "create" -> {
                 if (a.length < 2) return arg(s, "/lavaarena create <name>");
                 if (getArena(a[1]) != null) {
-                    s.sendMessage("§cArena already exists.");
+                    Messages.send(s, "messages.lava-arena-command.arena-already-exists");
                     return true;
                 }
                 LavaArena ar = new LavaArena();
                 ar.setName(a[1]);
                 store.lavaArenas.add(ar);
                 save();
-                s.sendMessage("§aCreated arena '" + a[1] + "'.");
+                Messages.send(s, "messages.lava-arena-command.created-arena", a[1]);
             }
 
             /* /lavaarena list */
             case "list" -> {
                 if (store.lavaArenas.isEmpty()) {
-                    s.sendMessage("§7No arenas saved.");
+                    Messages.send(s, "messages.lava-arena-command.no-arenas-saved");
                 } else {
-                    s.sendMessage("§eLava Arenas:");
+                    Messages.send(s, "messages.lava-arena-command.lava-arenas");
                     store.lavaArenas.forEach(ar ->
-                            s.sendMessage(" §6• §f" + ar.getName() +
-                                    " §7[schem=" + (ar.getSchematic() == null ? "none" : ar.getSchematic()) + "]"));
+                            Messages.send(s, "messages.lava-arena-command.schem", ar.getName(), (ar.getSchematic() == null ? "none" : ar.getSchematic())));
                 }
             }
 
@@ -76,12 +77,12 @@ public class LavaArenaCommand extends BaseCommand implements CommandExecutor, Ta
                 if (a.length < 2) return arg(s, "/lavaarena delete <name>");
                 LavaArena ar = getArena(a[1]);
                 if (ar == null) {
-                    s.sendMessage("§cArena not found.");
+                    Messages.send(s, "messages.lava-arena-command.arena-not-found");
                     return true;
                 }
                 store.lavaArenas.remove(ar);
                 save();
-                s.sendMessage("§cRemoved arena '" + ar.getName() + "'.");
+                Messages.send(s, "messages.lava-arena-command.removed-arena", ar.getName());
             }
 
             /* Editing commands require player context */
@@ -94,7 +95,7 @@ public class LavaArenaCommand extends BaseCommand implements CommandExecutor, Ta
 
                 ar.setSpawn(new SerializableLocation(p.getLocation()));
                 save();
-                s.sendMessage("§aSpawn set for '" + ar.getName() + "'.");
+                Messages.send(s, "messages.lava-arena-command.spawn-set-for", ar.getName());
             }
 
             /* /lavaarena setschematic <name> <file> */
@@ -105,7 +106,7 @@ public class LavaArenaCommand extends BaseCommand implements CommandExecutor, Ta
 
                 ar.setSchematic(a[2]);
                 save();
-                s.sendMessage("§aSchematic set to '" + a[2] + "' for arena '" + ar.getName() + "'.");
+                Messages.send(s, "messages.lava-arena-command.schematic-set-to-for-arena", a[2], ar.getName());
             }
 
             /* /lavaarena setpos1 <name>   (least corner) */
@@ -122,10 +123,10 @@ public class LavaArenaCommand extends BaseCommand implements CommandExecutor, Ta
                 if (first) {                            // store temporarily in metadata
                     p.setMetadata("lava_pos1_x", new FixedMetadataValue(plugin, x));
                     p.setMetadata("lava_pos1_z", new FixedMetadataValue(plugin, z));
-                    s.sendMessage("§aFirst corner recorded, run /lavaarena setpos2 <name> at the opposite corner.");
+                    Messages.send(s, "messages.lava-arena-command.first-corner-recorded-run-lavaarena-setpos2-name-at");
                 } else {
                     if (!p.hasMetadata("lava_pos1_x")) {
-                        s.sendMessage("§cRun setpos1 first.");
+                        Messages.send(s, "messages.lava-arena-command.run-setpos1-first");
                         return true;
                     }
                     double x1 = p.getMetadata("lava_pos1_x").get(0).asDouble();
@@ -138,7 +139,7 @@ public class LavaArenaCommand extends BaseCommand implements CommandExecutor, Ta
 
                     ar.setPositions(leastX, mostX, leastZ, mostZ);
                     save();
-                    s.sendMessage("§aBounds set for '" + ar.getName() + "'.");
+                    Messages.send(s, "messages.lava-arena-command.bounds-set-for", ar.getName());
                 }
             }
 
@@ -173,17 +174,9 @@ public class LavaArenaCommand extends BaseCommand implements CommandExecutor, Ta
     private void save() { plugin.getData().set("lavastor", store); }
 
     private void sendUsage(CommandSender s) {
-        s.sendMessage("""
-            §e/lavaarena create <name>
-            §e/lavaarena delete <name>
-            §e/lavaarena list
-            §e/lavaarena setspawn <name>
-            §e/lavaarena setschematic <name> <file>
-            §e/lavaarena setpos1 <name>
-            §e/lavaarena setpos2 <name>
-            """);
+        Messages.send(s, "messages.lava-arena-command.lavaarena-create-name-lavaarena-delete-name-lavaarena-list");
     }
-    private boolean arg(CommandSender s, String msg) { s.sendMessage("§cUsage: " + msg); return true; }
-    private boolean playerOnly(CommandSender s)      { s.sendMessage("§cOnly players may run this."); return true; }
-    private boolean notFound(CommandSender s)        { s.sendMessage("§cArena not found."); return true; }
+    private boolean arg(CommandSender s, String msg) { Messages.send(s, "messages.lava-arena-command.usage", msg); return true; }
+    private boolean playerOnly(CommandSender s)      { Messages.send(s, "messages.lava-arena-command.only-players-may-run-this"); return true; }
+    private boolean notFound(CommandSender s)        { Messages.send(s, "messages.lava-arena-command.arena-not-found"); return true; }
 }

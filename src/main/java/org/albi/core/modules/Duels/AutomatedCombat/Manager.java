@@ -1,5 +1,7 @@
 package org.albi.core.modules.Duels.AutomatedCombat;
 
+import org.albi.core.gui.Messages;
+
 import org.albi.core.Core;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
@@ -53,7 +55,7 @@ public final class Manager {
     public void start(Player player, BotSettings settings, AutomatedCombatCallbacks callbacks) {
         BotSession existing = sessions.get(player.getUniqueId());
         if (existing == null && sessions.size() >= maxSessions) {
-            player.sendMessage("§cAll NPC practice sessions are in use. Try again in a moment.");
+            Messages.send(player, "messages.manager.all-npc-practice-sessions-are-in-use-try");
             return;
         }
         if (existing != null) {

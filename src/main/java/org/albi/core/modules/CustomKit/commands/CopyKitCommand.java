@@ -1,5 +1,7 @@
 package org.albi.core.modules.CustomKit.commands;
 
+import org.albi.core.gui.Messages;
+
 import org.albi.core.Core;
 import org.albi.core.data.ExtendedPlayer;
 import org.albi.core.data.StatManagement;
@@ -25,7 +27,7 @@ public class CopyKitCommand extends BaseCommand {
         if (!(sender instanceof Player player)) return true;
 
         if (args.length < 1) {
-            player.sendMessage("§cUsage: /copykit <code>");
+            Messages.send(player, "messages.copy-kit-command.usage-copykit-code");
             return true;
         }
         String code = args[0].toUpperCase();
@@ -56,7 +58,7 @@ public class CopyKitCommand extends BaseCommand {
              * ------------------------------------------ */
             plugin.getServer().getScheduler().runTask(plugin, () -> {
                 if (imported == null) {
-                    player.sendMessage("§cNo kit found with that code.");
+                    Messages.send(player, "messages.copy-kit-command.no-kit-found-with-that-code");
                     return;
                 }
                 new CopyKitSelectSlotGUI(plugin, imported).open(player);

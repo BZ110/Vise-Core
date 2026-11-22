@@ -1,10 +1,12 @@
 package org.albi.core.modules.Duels.AutomatedCombat;
 
+import org.albi.core.gui.GuiService;
+
 import java.util.List;
 
 public enum BotPreset {
 
-        BEAST_EASY("Beast Easy", "beast", List.of("§7Easy difficulty for Beast kit."),
+        BEAST_EASY("Beast Easy", "beast", "bot-preset.easy-difficulty-for-beast-kit",
                         85, // Sprint Hits %
                         10, // W Taps %
                         2.95, // Frequent Range
@@ -23,7 +25,7 @@ public enum BotPreset {
                         15.0, // Aim Speed Degrees
                         3.0// Reach Distance
         ),
-        BEAST_HARD("Beast Hard", "beast", List.of("§7Hard difficulty for Beast kit."),
+        BEAST_HARD("Beast Hard", "beast", "bot-preset.hard-difficulty-for-beast-kit",
                         100, // Sprint Hits %
                         0, // W Taps %
                         3.1, // Frequent Range
@@ -42,7 +44,7 @@ public enum BotPreset {
                         15.0, // Aim Speed Degrees
                         3.25// Reach Distance
         ),
-        BEAST_INSANE("Beast Insane", "beast", List.of("§7Insane difficulty for Beast kit."),
+        BEAST_INSANE("Beast Insane", "beast", "bot-preset.insane-difficulty-for-beast-kit",
                         100, // Sprint Hits %
                         0, // W Taps %
                         3.8, // Frequent Range
@@ -61,7 +63,7 @@ public enum BotPreset {
                         15.0, // Aim Speed Degrees
                         3.85// Reach Distance
         ),
-        SMP_EASY("SMP Easy", "smp", List.of("§7Easy difficulty for SMP kit."),
+        SMP_EASY("SMP Easy", "smp", "bot-preset.easy-difficulty-for-smp-kit",
                         75, // Sprint Hits %
                         20, // W Taps %
                         2.95, // Frequent Range
@@ -80,7 +82,7 @@ public enum BotPreset {
                         15.0, // Aim Speed Degrees
                         3.0// Reach Distance
         ),
-        SMP_HARD("SMP Hard", "smp", List.of("§7Hard difficulty for SMP kit."),
+        SMP_HARD("SMP Hard", "smp", "bot-preset.hard-difficulty-for-smp-kit",
                         100, // Sprint Hits %
                         100, // W Taps %
                         3.60, // Frequent Range
@@ -99,7 +101,7 @@ public enum BotPreset {
                         15.0, // Aim Speed Degrees
                         3.65// Reach Distance
         ),
-        NETHERITE_OP_EASY("Netherite OP Easy", "nethop", List.of("§7Easy difficulty for Netherite OP kit."),
+        NETHERITE_OP_EASY("Netherite OP Easy", "nethop", "bot-preset.easy-difficulty-for-netherite-op-kit",
                         75, // Sprint Hits %
                         20, // W Taps %
                         2.95, // Frequent Range
@@ -118,7 +120,7 @@ public enum BotPreset {
                         15.0, // Aim Speed Degrees
                         3.0// Reach Distance
         ),
-        NETHERITE_OP_HARD("Netherite OP Hard", "nethop", List.of("§7Hard difficulty for Netherite OP kit."),
+        NETHERITE_OP_HARD("Netherite OP Hard", "nethop", "bot-preset.hard-difficulty-for-netherite-op-kit",
                         100, // Sprint Hits %
                         100, // W Taps %
                         3.60, // Frequent Range
@@ -137,7 +139,7 @@ public enum BotPreset {
                         15.0, // Aim Speed Degrees
                         3.65// Reach Distance
         ),
-        POT_EASY("Pot Easy", "pot", List.of("§7Easy difficulty for Pot kit."),
+        POT_EASY("Pot Easy", "pot", "bot-preset.easy-difficulty-for-pot-kit",
                         75, // Sprint Hits %
                         20, // W Taps %
                         2.95, // Frequent Range
@@ -156,7 +158,7 @@ public enum BotPreset {
                         15.0, // Aim Speed Degrees
                         3.0// Reach Distance
         ),
-        POT_HARD("Pot Hard", "pot", List.of("§7Hard difficulty for Pot kit."),
+        POT_HARD("Pot Hard", "pot", "bot-preset.hard-difficulty-for-pot-kit",
                         100, // Sprint Hits %
                         100, // W Taps %
                         3.20, // Frequent Range
@@ -178,7 +180,7 @@ public enum BotPreset {
 
         private final String displayName;
         private final String kitCategory;
-        private final List<String> lore;
+        private final String loreKey;
 
         // Combat Parameters
         private final int sprintHits;
@@ -199,14 +201,14 @@ public enum BotPreset {
         private final double aimSpeed;
         private final double reach;
 
-        BotPreset(String displayName, String kitCategory, List<String> lore,
+        BotPreset(String displayName, String kitCategory, String loreKey,
                         int sprintHits, int wTaps, double freqRange, boolean invuln, int strafe,
                         int reaction, int attackDelay, double moveSpeed, double retreatSpeed,
                         double closeRetreatSpeed, double maxChase, int shieldUse, boolean shieldBreak,
                         int shieldCooldown, double desync, double aimSpeed, double reach) {
                 this.displayName = displayName;
                 this.kitCategory = kitCategory;
-                this.lore = lore;
+                this.loreKey = loreKey;
                 this.sprintHits = sprintHits;
                 this.wTaps = wTaps;
                 this.freqRange = freqRange;
@@ -235,7 +237,7 @@ public enum BotPreset {
         }
 
         public List<String> getLore() {
-                return lore;
+                return List.of(GuiService.text(loreKey));
         }
 
         public int getSprintHits() {

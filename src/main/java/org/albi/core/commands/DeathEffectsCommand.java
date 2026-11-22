@@ -1,5 +1,7 @@
 package org.albi.core.commands;
 
+import org.albi.core.gui.Messages;
+
 import org.albi.core.Core;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -17,7 +19,7 @@ public class DeathEffectsCommand implements CommandExecutor {
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!(sender instanceof Player player)) {
-            sender.sendMessage("Only players can use this command.");
+            Messages.send(sender, "messages.death-effects-command.only-players-can-use-this-command");
             return true;
         }
 
@@ -25,7 +27,7 @@ public class DeathEffectsCommand implements CommandExecutor {
         if (gui != null) {
             gui.open(player, 0);
         } else {
-            player.sendMessage("§cDeath Effects GUI is not available.");
+            Messages.send(player, "messages.death-effects-command.death-effects-gui-is-not-available");
         }
 
         return true;

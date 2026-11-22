@@ -1,5 +1,7 @@
 package org.albi.core.modules.FFA.GUIs;
 
+import org.albi.core.gui.GuiService;
+
 import com.samjakob.spigui.buttons.SGButton;
 import com.samjakob.spigui.menu.SGMenu;
 import org.albi.core.Core;
@@ -31,7 +33,7 @@ public final class FFAGUIs {
         for (FFAKitSetup s : org.albi.core.modules.FFA.FFAManager.stor.allSetups()) {
             if (s.getWorldName() != null && Bukkit.getWorld(s.getWorldName()) != null) setups.add(s);
         }
-        SGMenu m = plugin.getGUI().create("§bFFA Kits", 1);
+        SGMenu m = plugin.getMenus().create("ffa.kits", 1);
 
         int slot = 0;
         for (FFAKitSetup s : setups) {
@@ -52,7 +54,7 @@ public final class FFAGUIs {
                 if (w != null) playing = w.getPlayers().size();
 
                 List<String> lore = new ArrayList<>(1);
-                lore.add("§r§e" + playing + " §7ᴘʟᴀʏɪɴɢ");
+                lore.add(GuiService.text("ffaguis.open-kit-menu", playing));
                 itM.setLore(lore);
 
                 it.setItemMeta(itM);
@@ -65,12 +67,12 @@ public final class FFAGUIs {
             if (slot > 9) break; // 1x9 only
         }
 
-        p.openInventory(m.getInventory());
+        GuiService.open(p, m);
     }
 
     /** 1x9 menu of teleport spots within the chosen kit world. */
     public void openSpotMenu(Player p, FFAKitSetup setup) {
-        SGMenu m = plugin.getGUI().create("§bChoose Spawn", 1);
+        SGMenu m = plugin.getMenus().create("ffa.spawns", 1);
         for (Map.Entry<Integer, FFASpot> e : setup.getSpots().entrySet()) {
             int idx = e.getKey();
             if (idx < 0 || idx > 8) continue;
@@ -105,6 +107,6 @@ public final class FFAGUIs {
                 }
             }));
         }
-        p.openInventory(m.getInventory());
+        GuiService.open(p, m);
     }
 }

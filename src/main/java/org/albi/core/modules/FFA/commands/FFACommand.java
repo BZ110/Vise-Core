@@ -1,5 +1,7 @@
 package org.albi.core.modules.FFA.commands;
 
+import org.albi.core.gui.Messages;
+
 import org.albi.core.Core;
 import org.albi.core.modules.FFA.FFAManager;
 import org.albi.core.modules.FFA.GUIs.FFAGUIs;
@@ -23,7 +25,7 @@ public final class FFACommand extends org.albi.core.commands.BaseCommand {
         org.albi.core.data.ExtendedPlayer ep = plugin.getExtendedPlayer(p);
         
         if (org.albi.core.modules.Tournaments.TournamentManager.getInstance() != null && org.albi.core.modules.Tournaments.TournamentManager.getInstance().isInTournament(p)) {
-            p.sendMessage("§cYou cannot join an FFA while you are in a tournament.");
+            Messages.send(p, "messages.ffacommand.you-cannot-join-an-ffa-while-you-are");
             return true;
         }
 

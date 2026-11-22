@@ -1,5 +1,9 @@
 package org.albi.core.modules.Party.play;
 
+import org.albi.core.gui.Messages;
+
+import org.albi.core.gui.GuiService;
+
 import com.samjakob.spigui.buttons.SGButton;
 import com.samjakob.spigui.menu.SGMenu;
 import org.albi.core.Core;
@@ -65,19 +69,19 @@ public final class PartyPlayGUIs {
         public void open(Player leader) {
             Party party = pm.getParty(leader);
             if (party == null) {
-                leader.sendMessage("§cYour party no longer exists.");
+                Messages.send(leader, "messages.party-play-guis.your-party-no-longer-exists");
                 return;
             }
             int partySize = party.getMembers().size();
 
-            SGMenu menu = pl.getGUI().create("§bPick Team Sizes", 1);
+            SGMenu menu = pl.getMenus().create("party.team-sizes", 1);
             List<Integer> symmetric = new ArrayList<>();
             for (int size = 1; size * 2 <= partySize; size++) symmetric.add(size);
 
             int idx = 0;
             for (int s : symmetric) {
-                ItemStack paper = named(Material.PAPER, "§e" + s + " §7vs §e" + s,
-                        List.of("§7Balanced team size preset.", "§fClick to continue."));
+                ItemStack paper = named(Material.PAPER, GuiService.text("party-play-guis.vs", s, s),
+                        List.of(GuiService.text("party-play-guis.balanced-team-size-preset"), GuiService.text("party-play-guis.click-to-continue")));
                 menu.setButton(idx++, new SGButton(paper).withListener(ev -> {
                     PartyPlaySession ses = ACTIVE.computeIfAbsent(leader.getUniqueId(), id -> new PartyPlaySession());
                     ses.mode = PartyPlaySession.Mode.TEAMS;
@@ -88,15 +92,15 @@ public final class PartyPlayGUIs {
                 }));
             }
 
-            ItemStack sign = named(Material.OAK_SIGN, "§b✎ Custom Sizes",
-                    List.of("§7Click then type something like §f2v5", "§7to set custom team sizes."));
-            menu.setButton(8, new SGButton(sign).withListener(ev -> {
+            ItemStack sign = named(Material.OAK_SIGN, GuiService.text("party-play-guis.custom-sizes"),
+                    List.of(GuiService.text("party-play-guis.click-then-type-something-like-2v5"), GuiService.text("party-play-guis.to-set-custom-team-sizes")));
+            GuiService.control(menu, "sign", 8, new SGButton(sign).withListener(ev -> {
                 leader.closeInventory();
-                leader.sendMessage("§bPlease type the sizes in chat, format §e<X>v<Y>§b, example §e2v5§b.");
+                Messages.send(leader, "messages.party-play-guis.please-type-the-sizes-in-chat-format-x");
                 CustomSizeListener.WAITING.add(leader.getUniqueId());
             }));
 
-            leader.openInventory(menu.getInventory());
+            GuiService.open(leader, menu);
         }
     }
 
@@ -107,7 +111,7 @@ public final class PartyPlayGUIs {
             if (!WAITING.remove(p.getUniqueId())) return false;
             msg = msg.toLowerCase().replace(" ", "");
             if (!msg.contains("v")) {
-                p.sendMessage("§cInvalid format, example §e2v5§c.");
+                Messages.send(p, "messages.party-play-guis.invalid-format-example-2v5");
                 return true;
             }
             String[] parts = msg.split("v");
@@ -116,21 +120,21 @@ public final class PartyPlayGUIs {
                 a = Integer.parseInt(parts[0]);
                 b = Integer.parseInt(parts[1]);
             } catch (NumberFormatException ex) {
-                p.sendMessage("§cNumbers required.");
+                Messages.send(p, "messages.party-play-guis.numbers-required");
                 return true;
             }
 
             Party party = pm.getParty(p);
             if (party == null) {
-                p.sendMessage("§cYou are no longer in a party.");
+                Messages.send(p, "messages.party-play-guis.you-are-no-longer-in-a-party");
                 return true;
             }
             if (a + b > party.getMembers().size()) {
-                p.sendMessage("§cYour party only has " + party.getMembers().size() + " members.");
+                Messages.send(p, "messages.party-play-guis.your-party-only-has-members", party.getMembers().size());
                 return true;
             }
             if (a < 1 || b < 1) {
-                p.sendMessage("§cTeam sizes must both be at least 1.");
+                Messages.send(p, "messages.party-play-guis.team-sizes-must-both-be-at-least-1");
                 return true;
             }
 
@@ -153,11 +157,11 @@ public final class PartyPlayGUIs {
             Party party = pm.getParty(leader);
             PartyPlaySession ses = ACTIVE.get(leader.getUniqueId());
             if (party == null || ses == null) {
-                leader.sendMessage("§cYour party play session expired.");
+                Messages.send(leader, "messages.party-play-guis.your-party-play-session-expired");
                 return;
             }
 
-            SGMenu menu = pl.getGUI().create("§6§lParty Draft Board", 6);
+            SGMenu menu = pl.getMenus().create("party.draft", 6);
 
             List<UUID> poolEntries = ses.poolPageEntries();
             for (int i = 0; i < poolEntries.size(); i++) {
@@ -166,20 +170,20 @@ public final class PartyPlayGUIs {
                 menu.setButton(i, new SGButton(head(Bukkit.getOfflinePlayer(id),
                         "§f" + displayName(id),
                         List.of(
-                                "§7Bench player",
-                                "§7Target team: " + (targetTeam == 1 ? "§dTeam One" : "§bTeam Two"),
-                                "§fClick to draft into the target team."
+                                GuiService.text("party-play-guis.bench-player"),
+                                GuiService.text("party-play-guis.target-team", (targetTeam == 1 ? "§dTeam One" : "§bTeam Two")),
+                                GuiService.text("party-play-guis.click-to-draft-into-the-target-team")
                         ))).withListener(e -> {
                     if (!ses.assignToTeam(id, targetTeam)) {
-                        leader.sendMessage("§cThat team is already full.");
+                        Messages.send(leader, "messages.party-play-guis.that-team-is-already-full");
                     }
                     open(leader);
                 }));
             }
 
-            menu.setButton(7, new SGButton(named(Material.ARROW, "§e← Bench", List.of("§7Previous bench page.")))
+            GuiService.control(menu, "bench", 7, new SGButton(named(Material.ARROW, GuiService.text("party-play-guis.bench"), List.of(GuiService.text("party-play-guis.previous-bench-page"))))
                     .withListener(e -> { if (ses.poolPage > 0) ses.poolPage--; open(leader); }));
-            menu.setButton(8, new SGButton(named(Material.ARROW, "§eBench →", List.of("§7Next bench page.")))
+            GuiService.control(menu, "bench-2", 8, new SGButton(named(Material.ARROW, GuiService.text("party-play-guis.bench-2"), List.of(GuiService.text("party-play-guis.next-bench-page"))))
                     .withListener(e -> {
                         if ((ses.poolPage + 1) * 7 < ses.bench.size()) ses.poolPage++;
                         open(leader);
@@ -192,14 +196,14 @@ public final class PartyPlayGUIs {
                 menu.setButton(base + i, new SGButton(head(Bukkit.getOfflinePlayer(id),
                         (ses.viewedTeam == 1 ? "§d" : "§b") + displayName(id),
                         List.of(
-                                "§7Displayed team: " + (ses.viewedTeam == 1 ? "§dTeam One" : "§bTeam Two"),
-                                "§fLeft click §7→ move to the other team",
-                                "§fRight click §7→ send back to bench"
+                                GuiService.text("party-play-guis.displayed-team", (ses.viewedTeam == 1 ? "§dTeam One" : "§bTeam Two")),
+                                GuiService.text("party-play-guis.left-click-move-to-the-other-team"),
+                                GuiService.text("party-play-guis.right-click-send-back-to-bench")
                         ))).withListener(e -> {
                     if (e.getClick().isRightClick()) {
                         ses.returnToBench(id);
                     } else if (!ses.moveBetweenTeams(id)) {
-                        leader.sendMessage("§cThe other team is full.");
+                        Messages.send(leader, "messages.party-play-guis.the-other-team-is-full");
                     }
                     open(leader);
                 }));
@@ -210,37 +214,37 @@ public final class PartyPlayGUIs {
                         .withListener(e -> e.setCancelled(true)));
             }
 
-            menu.setButton(45, new SGButton(named(Material.COMPARATOR,
-                    "§6Target Team: " + (ses.activeTeam == 1 ? "§dTeam One" : "§bTeam Two"),
-                    List.of("§7Bench clicks place players into this team.", "§fClick to cycle.")))
+            GuiService.control(menu, "target-team", 45, new SGButton(named(Material.COMPARATOR,
+                    GuiService.text("party-play-guis.target-team-button", (ses.activeTeam == 1 ? "§dTeam One" : "§bTeam Two")),
+                    List.of(GuiService.text("party-play-guis.bench-clicks-place-players-into-this-team"), GuiService.text("party-play-guis.click-to-cycle"))))
                     .withListener(e -> { ses.activeTeam = ses.activeTeam == 1 ? 2 : 1; open(leader); }));
 
-            menu.setButton(46, new SGButton(named(Material.SPYGLASS,
-                    "§eViewed Team: " + (ses.viewedTeam == 1 ? "§dTeam One" : "§bTeam Two"),
-                    List.of("§7Choose which team is shown in the middle grid.", "§fClick to cycle.")))
+            GuiService.control(menu, "viewed-team", 46, new SGButton(named(Material.SPYGLASS,
+                    GuiService.text("party-play-guis.viewed-team", (ses.viewedTeam == 1 ? "§dTeam One" : "§bTeam Two")),
+                    List.of(GuiService.text("party-play-guis.choose-which-team-is-shown-in-the-middle"), GuiService.text("party-play-guis.click-to-cycle"))))
                     .withListener(e -> { ses.viewedTeam = ses.viewedTeam == 1 ? 2 : 1; ses.teamPage = 0; open(leader); }));
 
-            menu.setButton(47, new SGButton(named(Material.ARROW, "§e← Team Page", List.of("§7View the previous team page.")))
+            GuiService.control(menu, "team-page", 47, new SGButton(named(Material.ARROW, GuiService.text("party-play-guis.team-page"), List.of(GuiService.text("party-play-guis.view-the-previous-team-page"))))
                     .withListener(e -> { if (ses.teamPage > 0) ses.teamPage--; open(leader); }));
 
             int viewedSize = ses.getTeamSet(ses.viewedTeam).size();
-            menu.setButton(48, new SGButton(named(Material.ARROW, "§eTeam Page →", List.of("§7View the next team page.")))
+            GuiService.control(menu, "team-page-2", 48, new SGButton(named(Material.ARROW, GuiService.text("party-play-guis.team-page-2"), List.of(GuiService.text("party-play-guis.view-the-next-team-page"))))
                     .withListener(e -> { if ((ses.teamPage + 1) * 27 < viewedSize) ses.teamPage++; open(leader); }));
 
-            menu.setButton(49, new SGButton(named(Material.CRAFTER, "§aDivide Evenly", List.of(
-                    "§7Fill both teams from the bench.",
-                    "§7Uses your shuffle and balance settings."
+            GuiService.control(menu, "divide-evenly", 49, new SGButton(named(Material.CRAFTER, GuiService.text("party-play-guis.divide-evenly"), List.of(
+                    GuiService.text("party-play-guis.fill-both-teams-from-the-bench"),
+                    GuiService.text("party-play-guis.uses-your-shuffle-and-balance-settings")
             ))).withListener(e -> { divideEvenly(party, ses); open(leader); }));
 
-            menu.setButton(50, new SGButton(named(Material.CHEST, "§dFill Team One", List.of("§7Move bench players into Team One until it is full.")))
+            GuiService.control(menu, "fill-team-one", 50, new SGButton(named(Material.CHEST, GuiService.text("party-play-guis.fill-team-one"), List.of(GuiService.text("party-play-guis.move-bench-players-into-team-one-until-it"))))
                     .withListener(e -> { fillTeam(party, ses, 1); open(leader); }));
 
-            menu.setButton(51, new SGButton(named(Material.ENDER_CHEST, "§bFill Team Two", List.of("§7Move bench players into Team Two until it is full.")))
+            GuiService.control(menu, "fill-team-two", 51, new SGButton(named(Material.ENDER_CHEST, GuiService.text("party-play-guis.fill-team-two"), List.of(GuiService.text("party-play-guis.move-bench-players-into-team-two-until-it"))))
                     .withListener(e -> { fillTeam(party, ses, 2); open(leader); }));
 
-            menu.setButton(52, new SGButton(named(Material.FIRE_CHARGE, "§c§lParty FFA", List.of(
-                    "§7Skip teams and start a last-player-standing party fight.",
-                    "§fClick to use everyone in one free-for-all."
+            GuiService.control(menu, "party-ffa", 52, new SGButton(named(Material.FIRE_CHARGE, GuiService.text("party-play-guis.party-ffa"), List.of(
+                    GuiService.text("party-play-guis.skip-teams-and-start-a-last-player-standing"),
+                    GuiService.text("party-play-guis.click-to-use-everyone-in-one-free-for")
             ))).withListener(e -> {
                 ses.mode = PartyPlaySession.Mode.FFA;
                 ses.teamOneMembers.clear();
@@ -250,22 +254,22 @@ public final class PartyPlayGUIs {
                 new KitSelectorGUI(pl, pm, true).open(leader);
             }));
 
-            menu.setButton(53, new SGButton(named(Material.LIME_CONCRETE,
-                    "§aContinue",
+            GuiService.control(menu, "continue", 53, new SGButton(named(Material.LIME_CONCRETE,
+                    GuiService.text("party-play-guis.continue"),
                     List.of(
-                            "§7Team One: §f" + ses.teamOneMembers.size() + "§7/§f" + ses.teamOneSize,
-                            "§7Team Two: §f" + ses.teamTwoMembers.size() + "§7/§f" + ses.teamTwoSize,
-                            "§fClick to continue to kit selection."
+                            GuiService.text("party-play-guis.team-one", ses.teamOneMembers.size(), ses.teamOneSize),
+                            GuiService.text("party-play-guis.team-two", ses.teamTwoMembers.size(), ses.teamTwoSize),
+                            GuiService.text("party-play-guis.click-to-continue-to-kit-selection")
                     ))).withListener(e -> {
                 if (ses.teamOneMembers.size() != ses.teamOneSize || ses.teamTwoMembers.size() != ses.teamTwoSize) {
-                    leader.sendMessage("§cFinish assigning players before continuing.");
+                    Messages.send(leader, "messages.party-play-guis.finish-assigning-players-before-continuing");
                     return;
                 }
                 ses.mode = PartyPlaySession.Mode.TEAMS;
                 new KitSelectorGUI(pl, pm, true).open(leader);
             }));
 
-            leader.openInventory(menu.getInventory());
+            GuiService.open(leader, menu);
         }
 
         private void divideEvenly(Party party, PartyPlaySession ses) {
@@ -313,28 +317,28 @@ public final class PartyPlayGUIs {
             int maxPage = maxSlot / pageSize;
             PartyPlaySession ses = ACTIVE.get(leader.getUniqueId());
 
-            String title = ses != null && ses.mode == PartyPlaySession.Mode.FFA
-                    ? "§cParty FFA Kit §7(" + (page + 1) + "/" + (maxPage + 1) + ")"
-                    : ((firstTeam ? "§dTeam One Kit" : "§bTeam Two Kit") + " §7(" + (page + 1) + "/" + (maxPage + 1) + ")");
-            SGMenu menu = pl.getGUI().create(title, rows);
+            String mode = ses != null && ses.mode == PartyPlaySession.Mode.FFA
+                    ? GuiService.text("party-play-guis.ffa-kit")
+                    : GuiService.text(firstTeam ? "party-play-guis.team-one-kit" : "party-play-guis.team-two-kit");
+            SGMenu menu = pl.getMenus().create("party.kits", rows, mode, page + 1, maxPage + 1);
 
             for (Kit k : DuelManager.stor.kits) {
                 int global = k.getSlot();
                 if (global / pageSize != page) continue;
                 int local = global % pageSize;
                 ItemStack icon = k.getDisplayItem().convertToItem();
-                menu.setButton(local, new SGButton(icon).withListener(ev -> {
+                GuiService.entry(menu, k.getName(), local, new SGButton(icon).withListener(ev -> {
                     saveChoice(leader, k);
                     nextScreen(leader);
                 }));
             }
 
-            if (page > 0) menu.setButton(44, new SGButton(named(Material.ARROW, "§e← Previous Page", List.of("§7View previous kit page.")))
+            if (page > 0) GuiService.control(menu, "previous", 44, new SGButton(named(Material.ARROW, GuiService.text("party-play-guis.previous-page"), List.of(GuiService.text("party-play-guis.view-previous-kit-page"))))
                     .withListener(e -> open(leader, page - 1)));
-            if (page < maxPage) menu.setButton(45, new SGButton(named(Material.ARROW, "§eNext Page →", List.of("§7View next kit page.")))
+            if (page < maxPage) GuiService.control(menu, "next", 45, new SGButton(named(Material.ARROW, GuiService.text("party-play-guis.next-page"), List.of(GuiService.text("party-play-guis.view-next-kit-page"))))
                     .withListener(e -> open(leader, page + 1)));
 
-            menu.setButton(49, new SGButton(named(Material.ARROW, "§6← Back", List.of("§7Return to the draft board.")))
+            GuiService.control(menu, "back", 49, new SGButton(named(Material.ARROW, GuiService.text("party-play-guis.back"), List.of(GuiService.text("party-play-guis.return-to-the-draft-board"))))
                     .withListener(e -> {
                         PartyPlaySession s = ACTIVE.get(leader.getUniqueId());
                         if (s != null && s.mode == PartyPlaySession.Mode.FFA) new SizeSelectorGUI(pl, pm).open(leader);
@@ -342,18 +346,18 @@ public final class PartyPlayGUIs {
                     }));
 
             addCustomButtons(menu, leader);
-            leader.openInventory(menu.getInventory());
+            GuiService.open(leader, menu);
         }
 
         private void addCustomButtons(SGMenu menu, Player leader) {
-            menu.setButton(52, new SGButton(named(Material.BLAZE_POWDER, "§eSelected Custom Kit", List.of(
-                    "§7Use your currently selected custom kit",
-                    "§7for this slot."
+            menu.setButton(52, new SGButton(named(Material.BLAZE_POWDER, GuiService.text("party-play-guis.selected-custom-kit"), List.of(
+                    GuiService.text("party-play-guis.use-your-currently-selected-custom-kit"),
+                    GuiService.text("party-play-guis.for-this-slot")
             ))).withListener(e -> new CustomKitListGUI(pl, pm, firstTeam).open((Player) e.getWhoClicked())));
 
-            menu.setButton(53, new SGButton(named(Material.BLAZE_POWDER, "§6Selected Per Custom Kit", List.of(
-                    "§7Every player uses their own selected",
-                    "§7custom kit slot."
+            menu.setButton(53, new SGButton(named(Material.BLAZE_POWDER, GuiService.text("party-play-guis.selected-per-custom-kit"), List.of(
+                    GuiService.text("party-play-guis.every-player-uses-their-own-selected"),
+                    GuiService.text("party-play-guis.custom-kit-slot")
             ))).withListener(e -> {
                 PartyPlaySession ses = ACTIVE.get(leader.getUniqueId());
                 if (ses == null) return;
@@ -404,13 +408,13 @@ public final class PartyPlayGUIs {
         }
 
         void open(Player leader) {
-            SGMenu menu = pl.getGUI().create("§bSelect Your Kit", 6);
+            SGMenu menu = pl.getMenus().create("party.personal-kits", 6);
             CustomKit[] kits = pl.getExtendedPlayer(leader).getMainPlayer().getKits();
             for (int idx = 1; idx < kits.length; idx++) {
                 CustomKit ck = kits[idx];
                 if (ck == null) continue;
                 final int kitIndex = idx;
-                ItemStack paper = named(Material.PAPER, "§aKit §e#" + idx, List.of("§7Use this custom kit for the match."));
+                ItemStack paper = named(Material.PAPER, GuiService.text("party-play-guis.kit-number", idx), List.of(GuiService.text("party-play-guis.use-this-custom-kit-for-the-match")));
                 menu.addButton(new SGButton(paper).withListener(ev -> {
                     Kit legacy = ck.toKit();
                     legacy.setName("Custom #" + kitIndex);
@@ -428,7 +432,7 @@ public final class PartyPlayGUIs {
                     }
                 }));
             }
-            leader.openInventory(menu.getInventory());
+            GuiService.open(leader, menu);
         }
     }
 
@@ -439,18 +443,18 @@ public final class PartyPlayGUIs {
         void open(Player leader) {
             List<Integer> opts = pl.getConfig().getIntegerList("duels.rounds");
             if (opts.isEmpty()) opts = List.of(1, 3, 5);
-            SGMenu menu = pl.getGUI().create("§bPick Rounds", 1);
+            SGMenu menu = pl.getMenus().create("party.rounds", 1);
             int i = 0;
             for (int r : opts) {
-                menu.setButton(i++, new SGButton(named(Material.PAPER, "§eFirst to " + r,
-                        List.of("§7Set the duel round target.")))
+                menu.setButton(i++, new SGButton(named(Material.PAPER, GuiService.text("party-play-guis.first-to", r),
+                        List.of(GuiService.text("party-play-guis.set-the-duel-round-target"))))
                         .withListener(ev -> {
                             PartyPlaySession ses = ACTIVE.get(leader.getUniqueId());
                             if (ses != null) ses.rounds = r;
                             new ConfirmGUI(pl, pm).open(leader);
                         }));
             }
-            leader.openInventory(menu.getInventory());
+            GuiService.open(leader, menu);
         }
     }
 
@@ -459,7 +463,7 @@ public final class PartyPlayGUIs {
         ArenaSelectorGUI(Core pl, PartyManager pm) { this.pl = pl; this.pm = pm; }
 
         void open(Player leader) {
-            SGMenu menu = pl.getGUI().create("§bPick Arena", 5);
+            SGMenu menu = pl.getMenus().create("party.arenas", 5);
             int off = 0;
             for (Arena a : DuelManager.stor.arenas) {
                 if (a.deactivated) continue;
@@ -470,13 +474,13 @@ public final class PartyPlayGUIs {
                     else new RoundSelectorGUI(pl, pm).open(leader);
                 }));
             }
-            menu.setButton(44, new SGButton(named(Material.ARROW, "§6← Back", List.of("§7Return to the previous menu.")))
+            GuiService.control(menu, "back", 44, new SGButton(named(Material.ARROW, GuiService.text("party-play-guis.back"), List.of(GuiService.text("party-play-guis.return-to-the-previous-menu"))))
                     .withListener(e -> {
                         PartyPlaySession ses = ACTIVE.get(leader.getUniqueId());
                         if (ses != null && ses.mode == PartyPlaySession.Mode.FFA) new KitSelectorGUI(pl, pm, true).open(leader);
                         else new KitSelectorGUI(pl, pm, false).open(leader);
                     }));
-            leader.openInventory(menu.getInventory());
+            GuiService.open(leader, menu);
         }
     }
 
@@ -487,47 +491,47 @@ public final class PartyPlayGUIs {
         void open(Player leader) {
             PartyPlaySession ses = ACTIVE.get(leader.getUniqueId());
             if (ses == null) {
-                leader.sendMessage("§cSession expired.");
+                Messages.send(leader, "messages.party-play-guis.session-expired");
                 return;
             }
 
-            SGMenu menu = pl.getGUI().create(ses.mode == PartyPlaySession.Mode.FFA ? "§cStart Party FFA" : "§aStart Party Duel", 1);
+            SGMenu menu = pl.getMenus().create("party.confirm", 1, GuiService.text(ses.mode == PartyPlaySession.Mode.FFA ? "party-play-guis.confirm-ffa" : "party-play-guis.confirm-duel"));
             List<String> lore = new ArrayList<>();
-            lore.add("§7Arena: §f" + (ses.arena == null ? "None" : ses.arena.getName()));
+            lore.add(GuiService.text("party-play-guis.arena", (ses.arena == null ? "None" : ses.arena.getName())));
             if (ses.mode == PartyPlaySession.Mode.FFA) {
-                lore.add("§7Players: §f" + ses.teamOneMembers.size());
-                lore.add("§7Kit: §f" + (ses.kitOne == null ? "None" : ses.kitOne.getName()));
-                lore.add("§fClick to launch the Party FFA.");
+                lore.add(GuiService.text("party-play-guis.players", ses.teamOneMembers.size()));
+                lore.add(GuiService.text("party-play-guis.kit", (ses.kitOne == null ? "None" : ses.kitOne.getName())));
+                lore.add(GuiService.text("party-play-guis.click-to-launch-the-party-ffa"));
             } else {
-                lore.add("§7Team One: §f" + ses.teamOneMembers.size() + "§7/§f" + ses.teamOneSize);
-                lore.add("§7Team Two: §f" + ses.teamTwoMembers.size() + "§7/§f" + ses.teamTwoSize);
-                lore.add("§7Rounds: §f" + ses.rounds);
-                lore.add("§fClick to launch the duel.");
+                lore.add(GuiService.text("party-play-guis.team-one", ses.teamOneMembers.size(), ses.teamOneSize));
+                lore.add(GuiService.text("party-play-guis.team-two", ses.teamTwoMembers.size(), ses.teamTwoSize));
+                lore.add(GuiService.text("party-play-guis.rounds", ses.rounds));
+                lore.add(GuiService.text("party-play-guis.click-to-launch-the-duel"));
             }
-            menu.setButton(4, new SGButton(named(Material.LIME_CONCRETE, "§a§lSTART", lore)).withListener(e -> start(leader)));
-            menu.setButton(0, new SGButton(named(Material.ARROW, "§6← Back", List.of("§7Return to the previous menu.")))
+            GuiService.control(menu, "start", 4, new SGButton(named(Material.LIME_CONCRETE, GuiService.text("party-play-guis.start"), lore)).withListener(e -> start(leader)));
+            GuiService.control(menu, "back", 0, new SGButton(named(Material.ARROW, GuiService.text("party-play-guis.back"), List.of(GuiService.text("party-play-guis.return-to-the-previous-menu"))))
                     .withListener(e -> {
                         if (ses.mode == PartyPlaySession.Mode.FFA) new ArenaSelectorGUI(pl, pm).open(leader);
                         else new RoundSelectorGUI(pl, pm).open(leader);
                     }));
-            leader.openInventory(menu.getInventory());
+            GuiService.open(leader, menu);
         }
 
         private void start(Player leader) {
             Party party = pm.getParty(leader);
-            if (party == null) { leader.sendMessage("§cParty vanished."); return; }
+            if (party == null) { Messages.send(leader, "messages.party-play-guis.party-vanished"); return; }
 
             PartyPlaySession ses = ACTIVE.remove(leader.getUniqueId());
-            if (ses == null) { leader.sendMessage("§cSession expired."); return; }
+            if (ses == null) { Messages.send(leader, "messages.party-play-guis.session-expired"); return; }
             if (ses.arena == null || ses.kitOne == null) {
-                leader.sendMessage("§cYour party play setup is incomplete.");
+                Messages.send(leader, "messages.party-play-guis.your-party-play-setup-is-incomplete");
                 return;
             }
 
             if (ses.mode == PartyPlaySession.Mode.FFA) {
                 List<Player> fighters = onlinePlayers(ses.teamOneMembers);
                 if (fighters.size() < 2) {
-                    leader.sendMessage("§cYou need at least 2 online players for Party FFA.");
+                    Messages.send(leader, "messages.party-play-guis.you-need-at-least-2-online-players-for");
                     return;
                 }
                 new PartyFFAInstance(pl).prepare(fighters, ses.arena, ses.kitOne).start();
@@ -535,14 +539,14 @@ public final class PartyPlayGUIs {
             }
 
             if (ses.kitTwo == null) {
-                leader.sendMessage("§cYour party play setup is incomplete.");
+                Messages.send(leader, "messages.party-play-guis.your-party-play-setup-is-incomplete");
                 return;
             }
 
             List<Player> teamOne = onlinePlayers(ses.teamOneMembers);
             List<Player> teamTwo = onlinePlayers(ses.teamTwoMembers);
             if (teamOne.size() != ses.teamOneSize || teamTwo.size() != ses.teamTwoSize) {
-                leader.sendMessage("§cOne or more drafted players are no longer online.");
+                Messages.send(leader, "messages.party-play-guis.one-or-more-drafted-players-are-no-longer");
                 return;
             }
 

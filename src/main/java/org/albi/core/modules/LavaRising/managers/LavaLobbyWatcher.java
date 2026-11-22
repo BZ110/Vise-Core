@@ -17,6 +17,7 @@ import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.scheduler.BukkitRunnable;
 import net.md_5.bungee.api.chat.ClickEvent;
 import net.md_5.bungee.api.chat.TextComponent;
+import org.albi.core.gui.Messages;
 
 import java.io.IOException;
 import java.util.HashSet;
@@ -92,7 +93,7 @@ public class LavaLobbyWatcher implements Listener {
 
         // lobby phase
         lobby.add(p.getUniqueId());
-        broadcast("&e" + p.getName() + " &7has joined. (&e" + lobby.size() + "/" + needPlayers + "&7)");
+        broadcast("messages.lava-lobby-watcher.joined", p.getName(), lobby.size(), needPlayers);
         tryStartCountdown();
     }
 
@@ -115,13 +116,18 @@ public class LavaLobbyWatcher implements Listener {
         if (lobby.size() < needPlayers || countdown != null) return;
 
         // clickable broadcast
-        TextComponent base = new TextComponent("\n\n  LAVA RISING EVENT IS STARTING!\n      ");
-        TextComponent join = new TextComponent("[Join]");
-        join.setColor(net.md_5.bungee.api.ChatColor.YELLOW);
-        join.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/lavaspawn"));
-        base.addExtra(join);
-        base.addExtra("\n\n");
-        Bukkit.spigot().broadcast(base);
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            String announcement = Messages.text(player, "messages.lava-lobby-watcher.starting");
+            var join = Messages.text(player, "messages.lava-lobby-watcher.join-button");
+            if (announcement.isEmpty() && join.isEmpty()) continue;
+            var component = new TextComponent(TextComponent.fromLegacyText(announcement));
+            if (!join.isEmpty()) {
+                var button = new TextComponent(TextComponent.fromLegacyText(join));
+                button.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/lavaspawn"));
+                component.addExtra(button);
+            }
+            player.spigot().sendMessage(component);
+        }
 
         countdown = new BukkitRunnable() {
             int remain = lobbyWait;
@@ -135,7 +141,7 @@ public class LavaLobbyWatcher implements Listener {
                 if (remain == webhookWarn) fireWebhook();
 
                 if (remain % reminderInterval == 0 || remain <= 5) {
-                    broadcast("&eMatch begins in &c" + remain + " &eseconds.");
+                    broadcast("messages.lava-lobby-watcher.countdown", remain);
                 }
 
                 if (remain-- <= 0) {
@@ -160,11 +166,11 @@ public class LavaLobbyWatcher implements Listener {
 
     /* ---------------- helpers ----------------------------- */
 
-    private void broadcast(String msg) {
+    private void broadcast(String key, Object... values) {
         World w = Bukkit.getWorld(lavaWorld);
         if (w == null) return;
         for (Player p : w.getPlayers()) {
-            p.sendMessage(ChatColor.translateAlternateColorCodes('&', msg));
+            Messages.send(p, key, values);
         }
     }
 

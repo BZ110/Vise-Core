@@ -1,5 +1,7 @@
 package org.albi.core.modules.Tournaments;
 
+import org.albi.core.gui.Messages;
+
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -138,7 +140,7 @@ public class TournamentManager extends Module {
                             for (UUID id : session.getParticipants()) {
                                 Player p = Bukkit.getPlayer(id);
                                 if (p != null) {
-                                    p.sendTitle("§6§lTournament Finished", "§7Thanks for playing!", 10, 60, 10);
+                                    p.sendTitle(Messages.text(p, "messages.tournament-manager.tournament-finished"), Messages.text(p, "messages.tournament-manager.thanks-for-playing"), 10, 60, 10);
                                     getPlugin().resetPlayer(p);
                                     getPlugin().teleportToLobby(p);
                                 }
@@ -310,7 +312,7 @@ public class TournamentManager extends Module {
                 }
             }
             
-            player.sendMessage("§7No active matches found to spectate right now.");
+            Messages.send(player, "messages.tournament-manager.no-active-matches-found-to-spectate-right-now");
         }
     }
 

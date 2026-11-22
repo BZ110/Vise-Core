@@ -1,5 +1,7 @@
 package org.albi.core.modules.Party.play;
 
+import org.albi.core.gui.Messages;
+
 import org.albi.core.Core;
 import org.albi.core.data.ExtendedPlayer;
 import org.albi.core.modules.Duels.DuelInstance;
@@ -69,7 +71,7 @@ public final class PartyFFAInstance extends DuelInstance {
     public void start() {
         List<Player> fighters = onlineParticipants();
         if (fighters.size() < 2) {
-            fighters.forEach(p -> p.sendMessage("§cYou need at least 2 online players to start a Party FFA."));
+            fighters.forEach(p -> Messages.send(p, "messages.party-ffainstance.you-need-at-least-2-online-players-to"));
             return;
         }
 
@@ -177,15 +179,14 @@ public final class PartyFFAInstance extends DuelInstance {
                     }
                     lastSneak.put(p.getUniqueId(), sneaks);
                     
-                    p.sendActionBar(org.bukkit.ChatColor.translateAlternateColorCodes('&', 
-                        "&7SHIFT TO SKIP COUNTDOWN (&f" + readyToggles.size() + "&7/" + current.size() + ")"));
+                    p.sendActionBar(Messages.text(p, "messages.match-hud.skip-countdown", readyToggles.size(), current.size()));
                 }
 
                 if (!skipped && readyToggles.size() >= current.size() && !current.isEmpty()) {
                     skipped = true;
                     ticksLeft = 0;
                     for (Player p : current) {
-                        p.sendTitle("§a§lSkipped", "§7Everyone readied up, starting now.", 0, 20, 10);
+                        p.sendTitle(Messages.text(p, "messages.party-ffainstance.skipped"), Messages.text(p, "messages.party-ffainstance.everyone-readied-up-starting-now"), 0, 20, 10);
                     }
                 }
 
@@ -193,7 +194,7 @@ public final class PartyFFAInstance extends DuelInstance {
                     int sec = ticksLeft / 20;
                     for (Player p : current) {
                         p.playSound(p, Sound.BLOCK_NOTE_BLOCK_HAT, 1.0f, 1.0f);
-                        p.sendTitle("§d§lOrganize", "§7Scatter unlocks in §f" + sec + "§7…", 0, 20, 0);
+                        p.sendTitle(Messages.text(p, "messages.party-ffainstance.organize"), Messages.text(p, "messages.party-ffainstance.scatter-unlocks-in", sec), 0, 20, 0);
                     }
                 }
 
@@ -215,7 +216,7 @@ public final class PartyFFAInstance extends DuelInstance {
             // Location scatter = scatterSpawns.get(p.getUniqueId());
             // if (scatter != null) p.teleportAsync(scatter);
 
-            p.sendTitle("§6§lScatter!", "§7PvP unlocks in §f10§7…", 0, 30, 10);
+            p.sendTitle(Messages.text(p, "messages.party-ffainstance.scatter"), Messages.text(p, "messages.party-ffainstance.pv-p-unlocks-in-10"), 0, 30, 10);
             p.playSound(p, Sound.BLOCK_BEACON_ACTIVATE, 1f, 1.15f);
         }
 
@@ -257,8 +258,7 @@ public final class PartyFFAInstance extends DuelInstance {
                     }
                     lastSneak.put(p.getUniqueId(), sneaks);
                     
-                    p.sendActionBar(org.bukkit.ChatColor.translateAlternateColorCodes('&', 
-                        "&7SHIFT TO SKIP COUNTDOWN (&f" + readyToggles.size() + "&7/" + current.size() + ")"));
+                    p.sendActionBar(Messages.text(p, "messages.match-hud.skip-countdown", readyToggles.size(), current.size()));
                 }
 
                 // Only allow skip in the last 3 seconds (ticksLeft <= 60)
@@ -266,7 +266,7 @@ public final class PartyFFAInstance extends DuelInstance {
                     skipped = true;
                     ticksLeft = 0;
                     for (Player p : current) {
-                        p.sendTitle("§a§lSkipped", "§7Everyone readied up, starting now.", 0, 20, 10);
+                        p.sendTitle(Messages.text(p, "messages.party-ffainstance.skipped"), Messages.text(p, "messages.party-ffainstance.everyone-readied-up-starting-now"), 0, 20, 10);
                     }
                 }
 
@@ -274,7 +274,7 @@ public final class PartyFFAInstance extends DuelInstance {
                     int sec = ticksLeft / 20;
                     for (Player p : current) {
                         p.playSound(p, Sound.BLOCK_NOTE_BLOCK_HAT, 1.0f, 1.0f);
-                        p.sendTitle("§6§lScatter!", "§7PvP unlocks in §f" + sec + "§7…", 0, 20, 0);
+                        p.sendTitle(Messages.text(p, "messages.party-ffainstance.scatter"), Messages.text(p, "messages.party-ffainstance.pv-p-unlocks-in", sec), 0, 20, 0);
                     }
                 }
 
@@ -293,7 +293,7 @@ public final class PartyFFAInstance extends DuelInstance {
             if (ep == null || ep.getPlayerDuelInstance() == null) continue;
             ep.getPlayerDuelInstance().setStatus("InGame");
             applyEffects(p, kit);
-            TitleFx.playFight(plugin, p, "§7Last player standing wins.");
+            TitleFx.playFight(plugin, p, Messages.text(p, "messages.match-hud.party-ffa-fight-subtitle"));
             p.playSound(p, Sound.ENTITY_ENDER_DRAGON_GROWL, 0.6f, 1.35f);
         }
     }
@@ -326,13 +326,13 @@ public final class PartyFFAInstance extends DuelInstance {
 
         p.setGameMode(GameMode.SPECTATOR);
         p.playSound(p, Sound.ENTITY_VILLAGER_DEATH, 1f, 1f);
-        p.sendTitle("§c§lEliminated", killer != null && killer != p ? "§7By §f" + killer.getName() : "§7You are out.", 0, 30, 10);
+        p.sendTitle(Messages.text(p, "messages.party-ffainstance.eliminated"), killer != null && killer != p ? Messages.text(p, "messages.party-ffainstance.by", killer.getName()) : Messages.text(p, "messages.party-ffainstance.you-are-out"), 0, 30, 10);
 
         if (killer != null && killer != p) {
             lastCombatTimes.put(killer.getUniqueId(), System.currentTimeMillis());
             kills.merge(killer.getUniqueId(), 1, Integer::sum);
             killer.playSound(killer, Sound.ENTITY_PLAYER_ATTACK_CRIT, 1f, 0.8f);
-            killer.sendMessage("§a✦ §fYou eliminated §d" + p.getName() + "§f.");
+            Messages.send(killer, "messages.party-ffainstance.you-eliminated", p.getName());
             broadcast("§d" + p.getName() + " §7was eliminated by §f" + killer.getName() + "§7.");
         } else {
             broadcast("§d" + p.getName() + " §7has been eliminated.");
@@ -361,11 +361,11 @@ public final class PartyFFAInstance extends DuelInstance {
             boolean won = winner != null && winner.getUniqueId().equals(id);
             plugin.resetPlayer(p, false);
             if (won) {
-                p.sendTitle("§a§lVictory!", "§7You were the last fighter standing.", 0, 40, 10);
+                p.sendTitle(Messages.text(p, "messages.party-ffainstance.victory"), Messages.text(p, "messages.party-ffainstance.you-were-the-last-fighter-standing"), 0, 40, 10);
                 p.playSound(p, Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1f);
             } else {
                 String subtitle = winner == null ? "§7The match ended." : "§7Winner: §f" + winner.getName();
-                p.sendTitle("§c§lMatch Over", subtitle, 0, 40, 10);
+                p.sendTitle(Messages.text(p, "messages.party-ffainstance.match-over"), subtitle, 0, 40, 10);
             }
         }
 

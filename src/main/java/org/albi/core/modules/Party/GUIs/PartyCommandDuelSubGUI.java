@@ -1,5 +1,7 @@
 package org.albi.core.modules.Party.GUIs;
 
+import org.albi.core.gui.GuiService;
+
 import com.samjakob.spigui.buttons.SGButton;
 import com.samjakob.spigui.menu.SGMenu;
 import org.albi.core.Core;
@@ -32,7 +34,7 @@ public class PartyCommandDuelSubGUI {
     }
 
     private void openCategory(Player p, Player opp, boolean quick) {
-        SGMenu menu = plugin.getGUI().create("§d§lParty Duel Categories", 3);
+        SGMenu menu = plugin.getMenus().create("party.challenge-categories", 3);
         for (Map.Entry<Integer, DuelKitPageCategory> entry : getPageCategories().entrySet()) {
             DuelKitPageCategory cat = entry.getValue();
             if (cat == null || cat.getDisplayItem() == null) continue;
@@ -41,7 +43,7 @@ public class PartyCommandDuelSubGUI {
             ItemMeta meta = icon.getItemMeta();
             List<String> lore = meta != null && meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
             lore.add(" ");
-            lore.add("§dOpen page §f#" + cat.getPage());
+            lore.add(GuiService.text("party-command-duel-sub-gui.open-page", cat.getPage()));
             if (meta != null) {
                 meta.setLore(lore);
                 icon.setItemMeta(meta);
@@ -49,7 +51,7 @@ public class PartyCommandDuelSubGUI {
             int slot = Math.max(0, Math.min(26, cat.getGuiSlot()));
             menu.setButton(slot, new SGButton(icon).withListener(e -> openKit(p, opp, quick, cat.getPage())));
         }
-        p.openInventory(menu.getInventory());
+        GuiService.open(p, menu);
     }
 
     private void request(Player a, Player b) {
@@ -78,25 +80,25 @@ public class PartyCommandDuelSubGUI {
         Arena ar = pref.getArena();
         int rd = pref.getRounds();
 
-        SGMenu menu = plugin.getGUI().create("§d§lParty Duel Setup", 3);
-        menu.setButton(10, new SGButton(withLore(kit.getDisplayItem().convertToItem(), "§7Current kit choice.", "§fClick to change."))
+        SGMenu menu = plugin.getMenus().create("party.challenge", 3);
+        GuiService.control(menu, "current-kit-choice", 10, new SGButton(withLore(kit.getDisplayItem().convertToItem(), "§7Current kit choice.", "§fClick to change."))
                 .withListener(e -> {
                     if (getPageCategories().isEmpty()) openKit(p, opp, false, 0);
                     else openCategory(p, opp, false);
                 }));
-        menu.setButton(12, new SGButton(withLore(ar.getDisplayItem().convertToItem(), "§7Current arena choice.", "§fClick to change."))
+        GuiService.control(menu, "current-arena-choice", 12, new SGButton(withLore(ar.getDisplayItem().convertToItem(), "§7Current arena choice.", "§fClick to change."))
                 .withListener(e -> openArena(p, opp, false)));
-        menu.setButton(14, new SGButton(button(Material.PAPER, "§dFirst to §f" + rd,
-                List.of("§7Pick the round target.", "§fClick to change.")))
+        GuiService.control(menu, "first-to", 14, new SGButton(button(Material.PAPER, GuiService.text("party-command-duel-sub-gui.first-to", rd),
+                List.of(GuiService.text("party-command-duel-sub-gui.pick-the-round-target"), GuiService.text("party-command-duel-sub-gui.click-to-change"))))
                 .withListener(e -> rounds(p, opp)));
-        menu.setButton(16, new SGButton(button(Material.LIME_CONCRETE, "§a§lSend Party Duel",
-                List.of("§7Everything is ready.", "§fClick to send the duel request.")))
+        GuiService.control(menu, "send-party-duel", 16, new SGButton(button(Material.LIME_CONCRETE, GuiService.text("party-command-duel-sub-gui.send-party-duel"),
+                List.of(GuiService.text("party-command-duel-sub-gui.everything-is-ready"), GuiService.text("party-command-duel-sub-gui.click-to-send-the-duel-request"))))
                 .withListener(e -> { request(p, opp); p.closeInventory(); }));
-        p.openInventory(menu.getInventory());
+        GuiService.open(p, menu);
     }
 
     private void openArena(Player p, Player opp, boolean quick) {
-        SGMenu menu = plugin.getGUI().create("§b§lParty Duel Arena", 5);
+        SGMenu menu = plugin.getMenus().create("party.challenge-arenas", 5);
         int off = 0;
         for (Arena a : DuelManager.stor.arenas) {
             if(a.deactivated) continue;
@@ -108,9 +110,9 @@ public class PartyCommandDuelSubGUI {
                         setting(p, opp);
                     }));
         }
-        menu.setButton(44, new SGButton(button(Material.ARROW, "§6Back", List.of("§7Return to party duel setup.")))
+        GuiService.control(menu, "back", 44, new SGButton(button(Material.ARROW, GuiService.text("party-command-duel-sub-gui.back"), List.of(GuiService.text("party-command-duel-sub-gui.return-to-party-duel-setup"))))
                 .withListener(e -> setting(p, opp)));
-        p.openInventory(menu.getInventory());
+        GuiService.open(p, menu);
     }
 
     private void openKit(Player p, Player opp, boolean quick, int page) {
@@ -123,7 +125,7 @@ public class PartyCommandDuelSubGUI {
         int maxSlot = DuelManager.stor.kits.stream().mapToInt(Kit::getSlot).max().orElse(0);
         int maxPage = maxSlot / pageSize;
 
-        SGMenu m = plugin.getGUI().create("§d§lParty Duel Kits §7(" + (page + 1) + "/" + (maxPage + 1) + ")", rows);
+        SGMenu m = plugin.getMenus().create("party.challenge-kits", rows, (page + 1), (maxPage + 1));
         DuelPreference pref = plugin.getExtendedPlayer(p).prefsFor(opp.getUniqueId());
 
         for (Kit k : DuelManager.stor.kits) {
@@ -138,32 +140,32 @@ public class PartyCommandDuelSubGUI {
                     }));
         }
 
-        if (page > 0) m.setButton(pageSize - 10, new SGButton(button(Material.ARROW, "§e← Previous", List.of("§7View the previous page.")))
+        if (page > 0) GuiService.control(m, "previous", pageSize - 10, new SGButton(button(Material.ARROW, GuiService.text("party-command-duel-sub-gui.previous"), List.of(GuiService.text("party-command-duel-sub-gui.view-the-previous-page"))))
                 .withListener(e -> openKit(p, opp, quick, page - 1)));
-        if (page < maxPage) m.setButton(pageSize - 9, new SGButton(button(Material.ARROW, "§eNext →", List.of("§7View the next page.")))
+        if (page < maxPage) GuiService.control(m, "next", pageSize - 9, new SGButton(button(Material.ARROW, GuiService.text("party-command-duel-sub-gui.next"), List.of(GuiService.text("party-command-duel-sub-gui.view-the-next-page"))))
                 .withListener(e -> openKit(p, opp, quick, page + 1)));
-        if (!getPageCategories().isEmpty()) m.setButton(pageSize - 5, new SGButton(button(Material.ARROW, "§dCategories", List.of("§7Return to category view.")))
+        if (!getPageCategories().isEmpty()) GuiService.control(m, "categories", pageSize - 5, new SGButton(button(Material.ARROW, GuiService.text("party-command-duel-sub-gui.categories"), List.of(GuiService.text("party-command-duel-sub-gui.return-to-category-view"))))
                 .withListener(e -> openCategory(p, opp, quick)));
-        m.setButton(pageSize - 6, new SGButton(button(Material.ARROW, "§6Back", List.of("§7Return to party duel setup.")))
+        GuiService.control(m, "back", pageSize - 6, new SGButton(button(Material.ARROW, GuiService.text("party-command-duel-sub-gui.back"), List.of(GuiService.text("party-command-duel-sub-gui.return-to-party-duel-setup"))))
                 .withListener(e -> setting(p, opp)));
 
-        p.openInventory(m.getInventory());
+        GuiService.open(p, m);
     }
 
     private void rounds(Player p, Player opp) {
         List<Integer> list = plugin.getConfig().getIntegerList("duels.rounds");
-        SGMenu menu = plugin.getGUI().create("§5§lRound Target", 1);
+        SGMenu menu = plugin.getMenus().create("party.challenge-rounds", 1);
         for (int r : list) {
-            menu.addButton(new SGButton(button(Material.PAPER, "§dFirst to §f" + r,
-                    List.of("§7Choose how many rounds decide the winner.")))
+            menu.addButton(new SGButton(button(Material.PAPER, GuiService.text("party-command-duel-sub-gui.first-to", r),
+                    List.of(GuiService.text("party-command-duel-sub-gui.choose-how-many-rounds-decide-the-winner"))))
                     .withListener(evt -> {
                         plugin.getExtendedPlayer(p).prefsFor(opp.getUniqueId()).setRounds(r);
                         setting(p, opp);
                     }));
         }
-        menu.setButton(8, new SGButton(button(Material.ARROW, "§6Back", List.of("§7Return to party duel setup.")))
+        GuiService.control(menu, "back", 8, new SGButton(button(Material.ARROW, GuiService.text("party-command-duel-sub-gui.back"), List.of(GuiService.text("party-command-duel-sub-gui.return-to-party-duel-setup"))))
                 .withListener(e -> setting(p, opp)));
-        p.openInventory(menu.getInventory());
+        GuiService.open(p, menu);
     }
 
     private ItemStack button(Material material, String name, List<String> lore) {

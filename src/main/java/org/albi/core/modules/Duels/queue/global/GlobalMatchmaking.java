@@ -1,5 +1,7 @@
 package org.albi.core.modules.Duels.queue.global;
 
+import org.albi.core.gui.Messages;
+
 import org.albi.core.Core;
 import org.albi.core.data.ExtendedPlayer;
 import org.albi.core.data.MainPlayer;
@@ -88,7 +90,7 @@ public final class GlobalMatchmaking {
     public boolean join(Player player, String kit, boolean ranked) {
         UUID id = player.getUniqueId();
         if (hasPendingMatch(player)) {
-            player.sendMessage("§eYour queued match is already being prepared.");
+            Messages.send(player, "messages.global-matchmaking.your-queued-match-is-already-being-prepared");
             return false;
         }
         var spectators = DuelManager.getSpectators();
@@ -97,7 +99,7 @@ public final class GlobalMatchmaking {
             return false;
         }
         if (!eligible(player, ranked)) {
-            player.sendMessage("§cReturn to the lobby and finish your current activity before joining the queue.");
+            Messages.send(player, "messages.global-matchmaking.return-to-the-lobby-and-finish-your-current");
             return false;
         }
 
@@ -106,7 +108,7 @@ public final class GlobalMatchmaking {
             CustomKit selected = selectedKit(player);
             if (selected != null) custom = selected.toJson();
             if (MatchmakingPolicy.PERSONAL.equals(kit) && custom == null) {
-                player.sendMessage("§cSelect a personal kit before joining that queue.");
+                Messages.send(player, "messages.global-matchmaking.select-a-personal-kit-before-joining-that-queue");
                 return false;
             }
         }
@@ -300,9 +302,9 @@ public final class GlobalMatchmaking {
                 drop(local, false);
                 transfers.put(ticket.player(), new Transfer(match.id(), expires));
                 if (isHost(match)) {
-                    local.player.sendMessage("§aMatch found. Waiting for your opponent to arrive.");
+                    Messages.send(local.player, "messages.global-matchmaking.match-found-waiting-for-your-opponent-to-arrive");
                 } else {
-                    local.player.sendMessage("§aMatch found. Connecting to §f" + match.host().server() + "§a.");
+                    Messages.send(local.player, "messages.global-matchmaking.match-found-connecting-to", match.host().server());
                     if (!ProxyTransfer.connect(plugin, local.player, match.host().server())) {
                         changes.add(Change.source("cancel", match.id(), ticket));
                         transfers.remove(ticket.player());
@@ -406,8 +408,8 @@ public final class GlobalMatchmaking {
 
     private void launch(QueueDuelHost.Reservation reservation, Player first, Player second, boolean ranked) {
         try {
-            first.sendMessage("§aMatch found against §f" + second.getName() + "§a.");
-            second.sendMessage("§aMatch found against §f" + first.getName() + "§a.");
+            Messages.send(first, "messages.global-matchmaking.match-found-against", second.getName());
+            Messages.send(second, "messages.global-matchmaking.match-found-against", first.getName());
             reservation.start(first, second, ranked);
         } catch (RuntimeException failure) {
             for (Player player : List.of(first, second)) {
@@ -494,7 +496,7 @@ public final class GlobalMatchmaking {
 
     private void notifyTimeout(UUID id) {
         Player player = Bukkit.getPlayer(id);
-        if (player != null) player.sendMessage("§eYour queued match could not start. You can join the queue again.");
+        if (player != null) Messages.send(player, "messages.global-matchmaking.your-queued-match-could-not-start-you-can");
     }
 
     public static boolean eligible(Player player, boolean ranked) {

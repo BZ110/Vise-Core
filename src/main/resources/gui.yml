@@ -1,0 +1,1596 @@
+# Vise Core inventory menus. Run /coreconfig reload after editing.
+# Rows can be 1–6. Slots are zero-based. Controls keep their actions when moved.
+# Uncomment or add rows, content-slots, background, sounds and custom-buttons per menu.
+# The text section holds labels used by code-driven entries before item overrides are applied.
+#
+# A complete menu example:
+# menus:
+#   queues:
+#     casual:
+#       title: "&bPractice &7({1}/{2})"
+#       rows: 5
+#       content-slots: [10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25]
+#       background:
+#         material: BLACK_STAINED_GLASS_PANE
+#         name: " "
+#       buttons:
+#         next:
+#           slot: 44
+#           material: SPECTRAL_ARROW
+#           name: "&aMore kits"
+#           lore: ["{lore}"]
+#       entries:
+#         glow: false
+#       custom-buttons:
+#         rules:
+#           slot: 0
+#           material: BOOK
+#           name: "&eServer rules"
+#           commands: [rules]
+#
+format: legacy
+pagination:
+  title-suffix: " &8({page}/{pages})"
+  previous:
+    material: ARROW
+    name: "&ePrevious page"
+  next:
+    material: ARROW
+    name: "&eNext page"
+menus:
+  cosmetics:
+    armor-trims:
+      title: "&8✦ &b&lArmor Trims"
+      rows: 3
+      buttons:
+        clear-all-trims:
+          enabled: true
+          slot: 22
+    trim-combos:
+      title: "&8✦ &b&lSelect Combo"
+      rows: 5
+      buttons:
+        go-back:
+          enabled: true
+          slot: 40
+    kill-effects:
+      title: "&4&lKill Effects &8&l| &7Page {1}"
+      rows: 6
+      sounds:
+        open: ITEM_BOOK_PAGE_TURN
+        open-volume: 0.8
+        open-pitch: 1.2
+      background:
+        material: GRAY_STAINED_GLASS_PANE
+        name: "&0 "
+        slots:
+        - 0
+        - 1
+        - 2
+        - 3
+        - 4
+        - 5
+        - 6
+        - 7
+        - 8
+        - 9
+        - 17
+        - 18
+        - 26
+        - 27
+        - 35
+        - 36
+        - 44
+        - 45
+        - 46
+        - 47
+        - 48
+        - 49
+        - 50
+        - 51
+        - 52
+        - 53
+      decorations:
+        corners:
+          slots:
+          - 0
+          - 8
+          - 45
+          - 53
+          material: PURPLE_STAINED_GLASS_PANE
+          name: "&0 "
+      buttons:
+        header:
+          slot: 4
+        current-effect:
+          slot: 49
+        reset:
+          slot: 50
+        previous:
+          slot: 45
+        next:
+          slot: 53
+  travel:
+    goto:
+      title: "&bGoto Menu"
+      rows: 6
+      buttons: {}
+    rtp:
+      title: "&bRTP"
+      rows: 4
+      buttons:
+        plains-rtp:
+          enabled: true
+          slot: 11
+        snowy-rtp:
+          enabled: true
+          slot: 13
+        desert-rtp:
+          enabled: true
+          slot: 15
+        badlands-rtp:
+          enabled: true
+          slot: 21
+        mushroom-rtp:
+          enabled: true
+          slot: 23
+    instances:
+      title: "&bTravel Menu"
+      buttons:
+        region-selector:
+          enabled: true
+          slot: 8
+        no-instances-available:
+          enabled: true
+          slot: 4
+    regions:
+      title: "&dSelect Region"
+      buttons: {}
+  leaderboards:
+    type:
+      title: "&bLeaderboard Type"
+      rows: 1
+      buttons: {}
+    kits:
+      title: "&8Select Kit &7{1}/{2}"
+      rows: 6
+      buttons:
+        prev:
+          enabled: true
+          slot: 44
+        next:
+          enabled: true
+          slot: 45
+    team-size:
+      title: "&bTeam Size"
+      rows: 1
+      buttons: {}
+  profile:
+    main:
+      title: "&8✦ &b{1}'s Profile"
+      rows: 2
+      buttons:
+        slot-4:
+          enabled: true
+          slot: 4
+        slot-8:
+          enabled: true
+          slot: 8
+        pvptiers:
+          enabled: true
+          slot: 9
+        mctiers:
+          enabled: true
+          slot: 10
+        subtiers:
+          enabled: true
+          slot: 11
+        view-stats:
+          enabled: true
+          slot: 12
+        slot-13:
+          enabled: true
+          slot: 13
+        slot-14:
+          enabled: true
+          slot: 14
+        exit:
+          enabled: true
+          slot: 17
+  settings:
+    main:
+      title: "&8✦ &b&lYour Settings"
+      rows: 3
+      decorations:
+        header:
+          material: BLACK_STAINED_GLASS_PANE
+          name: " "
+          slots: [3, 4, 5, 6, 7, 8]
+        divider:
+          material: LIGHT_BLUE_STAINED_GLASS_PANE
+          name: " "
+          slots: [9, 10, 11, 12, 13, 14, 15, 16, 17]
+      buttons:
+        gen-icon:
+          enabled: true
+          slot: 0
+        soc-icon:
+          enabled: true
+          slot: 1
+        match-icon:
+          enabled: true
+          slot: 2
+        profile-visibility:
+          enabled: true
+          slot: 18
+        allow-spectators:
+          enabled: true
+          slot: 19
+        lobby-elytra:
+          enabled: true
+          slot: 20
+        view-kill-effects:
+          enabled: true
+          slot: 21
+        ranked-particles:
+          enabled: true
+          slot: 22
+        global-chat:
+          enabled: true
+          slot: 18
+        broadcast-chats:
+          enabled: true
+          slot: 19
+        allow-messages:
+          enabled: true
+          slot: 20
+        friend-requests:
+          enabled: true
+          slot: 21
+        chat-mentions:
+          enabled: true
+          slot: 22
+        duel-invites:
+          enabled: true
+          slot: 18
+        party-invites:
+          enabled: true
+          slot: 19
+        party-duel-invites:
+          enabled: true
+          slot: 20
+        lobby-speed:
+          enabled: true
+          slot: 23
+        lobby-jump-boost:
+          enabled: true
+          slot: 24
+        close:
+          enabled: true
+          slot: 26
+  stats:
+    main:
+      title: "&bStatistics"
+      rows: 6
+      buttons:
+        next:
+          enabled: true
+          slot: 53
+        clock:
+          enabled: true
+          slot: 49
+  custom-kits:
+    copy:
+      title: "&aSelect Slot for Copied Kit"
+      rows: 6
+      buttons: {}
+    ender-chest:
+      title: "&bEdit Ender Chest"
+      rows: 4
+      buttons:
+        done:
+          enabled: true
+          slot: 31
+    ender-item:
+      title: "&bEdit Item"
+      rows: 2
+      buttons:
+        bar:
+          enabled: true
+          slot: 10
+        sign:
+          enabled: true
+          slot: 12
+        book:
+          enabled: true
+          slot: 13
+        paper:
+          enabled: true
+          slot: 14
+        done:
+          enabled: true
+          slot: 16
+        working:
+          enabled: true
+          slot: 4
+    ender-enchantments:
+      title: "&bPick Enchantment"
+      rows: 6
+      buttons:
+        anvil:
+          enabled: true
+          slot: 52
+        done:
+          enabled: true
+          slot: 53
+    ender-categories:
+      title: "&bPick a Category"
+      rows: 4
+      buttons: {}
+    ender-items:
+      title: "&bSelect an Item"
+      rows: 6
+      buttons: {}
+    shulker-ender-categories:
+      title: "&bChoose a Category"
+      rows: 4
+      buttons:
+        bar:
+          enabled: true
+          slot: 10
+        sign:
+          enabled: true
+          slot: 12
+        book:
+          enabled: true
+          slot: 13
+        paper:
+          enabled: true
+          slot: 14
+        done:
+          enabled: true
+          slot: 16
+        working:
+          enabled: true
+          slot: 4
+    shulker-ender-enchantments:
+      title: "&bPick Enchantment"
+      rows: 6
+      buttons:
+        anvil:
+          enabled: true
+          slot: 52
+        done:
+          enabled: true
+          slot: 53
+    shulker:
+      title: "&bEdit Shulker"
+      rows: 4
+      buttons:
+        bar:
+          enabled: true
+          slot: 30
+        sign:
+          enabled: true
+          slot: 31
+        done:
+          enabled: true
+          slot: 32
+    shulker-categories:
+      title: "&bPick a Category"
+      rows: 4
+      buttons: {}
+    shulker-items:
+      title: "&bSelect an Item"
+      rows: 6
+      buttons: {}
+    item:
+      title: "&bEdit Item"
+      rows: 2
+      buttons:
+        slot-10:
+          enabled: true
+          slot: 10
+        slot-12:
+          enabled: true
+          slot: 12
+        slot-13:
+          enabled: true
+          slot: 13
+        slot-14:
+          enabled: true
+          slot: 14
+        slot-16:
+          enabled: true
+          slot: 16
+        working:
+          enabled: true
+          slot: 4
+    enchantments:
+      title: "&bPick Enchantment"
+      rows: 6
+      buttons:
+        anvil:
+          enabled: true
+          slot: 52
+        done:
+          enabled: true
+          slot: 53
+    categories:
+      title: "&bPick a Category"
+      rows: 4
+      buttons: {}
+    items:
+      title: "&bSelect an Item"
+      rows: 6
+      buttons: {}
+    list:
+      title: "&bEdit Your Kit"
+      rows: 6
+      buttons: {}
+    edit:
+      title: "&bEditing Kit {1}"
+      rows: 5
+      buttons:
+        slot-4:
+          enabled: true
+          slot: 4
+        slot-5:
+          enabled: true
+          slot: 5
+        slot-8:
+          enabled: true
+          slot: 8
+        slot-6:
+          enabled: true
+          slot: 6
+        slot-7:
+          enabled: true
+          slot: 7
+    room:
+      title: "&bKit Room"
+      rows: 5
+      buttons:
+        clear:
+          enabled: true
+          slot: 41
+        back:
+          enabled: true
+          slot: 39
+        save:
+          enabled: true
+          slot: 40
+        info:
+          enabled: true
+          slot: 4
+        trash:
+          enabled: true
+          slot: 44
+    delete:
+      title: "&cDelete Kit?"
+      rows: 1
+      buttons:
+        slot-2:
+          enabled: true
+          slot: 2
+        slot-5:
+          enabled: true
+          slot: 5
+    settings:
+      title: "&bSettings"
+      rows: 2
+      buttons:
+        health-indicators:
+          enabled: true
+          slot: 0
+        xp:
+          enabled: true
+          slot: 9
+        hunger:
+          enabled: true
+          slot: 1
+        tnt-auto-ignition:
+          enabled: true
+          slot: 10
+        saturation:
+          enabled: true
+          slot: 2
+        sword:
+          enabled: true
+          slot: 11
+        block-modification:
+          enabled: true
+          slot: 3
+        ender-chest:
+          enabled: true
+          slot: 4
+        effects:
+          enabled: true
+          slot: 5
+        slot-17:
+          enabled: true
+          slot: 17
+    effects:
+      title: "&bEffects"
+      rows: 3
+      buttons:
+        info:
+          enabled: true
+          slot: 13
+        create:
+          enabled: true
+          slot: 11
+        list:
+          enabled: true
+          slot: 15
+        back:
+          enabled: true
+          slot: 26
+    pick-effect:
+      title: "&bPick Effect &7({1}/{2})"
+      rows: 6
+      buttons:
+        prev:
+          enabled: true
+          slot: 45
+        back:
+          enabled: true
+          slot: 49
+        next:
+          enabled: true
+          slot: 53
+    effect-list:
+      title: "&eEffects List &7({1}/{2})"
+      rows: 6
+      buttons:
+        clear:
+          enabled: true
+          slot: 52
+        back:
+          enabled: true
+          slot: 49
+        prev:
+          enabled: true
+          slot: 45
+        next:
+          enabled: true
+          slot: 53
+    room-items:
+      title: "&bKit Room &8(ESC to finish)"
+    trash:
+      title: "&8Trash Bin &7(ESC or click FINISH)"
+      rows: 6
+      buttons:
+        finish:
+          slot: 49
+  bots:
+    main:
+      title: "&dBot Duel"
+      rows: 3
+      buttons:
+        info:
+          enabled: true
+          slot: 11
+        start:
+          enabled: true
+          slot: 13
+        kit-item:
+          enabled: true
+          slot: 15
+        comparator:
+          enabled: true
+          slot: 22
+    settings:
+      title: "&eBot Settings"
+      rows: 4
+      buttons:
+        map:
+          enabled: true
+          slot: 10
+        preset:
+          enabled: true
+          slot: 11
+        invulnerability:
+          enabled: true
+          slot: 12
+        frequent-sprint-hits:
+          enabled: true
+          slot: 13
+        frequent-w-taps:
+          enabled: true
+          slot: 14
+        frequent-range:
+          enabled: true
+          slot: 15
+        strafe-chance:
+          enabled: true
+          slot: 16
+        move-speed:
+          enabled: true
+          slot: 19
+        shield-use:
+          enabled: true
+          slot: 20
+        shield-break-cooldown:
+          enabled: true
+          slot: 21
+        shield-break-toggle:
+          enabled: true
+          slot: 22
+        max-chase-distance:
+          enabled: true
+          slot: 23
+        desync-snap-distance:
+          enabled: true
+          slot: 24
+        rounds-to-win:
+          enabled: true
+          slot: 25
+        reaction-delay:
+          enabled: true
+          slot: 30
+        retreat-speed:
+          enabled: true
+          slot: 31
+        close-retreat-speed:
+          enabled: true
+          slot: 32
+        back:
+          enabled: true
+          slot: 33
+    presets:
+      title: "&6Bot Presets"
+      rows: 3
+      buttons:
+        back:
+          enabled: true
+          slot: 22
+    arenas:
+      title: "&bSelect Map &7({1}/{2})"
+      buttons:
+        previous: {}
+        next: {}
+        back: {}
+    kits:
+      title: "&bSelect Whitelisted Kit &7({1}/{2})"
+      buttons:
+        pick-personal-kit:
+          slot: 52
+        pick-per-player-kit:
+          slot: 53
+        previous: {}
+        next: {}
+        back: {}
+        no-whitelisted-kits:
+          enabled: true
+          slot: 22
+  duels:
+    categories:
+      title: "&d&lDuel Browser &8• &fCategories"
+      rows: 3
+      buttons:
+        close:
+          enabled: true
+          slot: 22
+    rounds:
+      title: "&d&lRound Target"
+      rows: 1
+      buttons:
+        back:
+          enabled: true
+          slot: 8
+    setup:
+      title: "&d&lDuel Setup &8• &fOverview"
+      rows: 3
+      buttons:
+        kit-item:
+          enabled: true
+          slot: 10
+        arena-item:
+          enabled: true
+          slot: 12
+        first-to:
+          enabled: true
+          slot: 14
+        tel-item:
+          enabled: true
+          slot: 13
+        send-challenge:
+          enabled: true
+          slot: 16
+        close:
+          enabled: true
+          slot: 22
+    arenas:
+      title: "&b&lArena Browser &8• &fPick a Map"
+      rows: 5
+      buttons:
+        back:
+          enabled: true
+          slot: 44
+    kits:
+      title: "&d&lRulesets &8• &fPage {1}&8/&f{2}"
+      buttons:
+        custom-kit: {}
+        per-player-custom-kit: {}
+        previous:
+          enabled: true
+        next:
+          enabled: true
+        categories:
+          enabled: true
+        back:
+          enabled: true
+  kits:
+    editor:
+      title: "&6Kit Editor"
+      rows: 1
+      buttons:
+        duel-kit-editor:
+          enabled: true
+          slot: 2
+        ffa-kit-editor:
+          enabled: true
+          slot: 4
+        custom-kit-editor:
+          enabled: true
+          slot: 6
+    ffa-browser:
+      title: "&bFFA Kits (Editor)"
+      buttons: {}
+    duel-categories:
+      title: "&dDuel Kit Categories"
+      rows: 3
+      buttons: {}
+    duel-browser:
+      title: "&dDuel Kits (Editor) &7({1}/{2})"
+      buttons:
+        prev:
+          enabled: true
+        next:
+          enabled: true
+        categories:
+          enabled: true
+    layout:
+      title: "{1}: {2}"
+      buttons:
+        gui-slot-helm:
+          enabled: true
+        gui-slot-chest:
+          enabled: true
+        gui-slot-legs:
+          enabled: true
+        gui-slot-boots:
+          enabled: true
+        gui-slot-off:
+          enabled: true
+        save-kit:
+          enabled: true
+  queues:
+    categories:
+      title: "&d&lQueue Categories"
+      rows: 3
+      buttons:
+        close:
+          enabled: true
+          slot: 22
+    casual:
+      title: "&8&lQueue Browser &7({1}/{2})"
+      rows: 6
+      buttons:
+        pk-item:
+          enabled: true
+          slot: 52
+        quick-item:
+          enabled: true
+          slot: 53
+        categories:
+          enabled: true
+          slot: 49
+        previous:
+          enabled: true
+          slot: 44
+        next:
+          enabled: true
+          slot: 45
+    ranked:
+      title: "&6&lRanked Queue"
+      rows: 3
+      buttons:
+        sign:
+          enabled: true
+          slot: 4
+  ranked:
+    leaderboard:
+      title: "&8Ranked Leaderboard (Top 27)"
+      rows: 3
+      buttons: {}
+  ffa:
+    kits:
+      title: "&bFFA Kits"
+      rows: 1
+      buttons: {}
+    spawns:
+      title: "&bChoose Spawn"
+      rows: 1
+      buttons: {}
+  friends:
+    main:
+      title: "&6&lFriends Hub"
+      rows: 6
+      buttons:
+        your-friends-profile:
+          enabled: true
+          slot: 4
+        friend-requests:
+          enabled: true
+          slot: 10
+        pending-requests:
+          enabled: true
+          slot: 12
+        add-friends:
+          enabled: true
+          slot: 14
+        online-friends:
+          enabled: true
+          slot: 16
+        previous:
+          enabled: true
+          slot: 45
+        next:
+          enabled: true
+          slot: 53
+        close:
+          enabled: true
+          slot: 49
+    requests:
+      title: "&e&lFriend Requests"
+      rows: 4
+      buttons:
+        back:
+          enabled: true
+          slot: 27
+        previous:
+          enabled: true
+          slot: 30
+        next:
+          enabled: true
+          slot: 32
+    add:
+      title: "&d&lAdd Friends"
+      rows: 4
+      buttons:
+        back:
+          enabled: true
+          slot: 27
+        previous:
+          enabled: true
+          slot: 30
+        next:
+          enabled: true
+          slot: 32
+  party:
+    challenge-categories:
+      title: "&d&lParty Duel Categories"
+      rows: 3
+      buttons: {}
+    challenge:
+      title: "&d&lParty Duel Setup"
+      rows: 3
+      buttons:
+        current-kit-choice:
+          enabled: true
+          slot: 10
+        current-arena-choice:
+          enabled: true
+          slot: 12
+        first-to:
+          enabled: true
+          slot: 14
+        send-party-duel:
+          enabled: true
+          slot: 16
+    challenge-arenas:
+      title: "&b&lParty Duel Arena"
+      rows: 5
+      buttons:
+        back:
+          enabled: true
+          slot: 44
+    challenge-kits:
+      title: "&d&lParty Duel Kits &7({1}/{2})"
+      buttons:
+        previous:
+          enabled: true
+        next:
+          enabled: true
+        categories:
+          enabled: true
+        back:
+          enabled: true
+    challenge-rounds:
+      title: "&5&lRound Target"
+      rows: 1
+      buttons:
+        back:
+          enabled: true
+          slot: 8
+    settings:
+      title: "&6&lParty Settings"
+      rows: 3
+      buttons:
+        shuffle-teams:
+          enabled: true
+          slot: 10
+        auto-balance:
+          enabled: true
+          slot: 12
+        party-play:
+          enabled: true
+          slot: 14
+        roster:
+          enabled: true
+          slot: 16
+        back:
+          enabled: true
+          slot: 22
+    team-sizes:
+      title: "&bPick Team Sizes"
+      rows: 1
+      buttons:
+        sign:
+          enabled: true
+          slot: 8
+    draft:
+      title: "&6&lParty Draft Board"
+      rows: 6
+      buttons:
+        bench:
+          enabled: true
+          slot: 7
+        bench-2:
+          enabled: true
+          slot: 8
+        target-team:
+          enabled: true
+          slot: 45
+        viewed-team:
+          enabled: true
+          slot: 46
+        team-page:
+          enabled: true
+          slot: 47
+        team-page-2:
+          enabled: true
+          slot: 48
+        divide-evenly:
+          enabled: true
+          slot: 49
+        fill-team-one:
+          enabled: true
+          slot: 50
+        fill-team-two:
+          enabled: true
+          slot: 51
+        party-ffa:
+          enabled: true
+          slot: 52
+        continue:
+          enabled: true
+          slot: 53
+    kits:
+      title: "{1} &7({2}/{3})"
+      buttons:
+        previous:
+          enabled: true
+          slot: 44
+        next:
+          enabled: true
+          slot: 45
+        back:
+          enabled: true
+          slot: 49
+    personal-kits:
+      title: "&bSelect Your Kit"
+      rows: 6
+      buttons: {}
+    rounds:
+      title: "&bPick Rounds"
+      rows: 1
+      buttons: {}
+    arenas:
+      title: "&bPick Arena"
+      rows: 5
+      buttons:
+        back:
+          enabled: true
+          slot: 44
+    confirm:
+      title: "{1}"
+      rows: 1
+      buttons:
+        start:
+          enabled: true
+          slot: 4
+        back:
+          enabled: true
+          slot: 0
+  tournaments:
+    kits:
+      title: "&bTournament: Select Kit"
+      rows: 5
+      buttons: {}
+    team-size:
+      title: "&bTournament: Team Size"
+      rows: 1
+      buttons:
+        1v1:
+          enabled: true
+          slot: 3
+        2v2:
+          enabled: true
+          slot: 4
+        3v3:
+          enabled: true
+          slot: 5
+  lobby:
+    shulker-editor:
+      title: "&bShulker Editor &8(ESC to save)"
+text:
+  armor-trim-command:
+    clear-all-trims: "&c&lClear All Trims"
+    go-back: "&c&lGo Back"
+    click-to-apply-this-trim: "&7Click to apply this trim."
+    click-to-remove-all-currently: "&7Click to remove all currently"
+    click-to-select-a-trim-style: "&eClick to select a trim style!"
+    cosmetic-armor-trim: "&8▸ &7Cosmetic Armor Trim"
+    current: "&7Current: &a{1}"
+    current-none-vanilla: "&7Current: &cNone (Vanilla)"
+    current-unknown: "&7Current: &cUnknown"
+    equipped-armor-trims: "&7equipped armor trims."
+    level-req: "&8Level Req: &7{1}"
+    locked: "&c&l✖ Locked"
+    required-level: "&7Required Level: &c{1}"
+    return-to-main-menu: "&7Return to main menu."
+    unlock-by-reaching-the-required-level: "&8Unlock by reaching the required level."
+    unlocked: "&a&l✔ Unlocked"
+    your-level: "&7Your Level: &e{1}"
+  bot-menu:
+    no-kit-selected: "&cNo Kit Selected"
+    selected-kit: "&eSelected Kit"
+    map: "&bMAP"
+    preset: "&6Preset"
+    invulnerability: "&aInvulnerability"
+    frequent-sprint-hits: "&dFrequent Sprint Hits"
+    left-click-5-right-click-5: "&7Left click: +5%, Right click: -5%"
+    frequent-w-taps: "&dFrequent W Taps"
+    frequent-range: "&dFrequent Range"
+    left-click-0-05-right-click-0-05: "&7Left click: +0.05, Right click: -0.05"
+    strafe-chance: "&dStrafe Chance"
+    move-speed: "&dMove Speed"
+    left-click-0-01-right-click-0-01: "&7Left click: +0.01, Right click: -0.01"
+    shield-use: "&dShield Use"
+    shield-break-cooldown: "&dShield Break Cooldown"
+    left-click-5t-right-click-5t: "&7Left click: +5t, Right click: -5t"
+    shield-break-toggle: "&dShield Break Toggle"
+    max-chase-distance: "&dMax Chase Distance"
+    left-click-1-0-right-click-1-0: "&7Left click: +1.0, Right click: -1.0"
+    desync-snap-distance: "&dDesync Snap Distance"
+    left-click-0-5-right-click-0-5: "&7Left click: +0.5, Right click: -0.5"
+    round-target-label: "&dRounds To Win"
+    left-click-1-right-click-1: "&7Left click: +1, Right click: -1"
+    reaction-delay: "&dReaction / Delay"
+    left-click-faster-right-click-slower: "&7Left click: faster, Right click: slower"
+    retreat-speed: "&dRetreat Speed"
+    close-retreat-speed: "&dClose Retreat Speed"
+    return-label: "&eBack"
+    no-whitelisted-kits: "&cNo Whitelisted Kits"
+    selected-custom-kit: "&eSelected Custom Kit"
+    custom-kit: "&eCustom kit"
+    selected-per-custom-kit: "&eSelected Per Custom Kit"
+    per-custom-kit: "&ePer custom kit"
+    previous: "&e← Prev"
+    next: "&eNext →"
+    back: "&cBack"
+    advanced-settings: "&eAdvanced Settings"
+    click-to-change-it: "&7Click to change it."
+    click-to-change-the-bot-settings: "&7Click to change the bot settings."
+    click-to-choose-a-settings-preset: "&7Click to choose a settings preset."
+    click-to-choose-a-whitelisted-kit: "&7Click to choose a whitelisted kit."
+    click-to-choose-another-arena: "&7Click to choose another arena."
+    click-to-select-this-arena: "&7Click to select this arena."
+    click-to-select-this-kit: "&7Click to select this kit."
+    current: "&7Current: &f{1}"
+    difficulty-information: "&dDifficulty Information"
+    edit-allowed-kit-names-in-bot-settings: "&7Edit ALLOWED_KIT_NAMES in BotSettings."
+    experimental-npc-combat-you-may-encounter-bugs: "&6Experimental NPC combat. You may encounter bugs."
+    go-back: "&7Go back."
+    hits-still-animate-and-apply-knockback: "&7Hits still animate and apply knockback."
+    if-the-player-blocks-and-the-bot-has: "&7If the player blocks and the bot has an axe,"
+    includes-map-rounds-invulnerability: "&7Includes map, rounds, invulnerability,"
+    it-will-try-to-disable-the-shield: "&7it will try to disable the shield."
+    none-of-the-current-duel-kits-matched: "&7None of the current duel kits matched."
+    range-w-taps-sprint-hits-and-more: "&7range, W taps, sprint hits, and more."
+    return-to-settings: "&7Return to settings."
+    return-to-the-main-menu: "&7Return to the main menu."
+    rounds-to-win: "&7Rounds to win: &f{1}"
+    start: "&a&lSTART"
+    start-a-pv-p-duel-against-the-bot: "&7Start a PvP duel against the bot."
+    state: "&7State: {1}"
+    use-your-selected-custom-kit: "&7Use your selected custom kit."
+    use-your-selected-per-custom-kit: "&7Use your selected per custom kit."
+    when-on-neither-side-loses-hp: "&7When on, neither side loses HP."
+  custom-kit-guimain:
+    add-change-enchant: "&9Add / Change Enchant"
+    available-kit: "&7Available Kit"
+    back: "&7Back"
+    clear-all-effects: "&cClear All Effects"
+    clear-all-enchants: "&cClear All Enchants"
+    clear-inventory: "&cClear Inventory"
+    click-then-type-in-chat: "&7Click, then type in chat"
+    click-to-delete: "&cClick to delete"
+    click-to-edit: "&7Click to edit"
+    click-to-edit-2: "&7Click to edit ({1})"
+    create-new-effect: "&aCreate New Effect"
+    create-new-kit: "&6Create New Kit"
+    current: "&7Current: &f{1}"
+    current-2: "&7Current: &f{1}%"
+    current-effects: "&bCurrent Effects: &f{1}"
+    damage-increase: "&dDamage Increase %"
+    delete: "&cDelete"
+    delete-kit: "&cDelete Kit"
+    delete-shulker: "&cDelete Shulker"
+    direct-kit-room: "&eDirect Kit Room"
+    done: "&aDONE"
+    finish: "&aFINISH"
+    go-back: "&eGO BACK"
+    level: "&7Level: &f{1}"
+    level-1-means-potion-i: "&7Level 1 means Potion I"
+    level-seconds-example-1-120: "&flevel:seconds &7(example &f1:120&7)"
+    list-effects-click-to-delete: "&eList Effects (click to delete)"
+    locked-slot: "&8Locked Slot"
+    mending-rng: "&dMending RNG"
+    next: "&7Next"
+    no-go-back: "&cNo, go back"
+    previous: "&7Previous"
+    rename: "&eRename"
+    rename-shulker: "&eRename Shulker"
+    save-inventory-to-kit: "&aSave Inventory to Kit"
+    seconds: "&7Seconds: &f{1}"
+    selected-kit: "&aSelected Kit"
+    set-stack-size: "&fSet Stack Size"
+    settings: "&7Settings"
+    share-kit: "&bShare Kit"
+    this-menu-allows-you-to-create: "&7This menu allows you to create"
+    to-save-your-kit: "&7to save your kit."
+    trash: "&7TRASH"
+    type-0-to-disable: "&7Type 0 to disable."
+    type-a-number-in-chat: "&7Type a number in chat."
+    what-is-this: "&7What is this?"
+    when-you-re-finished-remember: "&7When you're finished, remember"
+    yes-delete: "&aYes, delete"
+    your-own-custom-kits-faster: "&7your own custom kits faster!"
+  death-effects-gui:
+    active: "&7Active: {1}"
+    browse-the-next-page-of-effects: "&7Browse the next page of effects."
+    click-an-effect-to-select-it: "&8Click an effect to select it."
+    click-to-disable-your-kill-effect: "&7Click to disable your kill effect."
+    click-to-equip-this-kill-effect: "&7Click to equip this kill effect."
+    click-to-select: "&e&lClick to Select"
+    cosmetic-kill-effect: "&8▸ &7Cosmetic Kill Effect"
+    current-effect: "&e&lCurrent Effect"
+    currently-selected: "&a&l✔ Currently Selected"
+    effects-play-when-you-kill-someone: "&8Effects play when you kill someone."
+    go-back-to-the-previous-page: "&7Go back to the previous page."
+    kill-effects: "&4&l☠ Kill Effects"
+    level-req: "&8Level Req: &7{1}"
+    locked: "&c&l✖ Locked"
+    next-page: "&a&l▶ Next Page"
+    previous-page: "&a&l◀ Previous Page"
+    required-level: "&7Required Level: &c{1}"
+    reset-effect: "&c&lReset Effect"
+    select-your-cosmetic-kill-effect: "&7Select your cosmetic kill effect."
+    this-is-your-active-kill-effect: "&7This is your active kill effect."
+    unlock-by-reaching-the-required-level: "&8Unlock by reaching the required level."
+    your-level: "&7Your Level: &e{1}"
+  duel-main-command-guis:
+    ruleset-tag: "&8• &7Ruleset"
+    arena-tag: "&8• &7Arena"
+    map-ready: "&8• &7Map ready"
+    ready-for-queue-and-duels: "&8• &7Ready for queue and duels"
+    arena: "&bArena"
+    back: "&6Back"
+    categories: "&dCategories"
+    choose-how-many-rounds-decide-the-winner: "&7Choose how many rounds decide the winner."
+    choose-this-ruleset: "&7Choose this ruleset."
+    click-after-both-are-selected: "&fClick after both are selected."
+    click-to-apply-it: "&fClick to apply it."
+    click-to-browse-arenas: "&fClick to browse arenas."
+    click-to-browse-rulesets: "&fClick to browse rulesets."
+    click-to-change-it: "&fClick to change it."
+    click-to-lock-it-in: "&fClick to lock it in."
+    click-to-select-this-arena: "&7Click to select this arena."
+    click-to-send-the-duel-request: "&fClick to send the duel request."
+    click-to-toggle: "&fClick to toggle {1}."
+    close: "&cClose"
+    close-the-duel-browser: "&7Close the duel browser."
+    close-the-duel-setup: "&7Close the duel setup."
+    each-player-uses-their-own-selected-custom-kit: "&7Each player uses their own selected custom kit."
+    everything-looks-good: "&7Everything looks good."
+    finish-setup: "&5&lFinish Setup"
+    first-to: "&dFirst to &f{1}"
+    generates-a-match-id-for-analytics: "&7Generates a Match ID for analytics."
+    jump-into-this-family-of-rulesets: "&7Jump into this family of rulesets."
+    lower-the-round-target-to-enable: "&7Lower the round target to enable."
+    match-telemetry: "{1}&dMatch Telemetry"
+    next: "&eNext →"
+    no-arena-selected: "&7No Arena Selected"
+    no-ruleset-selected: "&7No Ruleset Selected"
+    open-page: "&dOpen page &f#{1}"
+    per-player-custom-kits: "&6Per Player Custom Kits"
+    pick-the-kit-both-players-will-use: "&7Pick the kit both players will use."
+    pick-the-round-target: "&7Pick the round target."
+    pick-where-the-duel-should-happen: "&7Pick where the duel should happen."
+    previous: "&e← Previous"
+    record-hits-ping-and-movement: "&7Record hits, ping, and movement."
+    return-to-category-view: "&7Return to category view."
+    return-to-duel-setup: "&7Return to duel setup."
+    ruleset: "&dRuleset"
+    selected-arena: "&bSelected Arena"
+    selected-custom-kit: "&eSelected Custom Kit"
+    selected-ruleset: "&dSelected Ruleset"
+    send-challenge: "&d&lSend Challenge"
+    telemetry-enabled: "&d&lTELEMETRY ENABLED"
+    telemetry-is-limited-to-first-to-3s: "&cTelemetry is limited to first to 3s."
+    this-map-will-host-the-duel: "&7This map will host the duel."
+    this-ruleset-will-be-used-for-the-duel: "&7This ruleset will be used for the duel."
+    use-your-currently-selected-custom-kit: "&7Use your currently selected custom kit."
+    view-the-next-page: "&7View the next page."
+    view-the-previous-page: "&7View the previous page."
+    you-still-need-a-kit-and-arena: "&7You still need a kit and arena."
+  duel-queue-module:
+    categories: "&dCategories"
+    click-to-queue-this-kit: "&dClick to queue this kit."
+    close: "&cClose"
+    close-the-queue-browser: "&7Close the queue browser."
+    jump-into-this-ruleset-family: "&7Jump into this ruleset family."
+    match-into-any-live-queue-faster: "&7Match into any live queue faster."
+    next: "&eNext →"
+    open-page: "&dOpen page &f#{1}"
+    per-custom-kit: "&ePer Custom Kit"
+    previous: "&e← Previous"
+    queued: "&eQueued: &f{1}"
+    queued-2: "&8Queued: {1}"
+    quick-queue: "&bQuick Queue"
+    return-to-category-view: "&7Return to category view."
+    use-every-player-s-own-selected-custom-kit: "&7Use every player's own selected custom kit."
+    view-next-kit-page: "&7View next kit page."
+    view-previous-kit-page: "&7View previous kit page."
+  ffaguis:
+    open-kit-menu: "&r&e{1} &7ᴘʟᴀʏɪɴɢ"
+  ffakit-editor-gui:
+    duel-editor: "&dDuel Kit Editor"
+    ffa-editor: "&bKit Editor"
+    categories: "&dCategories"
+    click-to-edit-this-duel-kit-layout: "&7Click to edit this duel kit layout."
+    next: "&eNext →"
+    open-editor-page: "&dOpen editor page #{1}"
+    prev: "&e← Prev"
+    save-kit: "{1}{2}SAVE KIT"
+  friends-manager:
+    friend-requests: "&b&lFriend Requests: {1}"
+    pending-requests-button: "&e&lPending Requests &8({1})"
+    add-friends: "&d&lAdd Friends"
+    online-friends: "&a&lOnline Friends"
+    previous: "&e← Previous"
+    next: "&eNext →"
+    close: "&cClose"
+    back: "&eBack"
+    accept-or-deny-incoming-requests: "&7Accept or deny incoming requests."
+    browse-online-players-who-are-not-on-your: "&7Browse online players who are not on your list."
+    click-to-open: "&fClick to open."
+    click-to-send-a-friend-request: "&fClick to send a friend request."
+    click-to-toggle: "&fClick to toggle."
+    close-the-friends-menu: "&7Close the friends menu."
+    friends-online: "&7Friends Online: &a{1}"
+    friends-show-a-small-star-in-supported-ui: "&6⭐ &7Friends show a small star in supported UI."
+    friends-total: "&7Friends Total: &f{1}"
+    left-click-to-accept: "&aLeft click &7to accept."
+    left-click-to-view-request-tools: "&fLeft click &7to view request tools."
+    let-other-players-send-you-friend-requests: "&7Let other players send you friend requests."
+    offline: "&7Offline"
+    online: "&aOnline"
+    pending-requests: "&7Pending Requests: &e{1}"
+    return-to-the-friends-hub: "&7Return to the friends hub."
+    right-click-to-deny: "&cRight click &7to deny."
+    right-click-to-remove-friend: "&cRight click &7to remove friend."
+    status: "&7Status: &f{1}"
+    view-the-next-addable-page: "&7View the next addable page."
+    view-the-next-friends-page: "&7View the next friends page."
+    view-the-next-requests-page: "&7View the next requests page."
+    view-the-previous-addable-page: "&7View the previous addable page."
+    view-the-previous-friends-page: "&7View the previous friends page."
+    view-the-previous-requests-page: "&7View the previous requests page."
+    world: "&7World: &f{1}"
+  kit-editor-command:
+    click-to-continue: "&fClick to continue."
+    custom-kit-editor: "&eCustom Kit Editor"
+    duel-kit-editor: "&dDuel Kit Editor"
+    edit-saved-layouts-for-duel-kits: "&7Edit saved layouts for duel kits."
+    edit-saved-layouts-for-ffa-kits: "&7Edit saved layouts for FFA kits."
+    ffa-kit-editor: "&bFFA Kit Editor"
+    open-your-custom-kit-browser: "&7Open your custom kit browser."
+  party-command-duel-sub-gui:
+    back: "&6Back"
+    categories: "&dCategories"
+    choose-how-many-rounds-decide-the-winner: "&7Choose how many rounds decide the winner."
+    click-to-change: "&fClick to change."
+    click-to-send-the-duel-request: "&fClick to send the duel request."
+    everything-is-ready: "&7Everything is ready."
+    first-to: "&dFirst to &f{1}"
+    next: "&eNext →"
+    open-page: "&dOpen page &f#{1}"
+    pick-the-round-target: "&7Pick the round target."
+    previous: "&e← Previous"
+    return-to-category-view: "&7Return to category view."
+    return-to-party-duel-setup: "&7Return to party duel setup."
+    send-party-duel: "&a&lSend Party Duel"
+    view-the-next-page: "&7View the next page."
+    view-the-previous-page: "&7View the previous page."
+  party-manager:
+    shuffle-teams: "&b&lShuffle Teams: {1}"
+    auto-balance: "&d&lAuto Balance: {1}"
+    party-play: "&a&lParty Play"
+    roster: "&b&lRoster"
+    back: "&e&lBack"
+    play: "&a&lPlay"
+    members: "&b&lMembers"
+    invite-help: "&d&lInvite Help"
+    party-settings: "&6&lParty Settings"
+    a-clean-roster-a-dirty-outcome: "&7A clean roster. A dirty outcome."
+    a-proper-unit-has-assembled: "&7A proper unit has assembled."
+    a-storm-is-coming-you-started-it: "&7A storm is coming. You started it."
+    built-different-fight-together: "&7Built different. Fight together."
+    click-to-build-teams-or-launch-party-ffa: "&fClick to build teams or launch Party FFA."
+    click-to-continue: "&fClick to continue."
+    click-to-list-members: "&fClick to list members."
+    click-to-toggle: "&fClick to toggle."
+    locked-in-dialed-up: "&7Locked in. Dialed up."
+    more-than-a-party-a-problem: "&7More than a party. A problem."
+    no-weak-links-no-slow-starts: "&7No weak links. No slow starts."
+    open-party-play: "&7Open party play."
+    open-the-team-builder-and-setup-menu: "&7Open the team builder and setup menu."
+    pressure-rises-the-second-you-queue: "&7Pressure rises the second you queue."
+    quick-reminder-for-inviting-teammates: "&7Quick reminder for inviting teammates."
+    return-to-your-party-hotbar: "&7Return to your party hotbar."
+    right-click-to-manage-your-party: "&fRight click to manage your party."
+    shuffle-balancing-and-party-controls: "&7Shuffle, balancing, and party controls."
+    shuffle-the-draft-order-for-auto-fill-actions: "&7Shuffle the draft order for auto-fill actions."
+    steel-up-your-crew-is-online: "&7Steel up. Your crew is online."
+    strength-in-numbers-fear-in-everyone-else: "&7Strength in numbers. Fear in everyone else."
+    the-hunt-begins-now: "&7The hunt begins now."
+    the-lobby-just-got-more-dangerous: "&7The lobby just got more dangerous."
+    the-room-got-louder-for-a-reason: "&7The room got louder for a reason."
+    the-squad-forms-under-your-banner: "&7The squad forms under your banner."
+    the-war-room-is-open: "&7The war room is open."
+    this-is-where-momentum-starts: "&7This is where momentum starts."
+    this-squad-was-made-for-damage: "&7This squad was made for damage."
+    use-even-fill-as-the-default-draft-helper: "&7Use even fill as the default draft helper."
+    use-party-invite-player: "&7Use &f/party invite <player>&7."
+    view-your-current-party-roster: "&7View your current party roster."
+    view-your-party-members-in-chat: "&7View your party members in chat."
+    you-brought-the-cavalry: "&7You brought the cavalry."
+    you-did-not-come-here-to-play-safe: "&7You did not come here to play safe."
+    you-lit-the-fuse-now-move: "&7You lit the fuse. Now move."
+  party-play-guis:
+    vs: "&e{1} &7vs &e{2}"
+    custom-sizes: "&b✎ Custom Sizes"
+    bench: "&e← Bench"
+    bench-2: "&eBench →"
+    target-team-button: "&6Target Team: {1}"
+    viewed-team: "&eViewed Team: {1}"
+    team-page: "&e← Team Page"
+    team-page-2: "&eTeam Page →"
+    divide-evenly: "&aDivide Evenly"
+    fill-team-one: "&dFill Team One"
+    fill-team-two: "&bFill Team Two"
+    party-ffa: "&c&lParty FFA"
+    continue: "&aContinue"
+    previous-page: "&e← Previous Page"
+    next-page: "&eNext Page →"
+    back: "&6← Back"
+    selected-custom-kit: "&eSelected Custom Kit"
+    selected-per-custom-kit: "&6Selected Per Custom Kit"
+    kit-number: "&aKit &e#{1}"
+    first-to: "&eFirst to {1}"
+    start: "&a&lSTART"
+    ffa-kit: "&cParty FFA Kit"
+    team-one-kit: "&dTeam One Kit"
+    team-two-kit: "&bTeam Two Kit"
+    confirm-ffa: "&cStart Party FFA"
+    confirm-duel: "&aStart Party Duel"
+    arena: "&7Arena: &f{1}"
+    balanced-team-size-preset: "&7Balanced team size preset."
+    bench-clicks-place-players-into-this-team: "&7Bench clicks place players into this team."
+    bench-player: "&7Bench player"
+    choose-which-team-is-shown-in-the-middle: "&7Choose which team is shown in the middle grid."
+    click-then-type-something-like-2v5: "&7Click then type something like &f2v5"
+    click-to-continue: "&fClick to continue."
+    click-to-continue-to-kit-selection: "&fClick to continue to kit selection."
+    click-to-cycle: "&fClick to cycle."
+    click-to-draft-into-the-target-team: "&fClick to draft into the target team."
+    click-to-launch-the-duel: "&fClick to launch the duel."
+    click-to-launch-the-party-ffa: "&fClick to launch the Party FFA."
+    click-to-use-everyone-in-one-free-for: "&fClick to use everyone in one free-for-all."
+    custom-kit-slot: "&7custom kit slot."
+    displayed-team: "&7Displayed team: {1}"
+    every-player-uses-their-own-selected: "&7Every player uses their own selected"
+    fill-both-teams-from-the-bench: "&7Fill both teams from the bench."
+    for-this-slot: "&7for this slot."
+    kit: "&7Kit: &f{1}"
+    left-click-move-to-the-other-team: "&fLeft click &7→ move to the other team"
+    move-bench-players-into-team-one-until-it: "&7Move bench players into Team One until it is full."
+    move-bench-players-into-team-two-until-it: "&7Move bench players into Team Two until it is full."
+    next-bench-page: "&7Next bench page."
+    players: "&7Players: &f{1}"
+    previous-bench-page: "&7Previous bench page."
+    return-to-the-draft-board: "&7Return to the draft board."
+    return-to-the-previous-menu: "&7Return to the previous menu."
+    right-click-send-back-to-bench: "&fRight click &7→ send back to bench"
+    rounds: "&7Rounds: &f{1}"
+    set-the-duel-round-target: "&7Set the duel round target."
+    skip-teams-and-start-a-last-player-standing: "&7Skip teams and start a last-player-standing party fight."
+    target-team: "&7Target team: {1}"
+    team-one: "&7Team One: &f{1}&7/&f{2}"
+    team-two: "&7Team Two: &f{1}&7/&f{2}"
+    to-set-custom-team-sizes: "&7to set custom team sizes."
+    use-this-custom-kit-for-the-match: "&7Use this custom kit for the match."
+    use-your-currently-selected-custom-kit: "&7Use your currently selected custom kit"
+    uses-your-shuffle-and-balance-settings: "&7Uses your shuffle and balance settings."
+    view-next-kit-page: "&7View next kit page."
+    view-previous-kit-page: "&7View previous kit page."
+    view-the-next-team-page: "&7View the next team page."
+    view-the-previous-team-page: "&7View the previous team page."
+  profile-gui:
+    view-stats: "&e&lView Stats"
+    exit: "&c&lExit"
+    general-stats: "&f&lGeneral Stats"
+    social-summary: "&6&lSocial Summary"
+    account-info: "&b&lAccount Info"
+    account-level: "&fAccount Level: &b{1}"
+    basic-overview-of-the-account: "&7Basic overview of the account."
+    click-to-view-detailed-kit-statistics: "&7Click to view detailed kit statistics."
+    could-not-reach-the-api: "&cCould not reach the {1} API."
+    level: "&fLevel: &b{1}"
+    no-active-rankings-found: "&7No active rankings found."
+    overall-rank: "&fOverall Rank: &7#{1}"
+    points: "&fPoints: &e{1}"
+    rankings: "&6&lRankings:"
+    region: "&fRegion: &7{1}"
+    stats: "&b/stats {1}"
+    status: "&fStatus: {1}"
+    this-player-is-not-ranked-on: "&7This player is not ranked on {1}."
+    total-playtime: "&fTotal Playtime: &e{1}"
+    xp: "&7({1} / {2} XP)"
+  ranked-commands:
+    open-leaderboard: "&d#{1} &f{2}"
+  ranked-queue-module:
+    beat-a-pro-high-reward: "&7 - Beat a PRO: &aHigh Reward"
+    click-to-join-ranked-queue: "&dClick to join ranked queue!"
+    lose-to-a-noob-heavy-penalty: "&7 - Lose to a NOOB: &cHeavy Penalty"
+    matches-are-best-of-1: "&7Matches are &fBest of 1&7."
+    our-system-uses-a-dynamic-elo-algorithm: "&7Our system uses a dynamic ELO algorithm."
+    queued: "&eQueued: &f{1}"
+    ranking-information: "&6&lRanking Information"
+    stakes-scale-with-opponent-difficulty: "&7Stakes scale with opponent difficulty:"
+    status: "&6Status: {1}"
+    your-elo: "&6Your Elo: &f{1}"
+  settings-command:
+    profile-visibility-lore-1: "&7Control who can view your"
+    profile-visibility-lore-2: "&7profile and statistics."
+    profile-visibility: "&f&lProfile Visibility"
+    allow-spectators-lore-1: "&7Let other players watch"
+    allow-spectators-lore-2: "&7your ongoing duels."
+    allow-spectators: "&b&lAllow Spectators"
+    lobby-elytra-lore-1: "&7Toggle your equipped lobby"
+    lobby-elytra-lore-2: "&7elytra wings (if unlocked)."
+    lobby-elytra: "&a&lLobby Elytra"
+    view-kill-effects-lore-1: "&7Control whether you see kill"
+    view-kill-effects-lore-2: "&7effects triggered by others."
+    view-kill-effects: "&4&lView Kill Effects"
+    ranked-particles-lore-1: "&7Toggle tier-specific blood"
+    ranked-particles-lore-2: "&7particles when hitting enemies."
+    ranked-particles-lore-3: "&7(Ranked only)"
+    ranked-particles: "&c&lRanked Particles"
+    lobby-speed-lore-1: "&7Toggle speed effect"
+    lobby-speed-lore-2: "&7while in the lobby."
+    lobby-speed: "&b&lLobby Speed"
+    lobby-jump-boost-lore-1: "&7Toggle jump boost effect"
+    lobby-jump-boost-lore-2: "&7while in the lobby."
+    lobby-jump-boost: "&a&lLobby Jump Boost"
+    global-chat-lore-1: "&7Receive cross-server chat"
+    global-chat-lore-2: "&7from players outside your game."
+    global-chat: "&5&lGlobal Chat"
+    broadcast-chats-lore-1: "&7Send your lobby messages"
+    broadcast-chats-lore-2: "&7globally across all servers."
+    broadcast-chats: "&d&lBroadcast Chats"
+    allow-messages-lore-1: "&7Receive private /msg and"
+    allow-messages-lore-2: "&7/reply from strangers."
+    allow-messages: "&6&lAllow Messages"
+    friend-requests-lore-1: "&7Allow players to send you"
+    friend-requests-lore-2: "&7incoming friend requests."
+    friend-requests: "&e&lFriend Requests"
+    chat-mentions-lore-1: "&7Receive a sound ping when"
+    chat-mentions-lore-2: "&7someone says your name."
+    chat-mentions: "&e&lChat Mentions"
+    duel-invites-lore-1: "&7Allow incoming duel"
+    duel-invites-lore-2: "&7challenges in the lobby."
+    duel-invites: "&c&lDuel Invites"
+    party-invites-lore-1: "&7Allow other players to"
+    party-invites-lore-2: "&7invite you to parties."
+    party-invites: "&6&lParty Invites"
+    party-duel-invites-lore-1: "&7Allow full party vs party"
+    party-duel-invites-lore-2: "&7duel requests."
+    party-duel-invites: "&d&lParty Duel Invites"
+    general-tab: "&3&lGeneral Settings"
+    social-tab: "&e&lSocial & Chat"
+    matchmaking-tab: "&c&lMatchmaking"
+    close: "&c&lClose"
+    enabled: "&a&lENABLED"
+    disabled: "&c&lDISABLED"
+    basic-profile-and-client: "&7Basic profile and client"
+    behavior-and-rendering: "&7behavior and rendering."
+    click-to-disable: "&cClick to disable."
+    click-to-enable: "&aClick to enable."
+    close-the-settings-menu: "&7Close the settings menu."
+    configure-your-incoming: "&7Configure your incoming"
+    current-state: "&fCurrent State: {1}"
+    duel-and-party-invites: "&7duel and party invites."
+    manage-your-communications: "&7Manage your communications,"
+    requires-permission: "&cRequires permission!"
+    visibility-and-friends: "&7visibility, and friends."
+  stats-command:
+    kit-icon: "{1}({2})"
+    more-information: "&bMore Information"
+    page: "&aPage {1}"
+  travel-command:
+    region-selector: "&dRegion Selector"
+    no-instances-available: "&cNo instances available"
+    click-to-transfer: "&eClick to transfer."
+    hosted-in: "&7Hosted in &f{1}"
+    offline: "&cOffline"
+    players: "&7Players: &f{1}"
+    travel-between-regions: "&7Travel between regions."
+    you-are-here: "&eYou are here."
+  bot-preset:
+    easy-difficulty-for-beast-kit: "&7Easy difficulty for Beast kit."
+    easy-difficulty-for-netherite-op-kit: "&7Easy difficulty for Netherite OP kit."
+    easy-difficulty-for-pot-kit: "&7Easy difficulty for Pot kit."
+    easy-difficulty-for-smp-kit: "&7Easy difficulty for SMP kit."
+    hard-difficulty-for-beast-kit: "&7Hard difficulty for Beast kit."
+    hard-difficulty-for-netherite-op-kit: "&7Hard difficulty for Netherite OP kit."
+    hard-difficulty-for-pot-kit: "&7Hard difficulty for Pot kit."
+    hard-difficulty-for-smp-kit: "&7Hard difficulty for SMP kit."
+    insane-difficulty-for-beast-kit: "&7Insane difficulty for Beast kit."
+  bot-settings:
+    aim-speed: "&7Aim speed: &f{1}"
+    attack-delay-t: "&7Attack delay: &f{1}t"
+    debug-logs: "&7Debug logs: {1}"
+    desync-snap: "&7Desync snap: &f{1}"
+    invulnerability: "&7Invulnerability: {1}"
+    kit: "&7Kit: &f{1}"
+    map: "&7Map: &f{1}"
+    max-chase: "&7Max chase: &f{1}"
+    move-speed: "&7Move speed: &f{1}"
+    preset: "&7Preset: &f{1}"
+    range: "&7Range: &f{1}"
+    reach: "&7Reach: &f{1}"
+    reaction-t: "&7Reaction: &f{1}t"
+    retreat-speed: "&7Retreat speed: &f{1}"
+    rounds-to-win: "&7Rounds to win: &f{1}"
+    shield-break: "&7Shield break: {1}"
+    shield-cooldown-t: "&7Shield cooldown: &f{1}t"
+    shield-use: "&7Shield use: &f{1}%"
+    sprint-hits: "&7Sprint hits: &f{1}%"
+    strafe-chance: "&7Strafe chance: &f{1}%"
+    w-taps: "&7W taps: &f{1}%"

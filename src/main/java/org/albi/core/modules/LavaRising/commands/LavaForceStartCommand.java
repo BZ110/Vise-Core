@@ -1,5 +1,7 @@
 package org.albi.core.modules.LavaRising.commands;
 
+import org.albi.core.gui.Messages;
+
 import org.albi.core.Core;
 import org.albi.core.modules.LavaRising.LavaRisingManager;
 import org.albi.core.modules.LavaRising.helpers.LavaRisingGameInstance;
@@ -24,13 +26,13 @@ public class LavaForceStartCommand extends BaseCommand implements CommandExecuto
                              Command cmd, String label, String[] args) {
 
         if (!sender.hasPermission("lava.admin")) {
-            sender.sendMessage(ChatColor.RED + "No permission.");
+            Messages.send(sender, "messages.lava-force-start-command.no-permission", ChatColor.RED);
             return true;
         }
 
         // don’t stack matches
         if (LavaRisingManager.playing) {
-            sender.sendMessage(ChatColor.YELLOW + "A Lava Rising match is already running.");
+            Messages.send(sender, "messages.lava-force-start-command.a-lava-rising-match-is-already-running", ChatColor.YELLOW);
             return true;
         }
 
@@ -39,7 +41,7 @@ public class LavaForceStartCommand extends BaseCommand implements CommandExecuto
         match.start();
 
         LavaRisingManager.playing = true;
-        Bukkit.broadcastMessage(ChatColor.GOLD + "» Admin has force‑started a Lava Rising match!");
+        Bukkit.broadcastMessage(Messages.text(null, "messages.lava-force-start-command.admin-has-force-started-a-lava-rising-match", ChatColor.GOLD));
 
         return true;
     }

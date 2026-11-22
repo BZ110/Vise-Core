@@ -1,5 +1,7 @@
 package org.albi.core.commands;
 
+import org.albi.core.gui.GuiService;
+
 import com.samjakob.spigui.buttons.SGButton;
 import com.samjakob.spigui.menu.SGMenu;
 import org.albi.core.Core;
@@ -47,19 +49,19 @@ public class RTPCommand extends BaseCommand {
     }
 
     private void openRTPMenu(Player p) {
-        SGMenu menu = plugin.getGUI().create("§bRTP", 4);
+        SGMenu menu = plugin.getMenus().create("travel.rtp", 4);
 
         ItemStack filler = nameItem(new ItemStack(Material.GRAY_STAINED_GLASS_PANE), " ");
         for (int i = 0; i < 36; i++) menu.setButton(i, new SGButton(filler));
 
-        menu.setButton(11, biomeButton("§x§C§0§F§F§4§9§lPLAINS RTP", Material.GRASS_BLOCK, "Plains", p));
-        menu.setButton(13, biomeButton("§x§F§F§5§C§7§1§lSNOWY RTP", Material.SNOW_BLOCK, "Snowy", p));
-        menu.setButton(15, biomeButton("§x§F§F§C§3§7§C§lDESERT RTP", Material.SANDSTONE, "Desert", p));
-        menu.setButton(21, biomeButton("§x§F§F§C§3§7§C§lBADLANDS RTP", Material.RED_SAND, "Badlands", p));
-        menu.setButton(23, biomeButton("§x§F§F§C§3§7§C§lMUSHROOM RTP", Material.RED_MUSHROOM_BLOCK, "Mushroom", p));
+        GuiService.control(menu, "plains-rtp", 11, biomeButton("§x§C§0§F§F§4§9§lPLAINS RTP", Material.GRASS_BLOCK, "Plains", p));
+        GuiService.control(menu, "snowy-rtp", 13, biomeButton("§x§F§F§5§C§7§1§lSNOWY RTP", Material.SNOW_BLOCK, "Snowy", p));
+        GuiService.control(menu, "desert-rtp", 15, biomeButton("§x§F§F§C§3§7§C§lDESERT RTP", Material.SANDSTONE, "Desert", p));
+        GuiService.control(menu, "badlands-rtp", 21, biomeButton("§x§F§F§C§3§7§C§lBADLANDS RTP", Material.RED_SAND, "Badlands", p));
+        GuiService.control(menu, "mushroom-rtp", 23, biomeButton("§x§F§F§C§3§7§C§lMUSHROOM RTP", Material.RED_MUSHROOM_BLOCK, "Mushroom", p));
 
 
-        p.openInventory(menu.getInventory());
+        GuiService.open(p, menu);
     }
 
     private SGButton biomeButton(String name, Material mat, String biome, Player p) {

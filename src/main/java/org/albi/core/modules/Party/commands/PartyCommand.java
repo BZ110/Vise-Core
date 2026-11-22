@@ -1,5 +1,7 @@
 package org.albi.core.modules.Party.commands;
 
+import org.albi.core.gui.Messages;
+
 import org.albi.core.Core;
 import org.albi.core.data.ExtendedPlayer;
 import org.albi.core.modules.Party.GUIs.PartyCommandDuelSubGUI;
@@ -28,7 +30,7 @@ public class PartyCommand extends BaseCommand {
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
 
         if (!(sender instanceof Player player)) {
-            sender.sendMessage("Only players can use this command.");
+            Messages.send(sender, "messages.party-command.only-players-can-use-this-command");
             return true;
         }
 

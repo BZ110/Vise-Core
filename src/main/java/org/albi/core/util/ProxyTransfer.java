@@ -1,5 +1,7 @@
 package org.albi.core.util;
 
+import org.albi.core.gui.Messages;
+
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
@@ -18,7 +20,7 @@ public final class ProxyTransfer {
             player.sendPluginMessage(plugin, "BungeeCord", bytes.toByteArray());
             return true;
         } catch (IOException | IllegalArgumentException e) {
-            player.sendMessage("§cCould not request the server transfer.");
+            Messages.send(player, "messages.proxy-transfer.could-not-request-the-server-transfer");
             return false;
         }
     }

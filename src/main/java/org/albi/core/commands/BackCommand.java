@@ -1,5 +1,7 @@
 package org.albi.core.commands;
 
+import org.albi.core.gui.Messages;
+
 import org.albi.core.Core;
 import org.albi.core.data.ExtendedPlayer;
 import org.bukkit.ChatColor;
@@ -26,7 +28,7 @@ public class BackCommand extends BaseCommand {
 
         // No saved death location
         if (deathLoc == null) {
-            player.sendMessage(ChatColor.RED + "You have no location to return to.");
+            Messages.send(player, "messages.back-command.you-have-no-location-to-return-to", ChatColor.RED);
             return true;
         }
 
@@ -37,14 +39,14 @@ public class BackCommand extends BaseCommand {
                 .anyMatch(name -> name.equalsIgnoreCase(deathLoc.getWorld().getName()));
 
         if (!isFreedomWorld) {
-            player.sendMessage(ChatColor.RED + "You cannot use /back outside the rtp worlds.");
+            Messages.send(player, "messages.back-command.you-cannot-use-back-outside-the-rtp-worlds", ChatColor.RED);
             return true;
         }
 
         // Teleport and clear the saved location
         player.teleportAsync(deathLoc);
         eP.setDeathLocation(null);
-        player.sendMessage(ChatColor.GREEN + "Teleported to your death location.");
+        Messages.send(player, "messages.back-command.teleported-to-your-death-location", ChatColor.GREEN);
 
         return true;
     }

@@ -1,5 +1,7 @@
 package org.albi.core.modules.Duels.AutomatedCombat;
 
+import org.albi.core.gui.GuiService;
+
 import org.albi.core.modules.Duels.DuelManager;
 import org.albi.core.modules.Duels.helpers.Arena;
 import org.albi.core.modules.Duels.helpers.Kit;
@@ -82,27 +84,27 @@ public class BotSettings {
 
     public List<String> toLore() {
         List<String> lore = new ArrayList<>();
-        lore.add("§7Preset: §f" + (preset == null ? "Custom" : preset.getDisplayName()));
-        lore.add("§7Kit: §f" + (kit == null ? "None" : kit.getName()));
-        lore.add("§7Map: §f" + (arena == null ? "None" : arena.getName()));
-        lore.add("§7Rounds to win: §f" + rounds);
-        lore.add("§7Sprint hits: §f" + frequentSprintHitsPercent + "%");
-        lore.add("§7W taps: §f" + frequentWTapsPercent + "%");
-        lore.add("§7Range: §f" + String.format("%.2f", frequentRange));
-        lore.add("§7Invulnerability: " + (invulnerability ? "§aOn" : "§cOff"));
-        lore.add("§7Strafe chance: §f" + strafePercent + "%");
-        lore.add("§7Reaction: §f" + reactionTicks + "t");
-        lore.add("§7Attack delay: §f" + attackDelayTicks + "t");
-        lore.add("§7Move speed: §f" + String.format("%.2f", moveSpeed));
-        lore.add("§7Retreat speed: §f" + String.format("%.2f", retreatSpeed));
-        lore.add("§7Shield use: §f" + shieldUsePercent + "%");
-        lore.add("§7Shield break: " + (shieldBreakEnabled ? "§aOn" : "§cOff"));
-        lore.add("§7Shield cooldown: §f" + shieldBreakCooldownTicks + "t");
-        lore.add("§7Max chase: §f" + String.format("%.1f", maxChaseDistance));
-        lore.add("§7Aim speed: §f" + String.format("%.1f", aimSpeedDegrees));
-        lore.add("§7Reach: §f" + String.format("%.2f", reachDistance));
-        lore.add("§7Desync snap: §f" + String.format("%.1f", desyncTeleportDistance));
-        lore.add("§7Debug logs: " + (debugLogging ? "§aOn" : "§cOff"));
+        lore.add(GuiService.text("bot-settings.preset", (preset == null ? "Custom" : preset.getDisplayName())));
+        lore.add(GuiService.text("bot-settings.kit", (kit == null ? "None" : kit.getName())));
+        lore.add(GuiService.text("bot-settings.map", (arena == null ? "None" : arena.getName())));
+        lore.add(GuiService.text("bot-settings.rounds-to-win", rounds));
+        lore.add(GuiService.text("bot-settings.sprint-hits", frequentSprintHitsPercent));
+        lore.add(GuiService.text("bot-settings.w-taps", frequentWTapsPercent));
+        lore.add(GuiService.text("bot-settings.range", String.format("%.2f", frequentRange)));
+        lore.add(GuiService.text("bot-settings.invulnerability", (invulnerability ? "§aOn" : "§cOff")));
+        lore.add(GuiService.text("bot-settings.strafe-chance", strafePercent));
+        lore.add(GuiService.text("bot-settings.reaction-t", reactionTicks));
+        lore.add(GuiService.text("bot-settings.attack-delay-t", attackDelayTicks));
+        lore.add(GuiService.text("bot-settings.move-speed", String.format("%.2f", moveSpeed)));
+        lore.add(GuiService.text("bot-settings.retreat-speed", String.format("%.2f", retreatSpeed)));
+        lore.add(GuiService.text("bot-settings.shield-use", shieldUsePercent));
+        lore.add(GuiService.text("bot-settings.shield-break", (shieldBreakEnabled ? "§aOn" : "§cOff")));
+        lore.add(GuiService.text("bot-settings.shield-cooldown-t", shieldBreakCooldownTicks));
+        lore.add(GuiService.text("bot-settings.max-chase", String.format("%.1f", maxChaseDistance)));
+        lore.add(GuiService.text("bot-settings.aim-speed", String.format("%.1f", aimSpeedDegrees)));
+        lore.add(GuiService.text("bot-settings.reach", String.format("%.2f", reachDistance)));
+        lore.add(GuiService.text("bot-settings.desync-snap", String.format("%.1f", desyncTeleportDistance)));
+        lore.add(GuiService.text("bot-settings.debug-logs", (debugLogging ? "§aOn" : "§cOff")));
         return lore;
     }
 

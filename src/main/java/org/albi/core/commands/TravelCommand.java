@@ -1,5 +1,9 @@
 package org.albi.core.commands;
 
+import org.albi.core.gui.Messages;
+
+import org.albi.core.gui.GuiService;
+
 import com.samjakob.spigui.buttons.SGButton;
 import com.samjakob.spigui.menu.SGMenu;
 import org.albi.core.Core;
@@ -63,12 +67,12 @@ public class TravelCommand extends BaseCommand {
                 .filter(instance -> instance.isInRegion(currentRegion))
                 .limit(INSTANCE_SLOTS * 6L).toList();
         int rows = Math.max(1, (local.size() + INSTANCE_SLOTS - 1) / INSTANCE_SLOTS);
-        SGMenu menu = plugin.getGUI().create("&bTravel Menu", rows);
+        SGMenu menu = plugin.getMenus().create("travel.instances", rows);
         for (int i = 0; i < local.size(); i++) {
             Instance instance = local.get(i);
             boolean current = instance.name().equalsIgnoreCase(plugin.getServerName());
             Material material = current ? Material.EMERALD_BLOCK : Material.DIAMOND_BLOCK;
-            var lore = !instance.online() ? List.of("§cOffline")
+            var lore = !instance.online() ? List.of(GuiService.text("travel-command.offline"))
                     : List.of("§7Online: §f" + instance.players(), current ? "§eYou are here." : "§eClick to travel.");
             var button = new SGButton(icon(material, "§b" + instance.name(), lore, null));
             if (instance.online() && !current) {
@@ -77,21 +81,21 @@ public class TravelCommand extends BaseCommand {
                     sendPlayerToServer(player, instance.name());
                 });
             }
-            menu.setButton((i / INSTANCE_SLOTS) * 9 + (i % INSTANCE_SLOTS), button);
+            GuiService.entry(menu, instance.name(), (i / INSTANCE_SLOTS) * 9 + (i % INSTANCE_SLOTS), button);
         }
 
         if (!regions.isEmpty()) {
-            menu.setButton(8, new SGButton(icon(Material.COMPASS, "§dRegion Selector",
-                    List.of("§7Travel between regions."), null)).withListener(event -> openRegionSelector(player)));
+            GuiService.control(menu, "region-selector", 8, new SGButton(icon(Material.COMPASS, GuiService.text("travel-command.region-selector"),
+                    List.of(GuiService.text("travel-command.travel-between-regions")), null)).withListener(event -> openRegionSelector(player)));
         } else if (local.isEmpty()) {
-            menu.setButton(4, new SGButton(icon(Material.BARRIER, "§cNo instances available", List.of(), null)));
+            GuiService.control(menu, "no-instances-available", 4, new SGButton(icon(Material.BARRIER, GuiService.text("travel-command.no-instances-available"), List.of(), null)));
         }
-        player.openInventory(menu.getInventory());
+        GuiService.open(player, menu);
     }
 
     private void openRegionSelector(Player player) {
         int rows = (regions.size() + 8) / 9;
-        SGMenu menu = plugin.getGUI().create("&dSelect Region", rows);
+        SGMenu menu = plugin.getMenus().create("travel.regions", rows);
         String currentRegion = plugin.getConfig().getString("region", "EU");
         List<Instance> snapshot = instances;
 
@@ -102,22 +106,22 @@ public class TravelCommand extends BaseCommand {
                     .mapToInt(Instance::players).sum();
 
             List<String> lore = new ArrayList<>();
-            if (!region.location().isBlank()) lore.add("§7Hosted in §f" + region.location());
-            lore.add("§7Players: §f" + total);
-            lore.add(current ? "§eYou are here." : "§eClick to transfer.");
+            if (!region.location().isBlank()) lore.add(GuiService.text("travel-command.hosted-in", region.location()));
+            lore.add(GuiService.text("travel-command.players", total));
+            lore.add(current ? GuiService.text("travel-command.you-are-here") : GuiService.text("travel-command.click-to-transfer"));
 
             Material material = region.texture() == null ? Material.COMPASS : Material.PLAYER_HEAD;
             SGButton button = new SGButton(icon(material, "§b" + region.name(), lore, region.texture()));
             if (!current) {
                 button.withListener(event -> {
                     player.closeInventory();
-                    player.sendMessage("§7Transferring to §b" + region.name() + "§7...");
+                    Messages.send(player, "messages.travel-command.transferring-to", region.name());
                     player.transfer(region.host(), region.port());
                 });
             }
-            menu.setButton(i, button);
+            GuiService.entry(menu, region.id(), i, button);
         }
-        player.openInventory(menu.getInventory());
+        GuiService.open(player, menu);
     }
 
     private List<Region> loadRegions() {

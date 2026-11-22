@@ -1,5 +1,9 @@
 package org.albi.core.commands;
 
+import org.albi.core.gui.Messages;
+
+import org.albi.core.gui.GuiService;
+
 import com.samjakob.spigui.buttons.SGButton;
 import com.samjakob.spigui.menu.SGMenu;
 import org.albi.core.Core;
@@ -44,12 +48,12 @@ public class LeaderboardCommand extends BaseCommand {
                 StatManagement.Field f = StatManagement.Field.valueOf(a[0].toUpperCase());
                 show(p, f, String.join(" ", Arrays.copyOfRange(a, 1, a.length)));
             } catch (IllegalArgumentException ex) {
-                plugin.getMessageAPI().sendMessage(p, "&cInvalid field.");
+                plugin.getMessageAPI().sendMessage(p, Messages.text(p, "messages.leaderboard-command.invalid-field"));
             }
             return true;
         }
         if (DuelManager.stor == null) {
-            plugin.getMessageAPI().sendMessage(p, "&7The duel leaderboard menu is unavailable on this server.");
+            plugin.getMessageAPI().sendMessage(p, Messages.text(p, "messages.leaderboard-command.the-duel-leaderboard-menu-is-unavailable-on-this"));
             return true;
         }
         new FieldGUI(p).open();
@@ -60,12 +64,12 @@ public class LeaderboardCommand extends BaseCommand {
     private class FieldGUI {
         private final Player v; FieldGUI(Player v){this.v=v;}
         void open(){
-            SGMenu m = plugin.getGUI().create("§bLeaderboard Type",1);
+            SGMenu m = plugin.getMenus().create("leaderboards.type", 1);
             add(m,1,Material.DIAMOND_SWORD,"§aWins",   StatManagement.Field.WINS);
             add(m,3,Material.BOW,"§aKills",            StatManagement.Field.KILLS);
             add(m,5,Material.SKELETON_SKULL,"§aDeaths",StatManagement.Field.DEATHS);
             add(m,7,Material.CLOCK,"§aTime",           StatManagement.Field.TIME);
-            v.openInventory(m.getInventory());
+            GuiService.open(v, m);
         }
         void add(SGMenu m,int slot,Material mat,String name,StatManagement.Field f){
             ItemStack it=new ItemStack(mat); ItemMeta im=it.getItemMeta();
@@ -84,7 +88,7 @@ public class LeaderboardCommand extends BaseCommand {
             int top=DuelManager.stor.kits.stream().mapToInt(Kit::getSlot).max().orElse(0);
             max=top/PAGE_SZ;}
         void open(){
-            SGMenu m=plugin.getGUI().create("§8Select Kit §7"+(page+1)+"/"+(max+1),6);
+            SGMenu m=plugin.getMenus().create("leaderboards.kits", 6, (page+1), (max+1));
             DuelManager.stor.kits.forEach(k->{
                 int g=k.getSlot(),pg=g/PAGE_SZ; if(pg!=page) return;
                 int loc=g%PAGE_SZ; if(loc==44||loc==45) loc=findFree(m);
@@ -94,9 +98,9 @@ public class LeaderboardCommand extends BaseCommand {
                     new TeamGUI(v).open();
                 }));
             });
-            if(page>0)  m.setButton(44,new SGButton(arrow("§e← Prev")).withListener(e->{e.setCancelled(true);new KitGUI(v,page-1).open();}));
-            if(page<max)m.setButton(45,new SGButton(arrow("§eNext →")).withListener(e->{e.setCancelled(true);new KitGUI(v,page+1).open();}));
-            v.openInventory(m.getInventory());
+            if(page>0)  GuiService.control(m, "prev", 44,new SGButton(arrow("§e← Prev")).withListener(e->{e.setCancelled(true);new KitGUI(v,page-1).open();}));
+            if(page<max)GuiService.control(m, "next", 45,new SGButton(arrow("§eNext →")).withListener(e->{e.setCancelled(true);new KitGUI(v,page+1).open();}));
+            GuiService.open(v, m);
         }
         private int findFree(SGMenu m){for(int i=0;i<PAGE_SZ;i++) if(m.getButton(i)==null) return i; return 0;}
         private ItemStack arrow(String n){ItemStack it=new ItemStack(Material.ARROW);ItemMeta im=it.getItemMeta();im.setDisplayName(n);it.setItemMeta(im);return it;}
@@ -107,19 +111,19 @@ public class LeaderboardCommand extends BaseCommand {
         private final Player v; private final String[] lbl={"1v1","2v2","3v3","4v4","5v5","Mismatch"};
         TeamGUI(Player v){this.v=v;}
         void open(){
-            SGMenu m=plugin.getGUI().create("§bTeam Size",1);
+            SGMenu m=plugin.getMenus().create("leaderboards.team-size", 1);
             for(int i=0;i<lbl.length;i++){
                 ItemStack it=new ItemStack(Material.PAPER); it.setAmount(i<5?i+1:1);
                 ItemMeta im=it.getItemMeta(); im.setDisplayName("§a"+lbl[i]); it.setItemMeta(im);
                 int idx=i;
                 m.setButton(i,new SGButton(it).withListener(e->{e.setCancelled(true);finish(lbl[idx]);}));
             }
-            v.openInventory(m.getInventory());
+            GuiService.open(v, m);
         }
         private void finish(String size){
             StatManagement.Field f=fieldMem.get(v.getUniqueId());
             String raw=kitMem.get(v.getUniqueId());
-            if(f==null||raw==null){plugin.getMessageAPI().sendMessage(v,"&cError.");return;}
+            if(f==null||raw==null){plugin.getMessageAPI().sendMessage(v,Messages.text(v, "messages.leaderboard-command.error"));return;}
 
             /* clean kit name: strip colour & trim */
             String kitName = DuelManager.stor.kits.stream()
@@ -146,7 +150,7 @@ public class LeaderboardCommand extends BaseCommand {
             if(c!=null&&now-c.time<CACHE_TTL_MS) rows=c.rows;
             else { rows=StatManagement.leaderboard(game,f,10); CACHE.put(cacheKey,new CachedLB(rows,now)); }
 
-            if(rows==null||rows.isEmpty()){plugin.getMessageAPI().sendMessage(v,"&cNo data.");return;}
+            if(rows==null||rows.isEmpty()){plugin.getMessageAPI().sendMessage(v,Messages.text(v, "messages.leaderboard-command.no-data"));return;}
 
             StringBuilder sb=new StringBuilder("§7Top §f").append(f.name().toLowerCase())
                     .append("§7 – §d").append(game).append("§7:\n");

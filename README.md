@@ -52,6 +52,8 @@ Scale a single instance with schematic slots or Polar world copies, or run a fle
 - [Friends, chat, and Discord](#friends-chat-and-discord)
 - [Combat fixes and server operations](#combat-fixes-and-server-operations)
 - [Configuration, data, and upgrades](#configuration-data-and-upgrades)
+  - [Translating messages with lang.yml](#translating-messages-with-langyml)
+  - [Building menus with gui.yml](#building-menus-with-guiyml)
 - [Codebase map](#codebase-map)
 - [PlaceholderAPI reference](#placeholderapi-reference)
 - [Command and permission reference](#command-and-permission-reference)
@@ -588,11 +590,94 @@ Gameplay listeners reset player state at key transitions, use world-local death 
 | `lava_rising`, `tournaments` | Lava Rising world, timing, starting items and webhook, plus Challonge credentials for tournaments. |
 | `33_percent_boost` | Public kit IDs that use the fixed 33% hit-damage modifier. |
 | `mending_rngs` | Legacy kit list. For an effective Mending repair override, set `mending_rng` on the kit metadata. |
-| `guis.duel.kitselector.rows` | Number of rows in the direct duel and party challenge kit pickers. Some legacy GUI names, rows, and offsets in the shipped YAML are inactive in the current menus. |
+| `guis.duel.kitselector.rows` | Logical page size for saved kit positions in direct duel and party challenge pickers. Use `gui.yml` to set the displayed row count and layout. |
 | `cooldowns` | Seconds between uses for commands that check a cooldown. Use the registered command name as the key, such as `duel`, `travel`, or `automatecombat`. |
 | `permissions` | Permission nodes used by internal lobby and game-mode checks. Bukkit also checks the registered command permissions in `plugin.yml`. |
-| `chat`, `bad_words`, `lang` | Chat formatting, moderation terms, and configurable messages. Language strings support legacy `&` colors and positional replacements such as `{1}`. Where the plugin supplies a player context, PlaceholderAPI can resolve values in those strings. |
+| `chat`, `bad_words` | Public chat formatting and moderation terms. Player messages are in `lang.yml`. |
 | `max_entities`, `lava_rising.auto_interval_ticks` | Legacy config entries. The current listeners use the creeper-egg behavior and the player-count-based Lava Rising countdown described above. |
+
+### Translating messages with lang.yml
+
+Open `plugins/Core/lang.yml` to translate command feedback, invites, queue updates, match titles and action bars, kits, staff tools, and other player messages. Shared keys such as `spawn` and `cooldown` are at the top. Feature-specific text is grouped under `messages` in the [bundled language file](src/main/resources/lang.yml). Clickable invites and links retain their existing actions after you edit their text.
+
+- Quote strings that contain `&`, `#`, or YAML punctuation. Use `&` color and formatting codes, `\n` in double-quoted strings for newlines, and `""` to silence a standalone message. Some titles or action bars have separate lines, so clear both keys if you want both lines empty.
+- `{1}`, `{2}`, and later tokens stand for values supplied by the feature. For example, `messages.ranked-queue-module.s-range` receives elapsed time and the current Elo window. You can reorder or repeat the tokens. Installed PlaceholderAPI expansions can resolve `%placeholder%` in templates, using the receiving player when available.
+- On upgrades, Core copies string settings from the old `config.yml` `lang` section when it first creates `lang.yml`. It resolves an explicit `lang.yml` key first, then looks in the legacy section, then uses the bundled default. A partial language file works and picks up newly shipped keys automatically.
+
+```yaml
+spawn: "&aBack in the lobby."
+messages:
+  match-hud:
+    fight: "Go!"
+    skip-countdown: "&eSneak to skip &7({1}/{2} ready)"
+  ranked-queue-module:
+    s-range: "&aRanked queue &7| &f{1}s elapsed &7| &fElo ±{2}"
+```
+
+### Building menus with gui.yml
+
+Open `plugins/Core/gui.yml` to restyle and reorganize the inventory screens for duels, matchmaking, parties, kits, NPC practice, travel, profiles, settings, cosmetics, events, and more. The [bundled menu catalog](src/main/resources/gui.yml) lists menu and control IDs. Edit `menus` to change the layout and icons. Edit `text` to translate shared labels and lore that features build from live data, such as the queued player count, kit editor hints, or a setting's enabled and disabled states.
+
+Run `/coreconfig reload` after editing either file, then reopen any menus you are testing. Both files must parse before Core applies the update. A YAML syntax error keeps the previous configuration active and logs the affected file. Existing servers can keep a partial file, since omitted settings inherit bundled defaults.
+
+| Option | What it controls |
+| --- | --- |
+| `title`, `format`, `rows` | Inventory title, `legacy` or `minimessage` formatting, and one to six rows. Rows are counted from the top, with nine slots per row and slot `0` at the upper left. |
+| `buttons.<id>` | The layout and item options for a built-in control. Modify or move the control by ID while preserving its action. |
+| `content-slots`, `entries` | The order of slots for generated content and shared item options for those entries. Omit `content-slots` to use original positions where they fit. |
+| `entries-by-id.<id>` | An override tied to the underlying kit or arena name in supported duel and NPC menus, region or server ID in travel, or effect ID in kill effects. IDs are lowercase, with runs of spaces and punctuation replaced by `-`. |
+| `slots.<original-slot>` | A per-slot override with the highest priority, applied to the original position before your layout moves the item. |
+| `background`, `decorations.<id>` | Cosmetic items behind controls and entries. With no `slots` list the decoration fills available slots. Set `enabled: false` on `background` to clear legacy filler in that menu. |
+| `pagination` | Style the overflow previous and next buttons and set their slots. Set `title-suffix` per menu or at the top level. Overflow pages appear when the rendered contents run out of space, including when `content-slots` is deliberately small. Active page navigation reserves its slots, and colliding controls are placed in available slots. |
+| `sounds` | Menu-wide `open`, `click`, and `close` sounds. Set a Bukkit sound name, with optional `-volume` and `-pitch` keys. Use `none` to silence that menu sound. A button can override clicks with `sound`, `sound-volume`, and `sound-pitch`. |
+| `custom-buttons.<id>` | Add a shortcut with a list of `commands`, an optional `message`, and optional `close-on-click`. Commands run in order as the clicking player with their existing permissions. |
+
+Buttons and entries accept `slot`, `enabled`, `permission`, and `clicks` where applicable. Use Bukkit click names such as `LEFT`, `RIGHT`, and `SHIFT_LEFT`. Item options include `material`, `amount`, `name`, `lore`, `glow`, `hide-tooltip`, and `item-flags`. Resource packs can use `custom-model-data` or `item-model`, such as `my_pack:menus/rules`. For compatible items, `leather-color` accepts an RGB hex color and `head-texture` accepts a `textures.minecraft.net` skin URL.
+
+Titles expose `{viewer}`, `{player}`, `{page}`, and `{pages}`, plus positional tokens where the menu has its own logical pages or a target player. Icon templates also expose `{slot}`, `{original_slot}`, `{name}`, `{material}`, `{amount}`, and individual lore lines such as `{lore_1}`. A line containing only `{lore}` inserts all of the original lore. This keeps values generated by the feature, such as a kit's Elo or queue count, inside your custom design.
+
+This example moves and restyles the profile visibility switch, creates a rules shortcut, and styles overflow navigation in `/settings`.
+
+```yaml
+menus:
+  settings:
+    main:
+      rows: 2
+      title: "<gradient:#49dcff:#ac61ff>Player Preferences</gradient>"
+      format: minimessage
+      background:
+        material: BLACK_STAINED_GLASS_PANE
+        name: " "
+      decorations:
+        header:
+          enabled: false
+        divider:
+          enabled: false
+      buttons:
+        profile-visibility:
+          slot: 10
+          material: ENDER_EYE
+          name: "<aqua>Profile and Stats</aqua>"
+          lore: ["<gray>Editing settings for {viewer}</gray>", "{lore}"]
+          clicks: [LEFT]
+      custom-buttons:
+        rules:
+          slot: 5
+          material: BOOK
+          name: "<gold>Server Rules</gold>"
+          commands: [rules]
+          close-on-click: true
+      pagination:
+        next:
+          slot: 17
+          material: SPECTRAL_ARROW
+          name: "<green>More options</green>"
+      sounds:
+        open: BLOCK_NOTE_BLOCK_PLING
+        open-pitch: 1.2
+```
+
+Editable item inventories have dedicated settings. The personal kit storage editor stays at 54 slots and the lobby shulker editor stays at 27 so every saved item remains accessible. The trash editor accepts custom rows and a configurable finish control. The offhand slot of the saved kit layout editor is movable and always contains the actual item being edited.
 
 ### Environment variables
 
@@ -671,7 +756,7 @@ The repository includes the Gradle Wrapper, a pinned GitHub Actions workflow, bu
 | Telemetry and ratings | [Ranked package](src/main/java/org/albi/core/modules/Duels/ranked) · [RankedQueueModule](src/main/java/org/albi/core/modules/Duels/queue/RankedQueueModule.java) | Elo windows, rating changes, match sampling, history, and HTML or webhook export. |
 | NPC combat and other modes | [AutomatedCombat](src/main/java/org/albi/core/modules/Duels/AutomatedCombat) · [Party](src/main/java/org/albi/core/modules/Party) · [FFA](src/main/java/org/albi/core/modules/FFA) · [LavaRising](src/main/java/org/albi/core/modules/LavaRising) · [Tournaments](src/main/java/org/albi/core/modules/Tournaments) | Practice sessions, private party matches, public FFA worlds, event matches, and Challonge progression. |
 | Persistence and fleet health | [StatManagement](src/main/java/org/albi/core/data/StatManagement.java) · [StatRecorder](src/main/java/org/albi/core/data/StatRecorder.java) | MySQL and Redis clients, profile and stats caching, match history, periodic health metrics, and Redis streams. |
-| Presentation and configuration | [Resources](src/main/resources) · [PlaceholderManager](src/main/java/org/albi/core/managers/PlaceholderManager.java) · [LangAPI](src/main/java/org/albi/core/LangAPI.java) | Packaged settings, command registry, text formatting, and per-player or relational placeholder output. |
+| Presentation and configuration | [Resources](src/main/resources) · [Menu engine](src/main/java/org/albi/core/gui) · [PlaceholderManager](src/main/java/org/albi/core/managers/PlaceholderManager.java) · [LangAPI](src/main/java/org/albi/core/LangAPI.java) | Packaged settings, inventory layouts, command registry, text formatting, and per-player or relational placeholder output. |
 
 ## PlaceholderAPI reference
 
@@ -771,6 +856,7 @@ Each group lists its registered commands, aliases, and permission nodes. Additio
 | `/gmc [player]`, `/gms [player]`, `/gma [player]`, `/gmsp [player]` | | `core.gmc`, `core.gms`, `core.gma`, `core.gmsp` | Set Creative, Survival, Adventure, or Spectator mode. |
 | `/vanish` | | `core.vanish` | Toggle staff visibility to other players. |
 | `/autorestart <subcommand>` | | `core.autorestart` | Use `time`, `status`, `set`, `cancel`, or `now`. |
+| `/coreconfig reload` | | `core.config.reload` | Apply changes to `lang.yml` and `gui.yml`. |
 
 ### Profiles, social features, and cosmetics
 

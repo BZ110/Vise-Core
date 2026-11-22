@@ -1,5 +1,7 @@
 package org.albi.core.modules.Duels.commands;
 
+import org.albi.core.gui.Messages;
+
 import org.albi.core.Core;
 import org.albi.core.data.Data;
 import org.albi.core.data.DataType;
@@ -26,12 +28,12 @@ public class SetKitDataCommand extends BaseCommand {
         /* Player + permission checks   */
         /* ───────────────────────────── */
         if (!(sender instanceof Player p)) {
-            sender.sendMessage("Players only.");
+            Messages.send(sender, "messages.set-kit-data-command.players-only");
             return true;
         }
 
         if (!p.hasPermission("core.dueladmin")) {
-            p.sendMessage(ChatColor.RED + "No permission.");
+            Messages.send(p, "messages.set-kit-data-command.no-permission", ChatColor.RED);
             return true;
         }
 
@@ -39,8 +41,7 @@ public class SetKitDataCommand extends BaseCommand {
         /* Argument validation          */
         /* ───────────────────────────── */
         if (args.length < 4) {
-            p.sendMessage(ChatColor.RED +
-                    "Usage: /setkitdata <kit> <type> <key> <value>");
+            Messages.send(p, "messages.set-kit-data-command.usage-setkitdata-kit-type-key-value", ChatColor.RED);
             return true;
         }
 
@@ -64,7 +65,7 @@ public class SetKitDataCommand extends BaseCommand {
                 .orElse(null);
 
         if (kit == null) {
-            p.sendMessage(ChatColor.RED + "Kit not found.");
+            Messages.send(p, "messages.set-kit-data-command.kit-not-found", ChatColor.RED);
             return true;
         }
 
@@ -104,8 +105,7 @@ public class SetKitDataCommand extends BaseCommand {
                     String[] parts = valueRaw.split(":");
 
                     if (parts.length != 4) {
-                        p.sendMessage(ChatColor.RED +
-                                "EffectMeta format: EFFECT:AMPLIFIER:DURATION:AMBIENT");
+                        Messages.send(p, "messages.set-kit-data-command.effect-meta-format-effect-amplifier-duration-ambient", ChatColor.RED);
                         return true;
                     }
 
@@ -134,15 +134,13 @@ public class SetKitDataCommand extends BaseCommand {
                 }
 
                 default -> {
-                    p.sendMessage(ChatColor.RED +
-                            "Unsupported type for command.");
+                    Messages.send(p, "messages.set-kit-data-command.unsupported-type-for-command", ChatColor.RED);
                     return true;
                 }
             }
 
         } catch (Exception e) {
-            p.sendMessage(ChatColor.RED +
-                    "Invalid value for type " + typeStr + ".");
+            Messages.send(p, "messages.set-kit-data-command.invalid-value-for-type", ChatColor.RED, typeStr);
             return true;
         }
 
@@ -152,11 +150,11 @@ public class SetKitDataCommand extends BaseCommand {
         /* ───────────────────────────── */
         meta.set(key, finalValue);
 
-        p.sendMessage(ChatColor.GREEN + "Kit data updated:");
-        p.sendMessage(ChatColor.GRAY + "Kit: " + ChatColor.WHITE + kit.getName());
-        p.sendMessage(ChatColor.GRAY + "Key: " + ChatColor.WHITE + key);
-        p.sendMessage(ChatColor.GRAY + "Value: " + ChatColor.WHITE + finalValue);
-        p.sendMessage(ChatColor.GRAY + "Type: " + ChatColor.WHITE + typeStr);
+        Messages.send(p, "messages.set-kit-data-command.kit-data-updated", ChatColor.GREEN);
+        Messages.send(p, "messages.set-kit-data-command.kit", ChatColor.GRAY, ChatColor.WHITE, kit.getName());
+        Messages.send(p, "messages.set-kit-data-command.key", ChatColor.GRAY, ChatColor.WHITE, key);
+        Messages.send(p, "messages.set-kit-data-command.value", ChatColor.GRAY, ChatColor.WHITE, finalValue);
+        Messages.send(p, "messages.set-kit-data-command.type", ChatColor.GRAY, ChatColor.WHITE, typeStr);
 
         return true;
     }

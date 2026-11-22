@@ -1,5 +1,7 @@
 package org.albi.core.modules.CustomKit.commands;
 
+import org.albi.core.gui.Messages;
+
 import org.albi.core.Core;
 import org.albi.core.modules.CustomKit.helpers.CustomKitCategory;
 import org.bukkit.command.Command;
@@ -35,14 +37,14 @@ public class CategoryListCommand extends BaseCommand {
                 (Map<String, CustomKitCategory>) plugin.getData().get("customKitCategories");
 
         if (categories == null || categories.isEmpty()) {
-            player.sendMessage("§cNo categories have been created yet.");
+            Messages.send(player, "messages.category-list-command.no-categories-have-been-created-yet");
             return true;
         }
 
-        player.sendMessage("§6Custom Kit Categories:");
+        Messages.send(player, "messages.category-list-command.custom-kit-categories");
         for (Map.Entry<String, CustomKitCategory> entry : categories.entrySet()) {
             CustomKitCategory cat = entry.getValue();
-            player.sendMessage(" §e• §a" + entry.getKey() + " §7(Slot: " + cat.getSlot() + ")");
+            Messages.send(player, "messages.category-list-command.slot", entry.getKey(), cat.getSlot());
         }
 
         return true;

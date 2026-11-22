@@ -1,5 +1,7 @@
 package org.albi.core.modules.FFA.commands;
 
+import org.albi.core.gui.Messages;
+
 import org.albi.core.Core;
 import org.albi.core.modules.FFA.GUIs.FFAKitEditorGUI;
 import org.bukkit.command.Command;
@@ -20,7 +22,7 @@ public final class FFAKitEditorCommand implements CommandExecutor {
     @Override
     public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
         if (!(sender instanceof Player p)) {
-            sender.sendMessage("Players only.");
+            Messages.send(sender, "messages.ffakit-editor-command.players-only");
             return true;
         }
         // Open the same 1x9 kit chooser as /ffa, but it leads to the editor workflow

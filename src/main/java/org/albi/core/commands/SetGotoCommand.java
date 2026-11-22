@@ -1,5 +1,7 @@
 package org.albi.core.commands;
 
+import org.albi.core.gui.Messages;
+
 import com.samjakob.spigui.buttons.SGButton;
 import com.samjakob.spigui.menu.SGMenu;
 import org.albi.core.Core;
@@ -27,18 +29,18 @@ public class SetGotoCommand extends BaseCommand {
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!(sender instanceof Player player)) return true;
         if (args.length < 1) {
-            player.sendMessage("§cUsage: /setgoto <slot>");
+            Messages.send(player, "messages.set-goto-command.usage-setgoto-slot");
             return true;
         }
 
         int slot;
         try { slot = Integer.parseInt(args[0]); }
         catch (NumberFormatException ex) {
-            player.sendMessage("§cSlot must be a number between 0 and 53");
+            Messages.send(player, "messages.set-goto-command.slot-must-be-a-number-between-0-and");
             return true;
         }
         if (slot < 0 || slot > 53) {
-            player.sendMessage("§cSlot must be between 0 and 53");
+            Messages.send(player, "messages.set-goto-command.slot-must-be-between-0-and-53");
             return true;
         }
 
@@ -61,7 +63,7 @@ public class SetGotoCommand extends BaseCommand {
 
         plugin.getData().set("gotoLocations:73b35c83-19fa-46d1-b6fe-e8ea2f144c72", locs);
         plugin.getData().set("gotoIcons:73b35c83-19fa-46d1-b6fe-e8ea2f144c72", icons);
-        player.sendMessage("§aSet Goto point in slot §e" + slot);
+        Messages.send(player, "messages.set-goto-command.set-goto-point-in-slot", slot);
         return true;
     }
 }

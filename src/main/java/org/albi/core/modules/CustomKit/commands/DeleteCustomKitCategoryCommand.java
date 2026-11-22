@@ -1,5 +1,7 @@
 package org.albi.core.modules.CustomKit.commands;
 
+import org.albi.core.gui.Messages;
+
 import org.albi.core.Core;
 import org.albi.core.modules.CustomKit.helpers.CustomKitCategory;
 import org.bukkit.command.Command;
@@ -28,21 +30,21 @@ public class DeleteCustomKitCategoryCommand extends BaseCommand {
             return true;
         }
         if (args.length < 1) {
-            player.sendMessage("§cUsage: /deletecustomkitcategory <name>");
+            Messages.send(player, "messages.delete-custom-kit-category-command.usage-deletecustomkitcategory-name");
             return true;
         }
 
         Map<String, CustomKitCategory> categories =
                 (Map<String, CustomKitCategory>) plugin.getData().get("customKitCategories");
         if (categories == null || !categories.containsKey(args[0].toLowerCase())) {
-            player.sendMessage("§cNo category named " + args[0]);
+            Messages.send(player, "messages.delete-custom-kit-category-command.no-category-named", args[0]);
             return true;
         }
 
         categories.remove(args[0].toLowerCase());
         plugin.getData().set("customKitCategories", categories);
 
-        player.sendMessage("§aCategory §e" + args[0] + "§a deleted");
+        Messages.send(player, "messages.delete-custom-kit-category-command.category-deleted", args[0]);
         return true;
     }
 }

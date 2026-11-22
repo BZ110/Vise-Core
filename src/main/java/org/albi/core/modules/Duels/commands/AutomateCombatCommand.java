@@ -1,5 +1,7 @@
 package org.albi.core.modules.Duels.commands;
 
+import org.albi.core.gui.Messages;
+
 import org.albi.core.Core;
 import org.albi.core.modules.Duels.AutomatedCombat.Manager;
 import org.bukkit.command.Command;
@@ -22,7 +24,7 @@ public class AutomateCombatCommand extends BaseCommand {
 
         Manager manager = Manager.get();
         if (manager == null) {
-            player.sendMessage("§cExperimental NPC practice is disabled on this server.");
+            Messages.send(player, "messages.automate-combat-command.experimental-npc-practice-is-disabled-on-this-server");
             return true;
         }
 

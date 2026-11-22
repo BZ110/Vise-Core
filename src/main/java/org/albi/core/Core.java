@@ -2,6 +2,9 @@ package org.albi.core;
 
 import com.samjakob.spigui.SpiGUI;
 import org.albi.core.data.*;
+import org.albi.core.gui.GuiService;
+import org.albi.core.gui.InterfaceFiles;
+import org.albi.core.gui.Messages;
 import org.albi.core.managers.ChatFilter;
 import org.albi.core.modules.CustomKit.GUIs.CustomKitGUIMain;
 import org.albi.core.modules.Duels.DuelManager;
@@ -43,9 +46,11 @@ public final class Core extends JavaPlugin {
 
     public static Core instance;
     private static Cache cache = new Cache();
-    private LangAPI messageAPI = new LangAPI(this);
+    private final InterfaceFiles interfaceFiles = new InterfaceFiles(this);
+    private final LangAPI messageAPI = new LangAPI(this, interfaceFiles);
     private static Data data = new Data();
     private SpiGUI spiGUI;
+    private GuiService menus;
     private CustomKitGUIMain guiKit;
     public static final Map<UUID, TeleportRequest> teleportRequests = new HashMap<>();
     private PartyManager partyManager;
@@ -60,6 +65,7 @@ public final class Core extends JavaPlugin {
     @Override
     public void onEnable() {
         saveDefaultConfig();
+        loadInterfaceFiles(true);
         if (!loadLocalData()) {
             getServer().getPluginManager().disablePlugin(this);
             return;
@@ -86,6 +92,8 @@ public final class Core extends JavaPlugin {
         }
 
         spiGUI = new SpiGUI(this);
+        menus = new GuiService(this, interfaceFiles, spiGUI);
+        Messages.use(messageAPI);
         guiKit = new CustomKitGUIMain(this);
         chatFilter = new ChatFilter(this);
         deathEffectsGUI = new org.albi.core.commands.DeathEffectsGUI(this);
@@ -115,7 +123,7 @@ public final class Core extends JavaPlugin {
         for (Player player : Bukkit.getOnlinePlayers()) {
             cache.removeExtendedPlayer(player);
             getExtendedPlayer(player).whenReady().thenRun(() -> Bukkit.getScheduler().runTask(this, () -> {
-                if (player.isOnline()) player.sendMessage("§aYour profile has now been rebuilt.");
+                if (player.isOnline()) Messages.send(player, "messages.core.your-profile-has-now-been-rebuilt");
             }));
         }
         Bukkit.getScheduler().runTaskTimer(this, this::trackPlayerTime, 20L, 20L);
@@ -448,6 +456,21 @@ public final class Core extends JavaPlugin {
 
     public SpiGUI getGUI() {
         return spiGUI;
+    }
+
+    public GuiService getMenus() {
+        return menus;
+    }
+
+    public boolean loadInterfaceFiles(boolean startup) {
+        try {
+            interfaceFiles.load(startup);
+            if (menus != null) menus.onReload();
+            return true;
+        } catch (IOException | org.bukkit.configuration.InvalidConfigurationException e) {
+            getLogger().warning("Could not load lang.yml and gui.yml. " + e.getMessage());
+            return false;
+        }
     }
 
     public CustomKitGUIMain getGuiKit() {

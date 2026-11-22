@@ -1,5 +1,9 @@
 package org.albi.core.commands;
 
+import org.albi.core.gui.Messages;
+
+import org.albi.core.gui.GuiService;
+
 import com.samjakob.spigui.buttons.SGButton;
 import com.samjakob.spigui.menu.SGMenu;
 import org.albi.core.Core;
@@ -39,7 +43,7 @@ public class StatsCommand extends BaseCommand {
         if (args.length > 0) {
             OfflinePlayer o = Bukkit.getOfflinePlayer(args[0]);
             if (o == null || !o.hasPlayedBefore()) {
-                plugin.getMessageAPI().sendMessage(viewer, "&cPlayer not found.");
+                plugin.getMessageAPI().sendMessage(viewer, Messages.text(viewer, "messages.stats-command.player-not-found"));
                 return true;
             }
             target = o;
@@ -51,7 +55,7 @@ public class StatsCommand extends BaseCommand {
             MainPlayer mp = StatManagement.getMain(finalTarget.getUniqueId());
             if (mp == null || (!mp.visibleStats()
                     && !viewer.getUniqueId().equals(finalTarget.getUniqueId()))) {
-                plugin.getMessageAPI().sendMessage(viewer, "&cThat player's stats are private.");
+                plugin.getMessageAPI().sendMessage(viewer, Messages.text(viewer, "messages.stats-command.that-player-s-stats-are-private"));
                 return;
             }
 
@@ -62,7 +66,7 @@ public class StatsCommand extends BaseCommand {
                             .all();
 
             if (raw == null || raw.isEmpty()) {
-                plugin.getMessageAPI().sendMessage(viewer, "&cNo stats found.");
+                plugin.getMessageAPI().sendMessage(viewer, Messages.text(viewer, "messages.stats-command.no-stats-found"));
                 return;
             }
 
@@ -72,7 +76,7 @@ public class StatsCommand extends BaseCommand {
                     .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 
             if (stats.isEmpty()) {
-                plugin.getMessageAPI().sendMessage(viewer, "&cNo valid stats to display.");
+                plugin.getMessageAPI().sendMessage(viewer, Messages.text(viewer, "messages.stats-command.no-valid-stats-to-display"));
                 return;
             }
 
@@ -85,16 +89,16 @@ public class StatsCommand extends BaseCommand {
 
             /* ── build paged GUI (5×9 items + control row) ── */
             List<SGMenu> pages = new ArrayList<>();
-            SGMenu current = plugin.getGUI().create("&bStatistics", 6);
+            SGMenu current = plugin.getMenus().create("stats.main", 6);
             pages.add(current);
 
             int slot = 0, page = 0;
             for (String game : keys) {
 
                 if (slot >= 45) { // fill, then new page
-                    current.setButton(53, pageButton(page + 1));
+                    GuiService.control(current, "next", 53, pageButton(page + 1));
                     page++;
-                    current = plugin.getGUI().create("&bStatistics", 6);
+                    current = plugin.getMenus().create("stats.main", 6);
                     pages.add(current);
                     slot = 0;
                 }
@@ -127,7 +131,7 @@ public class StatsCommand extends BaseCommand {
 
             ItemStack clock = new ItemStack(Material.WRITABLE_BOOK);
             ItemMeta cm = clock.getItemMeta();
-            cm.setDisplayName("§bMore Information");
+            cm.setDisplayName(GuiService.text("stats-command.more-information"));
             cm.setLore(List.of(
                     "§7On server: §f" + fmt(total),
                     "§7In games: §f" + fmt(duel),
@@ -136,10 +140,10 @@ public class StatsCommand extends BaseCommand {
                     "§7XP: §f" + mp.xp() + "§8/" + mp.xpNeeded()
             ));
             clock.setItemMeta(cm);
-            current.setButton(49, new SGButton(clock));
+            GuiService.control(current, "clock", 49, new SGButton(clock));
 
             Bukkit.getScheduler().runTask(plugin,
-                    () -> viewer.openInventory(pages.get(0).getInventory()));
+                    () -> GuiService.open(viewer, pages.get(0)));
         });
 
         return true;
@@ -174,7 +178,7 @@ public class StatsCommand extends BaseCommand {
     private SGButton pageButton(int page) {
         ItemStack it = new ItemStack(Material.LIME_CONCRETE);
         ItemMeta im = it.getItemMeta();
-        im.setDisplayName("§aPage " + page);
+        im.setDisplayName(GuiService.text("stats-command.page", page));
         it.setItemMeta(im);
         return new SGButton(it);
     }
@@ -207,8 +211,7 @@ public class StatsCommand extends BaseCommand {
         /* keep kit's colour, then reset + gray suffix */
         String display = im.getDisplayName();
         String suffix  = modeSuffix(game); // “1v1”, “2v2”, or “Mismatch”
-        im.setDisplayName(display + ChatColor.RESET + ChatColor.DARK_GRAY +
-                "(" + suffix + ")");
+        im.setDisplayName(GuiService.text("stats-command.kit-icon", display + ChatColor.RESET + ChatColor.DARK_GRAY, suffix));
         im.setLore(lore(s));
         it.setItemMeta(im);
         return it;

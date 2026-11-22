@@ -1,6 +1,7 @@
 package org.albi.core.util;
 
 import org.albi.core.Core;
+import org.albi.core.gui.Messages;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
 
@@ -17,12 +18,12 @@ public final class TitleFx {
 
     public static void playFight(Core plugin, Player player, String subtitle) {
         if (plugin == null || player == null || !player.isOnline()) return;
-        playSwish(plugin, player, "Fight!", subtitle, 2L, 6, 8);
+        playSwish(plugin, player, Messages.text(player, "messages.match-hud.fight"), subtitle, 2L, 6, 8);
     }
 
     public static void playSwish(Core plugin, Player player, String text, String subtitle, long intervalTicks, int stayTicks, int loops) {
         if (plugin == null || player == null || text == null || text.isEmpty()) return;
-        List<String> frames = swishFrames(text);
+        List<String> frames = text.indexOf('§') < 0 ? swishFrames(text) : List.of();
         if (frames.isEmpty()) {
             player.sendTitle(BASE + text, subtitle == null ? "" : subtitle, 0, stayTicks, 0);
             return;
@@ -44,14 +45,14 @@ public final class TitleFx {
 
     private static List<String> swishFrames(String text) {
         List<String> frames = new ArrayList<>();
-        for (int focus = 0; focus < text.length(); focus++) {
+        int[] characters = text.codePoints().toArray();
+        for (int focus = 0; focus < characters.length; focus++) {
             StringBuilder frame = new StringBuilder();
-            for (int i = 0; i < text.length(); i++) {
-                char c = text.charAt(i);
+            for (int i = 0; i < characters.length; i++) {
                 if (i == focus) frame.append(FOCUS);
                 else if (Math.abs(i - focus) == 1) frame.append(TRAIL);
                 else frame.append(BASE);
-                frame.append(c);
+                frame.appendCodePoint(characters[i]);
             }
             frames.add(frame.toString());
         }

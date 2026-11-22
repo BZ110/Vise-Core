@@ -1,5 +1,9 @@
 package org.albi.core.modules.CustomKit.GUIs;
 
+import org.albi.core.gui.Messages;
+
+import org.albi.core.gui.GuiService;
+
 import com.samjakob.spigui.buttons.SGButton;
 import com.samjakob.spigui.menu.SGMenu;
 import org.albi.core.Core;
@@ -35,7 +39,7 @@ public class CopyKitSelectSlotGUI {
         CustomKit[] kits = mp.getKits();
         if (kits == null) return;
 
-        SGMenu menu = plugin.getGUI().create("&aSelect Slot for Copied Kit", 6);
+        SGMenu menu = plugin.getMenus().create("custom-kits.copy", 6);
 
         /* black glass border (top+bottom rows) */
         ItemStack border = nameItem(new ItemStack(Material.BLACK_STAINED_GLASS_PANE), " ");
@@ -67,7 +71,7 @@ public class CopyKitSelectSlotGUI {
                             CustomKit clone = CustomKit.fromJson(importKit.toJson());
                             kits[target] = clone;
                             mp.setKit(target, clone);             // mark MP dirty
-                            p.sendMessage("§aCopied kit into slot §e" + target);
+                            Messages.send(p, "messages.copy-kit-select-slot-gui.copied-kit-into-slot", target);
                             p.closeInventory();
                         });
             }
@@ -75,7 +79,7 @@ public class CopyKitSelectSlotGUI {
             i--;
         }
 
-        p.openInventory(menu.getInventory());
+        GuiService.open(p, menu);
     }
 
     private ItemStack nameItem(ItemStack it, String name) {

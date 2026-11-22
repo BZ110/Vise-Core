@@ -1,5 +1,9 @@
 package org.albi.core.modules.Friends;
 
+import org.albi.core.gui.Messages;
+
+import org.albi.core.gui.GuiService;
+
 import com.samjakob.spigui.buttons.SGButton;
 import com.samjakob.spigui.menu.SGMenu;
 import org.albi.core.Core;
@@ -68,26 +72,25 @@ public class FriendsManager extends Module implements Listener {
         if (sender == null || target == null)
             return;
         if (sender.getUniqueId().equals(target.getUniqueId())) {
-            sender.sendMessage("§cYou cannot friend yourself.");
+            Messages.send(sender, "messages.friends-manager.you-cannot-friend-yourself");
             return;
         }
         if (isFriends(sender, target)) {
-            sender.sendMessage("§eYou are already friends with §f" + target.getName() + "§e.");
+            Messages.send(sender, "messages.friends-manager.you-are-already-friends-with", target.getName());
             return;
         }
         MainPlayer targetMain = main(target);
         if (targetMain == null || !targetMain.friendRequests()) {
-            sender.sendMessage("§cThat player is not accepting friend requests right now.");
+            Messages.send(sender, "messages.friends-manager.that-player-is-not-accepting-friend-requests-right");
             return;
         }
         Set<UUID> incoming = incomingRequests.computeIfAbsent(target.getUniqueId(), k -> ConcurrentHashMap.newKeySet());
         if (!incoming.add(sender.getUniqueId())) {
-            sender.sendMessage("§eYou already sent a friend request to §f" + target.getName() + "§e.");
+            Messages.send(sender, "messages.friends-manager.you-already-sent-a-friend-request-to", target.getName());
             return;
         }
-        sender.sendMessage("§aFriend request sent to §f" + target.getName() + "§a.");
-        target.sendMessage("§6✦ §f" + sender.getName() + " §7sent you a friend request. §a/friends accept "
-                + sender.getName() + " §7or §c/friends deny " + sender.getName());
+        Messages.send(sender, "messages.friends-manager.friend-request-sent-to", target.getName());
+        Messages.send(target, "messages.friends-manager.sent-you-a-friend-request-friends-accept-or", sender.getName(), sender.getName(), sender.getName());
     }
 
     public void accept(Player target, OfflinePlayer sender) {
@@ -96,14 +99,14 @@ public class FriendsManager extends Module implements Listener {
         UUID senderId = sender.getUniqueId();
         Set<UUID> incoming = incomingRequests.get(target.getUniqueId());
         if (incoming == null || !incoming.remove(senderId)) {
-            target.sendMessage("§cYou do not have a pending request from that player.");
+            Messages.send(target, "messages.friends-manager.you-do-not-have-a-pending-request-from");
             return;
         }
         addFriendship(target.getUniqueId(), senderId);
-        target.sendMessage("§aYou are now friends with §f" + safeName(senderId) + "§a.");
+        Messages.send(target, "messages.friends-manager.you-are-now-friends-with", safeName(senderId));
         Player onlineSender = Bukkit.getPlayer(senderId);
         if (onlineSender != null) {
-            onlineSender.sendMessage("§a" + target.getName() + " accepted your friend request.");
+            Messages.send(onlineSender, "messages.friends-manager.accepted-your-friend-request", target.getName());
         }
     }
 
@@ -113,13 +116,13 @@ public class FriendsManager extends Module implements Listener {
         UUID senderId = sender.getUniqueId();
         Set<UUID> incoming = incomingRequests.get(target.getUniqueId());
         if (incoming == null || !incoming.remove(senderId)) {
-            target.sendMessage("§cYou do not have a pending request from that player.");
+            Messages.send(target, "messages.friends-manager.you-do-not-have-a-pending-request-from");
             return;
         }
-        target.sendMessage("§eDenied friend request from §f" + safeName(senderId) + "§e.");
+        Messages.send(target, "messages.friends-manager.denied-friend-request-from", safeName(senderId));
         Player onlineSender = Bukkit.getPlayer(senderId);
         if (onlineSender != null) {
-            onlineSender.sendMessage("§c" + target.getName() + " denied your friend request.");
+            Messages.send(onlineSender, "messages.friends-manager.denied-your-friend-request", target.getName());
         }
     }
 
@@ -129,7 +132,7 @@ public class FriendsManager extends Module implements Listener {
         UUID targetId = target.getUniqueId();
         MainPlayer actorMain = main(actor);
         if (actorMain == null || !actorMain.isFriendsWith(targetId)) {
-            actor.sendMessage("§cYou are not friends with that player.");
+            Messages.send(actor, "messages.friends-manager.you-are-not-friends-with-that-player");
             return;
         }
         actorMain.removeFriend(targetId);
@@ -137,9 +140,9 @@ public class FriendsManager extends Module implements Listener {
         MainPlayer otherMain = StatManagement.getMain(targetId);
         if (otherMain != null)
             otherMain.removeFriend(actor.getUniqueId());
-        actor.sendMessage("§eRemoved §f" + safeName(targetId) + " §efrom your friends list.");
+        Messages.send(actor, "messages.friends-manager.removed-from-your-friends-list", safeName(targetId));
         if (online != null)
-            online.sendMessage("§e" + actor.getName() + " removed you from their friends list.");
+            Messages.send(online, "messages.friends-manager.removed-you-from-their-friends-list", actor.getName());
     }
 
     private void addFriendship(UUID a, UUID b) {
@@ -199,36 +202,36 @@ public class FriendsManager extends Module implements Listener {
         if (mp == null)
             return;
 
-        SGMenu menu = getPlugin().getGUI().create("§6§lFriends Hub", 6);
-        menu.setButton(4, new SGButton(head(Bukkit.getOfflinePlayer(player.getUniqueId()),
+        SGMenu menu = getPlugin().getMenus().create("friends.main", 6);
+        GuiService.control(menu, "your-friends-profile", 4, new SGButton(head(Bukkit.getOfflinePlayer(player.getUniqueId()),
                 "§6§lYour Friends Profile",
                 List.of(
-                        "§7Friends Online: §a" + getOnlineFriends(player),
-                        "§7Friends Total: §f" + mp.getFriends().size(),
-                        "§7Pending Requests: §e" + getPendingCount(player),
+                        GuiService.text("friends-manager.friends-online", getOnlineFriends(player)),
+                        GuiService.text("friends-manager.friends-total", mp.getFriends().size()),
+                        GuiService.text("friends-manager.pending-requests", getPendingCount(player)),
                         " ",
-                        "§6⭐ §7Friends show a small star in supported UI."))));
+                        GuiService.text("friends-manager.friends-show-a-small-star-in-supported-ui")))));
 
-        menu.setButton(10, new SGButton(named(mp.friendRequests() ? Material.LIME_DYE : Material.GRAY_DYE,
-                "§b§lFriend Requests: " + (mp.friendRequests() ? "§aON" : "§cOFF"),
-                List.of("§7Let other players send you friend requests.", "§fClick to toggle.")))
+        GuiService.control(menu, "friend-requests", 10, new SGButton(named(mp.friendRequests() ? Material.LIME_DYE : Material.GRAY_DYE,
+                GuiService.text("friends-manager.friend-requests", (mp.friendRequests() ? "§aON" : "§cOFF")),
+                List.of(GuiService.text("friends-manager.let-other-players-send-you-friend-requests"), GuiService.text("friends-manager.click-to-toggle"))))
                 .withListener(e -> {
                     mp.setFriendRequests(!mp.friendRequests());
                     openMainMenu(player, page);
                 }));
 
-        menu.setButton(12, new SGButton(named(Material.WRITABLE_BOOK,
-                "§e§lPending Requests §8(" + getPendingCount(player) + ")",
-                List.of("§7Accept or deny incoming requests.", "§fClick to open.")))
+        GuiService.control(menu, "pending-requests", 12, new SGButton(named(Material.WRITABLE_BOOK,
+                GuiService.text("friends-manager.pending-requests-button", getPendingCount(player)),
+                List.of(GuiService.text("friends-manager.accept-or-deny-incoming-requests"), GuiService.text("friends-manager.click-to-open"))))
                 .withListener(e -> openIncomingMenu(player, 0)));
 
-        menu.setButton(14, new SGButton(named(Material.COMPASS,
-                "§d§lAdd Friends",
-                List.of("§7Browse online players who are not on your list.", "§fClick to open.")))
+        GuiService.control(menu, "add-friends", 14, new SGButton(named(Material.COMPASS,
+                GuiService.text("friends-manager.add-friends"),
+                List.of(GuiService.text("friends-manager.browse-online-players-who-are-not-on-your"), GuiService.text("friends-manager.click-to-open"))))
                 .withListener(e -> openAddMenu(player, 0)));
 
-        menu.setButton(16, new SGButton(named(Material.EMERALD,
-                "§a§lOnline Friends",
+        GuiService.control(menu, "online-friends", 16, new SGButton(named(Material.EMERALD,
+                GuiService.text("friends-manager.online-friends"),
                 List.of("§7Currently online: §f" + getOnlineFriends(player),
                         "§7Total friends: §f" + mp.getFriends().size()))));
 
@@ -245,40 +248,39 @@ public class FriendsManager extends Module implements Listener {
             menu.setButton(slot++, new SGButton(head(target,
                     (online ? "§a" : "§7") + safeName(id),
                     List.of(
-                            online ? "§aOnline" : "§7Offline",
-                            "§7Status: §f" + (online ? "§aOnline" : "§cOffline"),
+                            online ? GuiService.text("friends-manager.online") : GuiService.text("friends-manager.offline"),
+                            GuiService.text("friends-manager.status", (online ? "§aOnline" : "§cOffline")),
                             " ",
-                            "§fLeft click §7to view request tools.",
-                            "§cRight click §7to remove friend.")))
+                            GuiService.text("friends-manager.left-click-to-view-request-tools"),
+                            GuiService.text("friends-manager.right-click-to-remove-friend"))))
                     .withListener(e -> {
                         if (e.getClick().isRightClick()) {
                             removeFriend(player, target);
                             openMainMenu(player, page);
                         } else {
-                            player.sendMessage("§6Friend §8» §f" + safeName(id) + " §7is "
-                                    + (online ? "§aonline" : "§7offline") + "§7.");
+                            Messages.send(player, "messages.friends-manager.friend-is", safeName(id), (online ? "§aonline" : "§7offline"));
                         }
                     }));
         }
 
         if (page > 0) {
-            menu.setButton(45,
-                    new SGButton(named(Material.ARROW, "§e← Previous", List.of("§7View the previous friends page.")))
+            GuiService.control(menu, "previous", 45,
+                    new SGButton(named(Material.ARROW, GuiService.text("friends-manager.previous"), List.of(GuiService.text("friends-manager.view-the-previous-friends-page"))))
                             .withListener(e -> openMainMenu(player, page - 1)));
         }
         if (page < maxPage) {
-            menu.setButton(53, new SGButton(named(Material.ARROW, "§eNext →", List.of("§7View the next friends page.")))
+            GuiService.control(menu, "next", 53, new SGButton(named(Material.ARROW, GuiService.text("friends-manager.next"), List.of(GuiService.text("friends-manager.view-the-next-friends-page"))))
                     .withListener(e -> openMainMenu(player, page + 1)));
         }
-        menu.setButton(49, new SGButton(named(Material.BARRIER, "§cClose", List.of("§7Close the friends menu.")))
+        GuiService.control(menu, "close", 49, new SGButton(named(Material.BARRIER, GuiService.text("friends-manager.close"), List.of(GuiService.text("friends-manager.close-the-friends-menu"))))
                 .withListener(e -> player.closeInventory()));
 
-        player.openInventory(menu.getInventory());
+        GuiService.open(player, menu);
     }
 
     public void openIncomingMenu(Player player, int page) {
         List<UUID> incoming = incoming(player);
-        SGMenu menu = getPlugin().getGUI().create("§e§lFriend Requests", 4);
+        SGMenu menu = getPlugin().getMenus().create("friends.requests", 4);
         int pageSize = 18;
         int maxPage = Math.max(0, (incoming.size() - 1) / pageSize);
         int from = Math.max(0, Math.min(page, maxPage) * pageSize);
@@ -290,8 +292,8 @@ public class FriendsManager extends Module implements Listener {
             menu.setButton(slot++, new SGButton(head(target,
                     "§f" + safeName(id),
                     List.of(
-                            "§aLeft click §7to accept.",
-                            "§cRight click §7to deny.")))
+                            GuiService.text("friends-manager.left-click-to-accept"),
+                            GuiService.text("friends-manager.right-click-to-deny"))))
                     .withListener(e -> {
                         if (e.getClick().isRightClick())
                             deny(player, target);
@@ -300,24 +302,24 @@ public class FriendsManager extends Module implements Listener {
                         openIncomingMenu(player, page);
                     }));
         }
-        menu.setButton(27, new SGButton(named(Material.ARROW, "§eBack", List.of("§7Return to the friends hub.")))
+        GuiService.control(menu, "back", 27, new SGButton(named(Material.ARROW, GuiService.text("friends-manager.back"), List.of(GuiService.text("friends-manager.return-to-the-friends-hub"))))
                 .withListener(e -> openMainMenu(player)));
         if (page > 0) {
-            menu.setButton(30,
-                    new SGButton(named(Material.ARROW, "§e← Previous", List.of("§7View the previous requests page.")))
+            GuiService.control(menu, "previous", 30,
+                    new SGButton(named(Material.ARROW, GuiService.text("friends-manager.previous"), List.of(GuiService.text("friends-manager.view-the-previous-requests-page"))))
                             .withListener(e -> openIncomingMenu(player, page - 1)));
         }
         if (page < maxPage) {
-            menu.setButton(32,
-                    new SGButton(named(Material.ARROW, "§eNext →", List.of("§7View the next requests page.")))
+            GuiService.control(menu, "next", 32,
+                    new SGButton(named(Material.ARROW, GuiService.text("friends-manager.next"), List.of(GuiService.text("friends-manager.view-the-next-requests-page"))))
                             .withListener(e -> openIncomingMenu(player, page + 1)));
         }
-        player.openInventory(menu.getInventory());
+        GuiService.open(player, menu);
     }
 
     public void openAddMenu(Player player, int page) {
         List<Player> addable = addableOnline(player);
-        SGMenu menu = getPlugin().getGUI().create("§d§lAdd Friends", 4);
+        SGMenu menu = getPlugin().getMenus().create("friends.add", 4);
         int pageSize = 18;
         int maxPage = Math.max(0, (addable.size() - 1) / pageSize);
         int from = Math.max(0, Math.min(page, maxPage) * pageSize);
@@ -328,25 +330,25 @@ public class FriendsManager extends Module implements Listener {
             menu.setButton(slot++, new SGButton(head(target,
                     "§f" + target.getName(),
                     List.of(
-                            "§7World: §f" + target.getWorld().getName(),
-                            "§fClick to send a friend request.")))
+                            GuiService.text("friends-manager.world", target.getWorld().getName()),
+                            GuiService.text("friends-manager.click-to-send-a-friend-request"))))
                     .withListener(e -> {
                         sendRequest(player, target);
                         openAddMenu(player, page);
                     }));
         }
-        menu.setButton(27, new SGButton(named(Material.ARROW, "§eBack", List.of("§7Return to the friends hub.")))
+        GuiService.control(menu, "back", 27, new SGButton(named(Material.ARROW, GuiService.text("friends-manager.back"), List.of(GuiService.text("friends-manager.return-to-the-friends-hub"))))
                 .withListener(e -> openMainMenu(player)));
         if (page > 0) {
-            menu.setButton(30,
-                    new SGButton(named(Material.ARROW, "§e← Previous", List.of("§7View the previous addable page.")))
+            GuiService.control(menu, "previous", 30,
+                    new SGButton(named(Material.ARROW, GuiService.text("friends-manager.previous"), List.of(GuiService.text("friends-manager.view-the-previous-addable-page"))))
                             .withListener(e -> openAddMenu(player, page - 1)));
         }
         if (page < maxPage) {
-            menu.setButton(32, new SGButton(named(Material.ARROW, "§eNext →", List.of("§7View the next addable page.")))
+            GuiService.control(menu, "next", 32, new SGButton(named(Material.ARROW, GuiService.text("friends-manager.next"), List.of(GuiService.text("friends-manager.view-the-next-addable-page"))))
                     .withListener(e -> openAddMenu(player, page + 1)));
         }
-        player.openInventory(menu.getInventory());
+        GuiService.open(player, menu);
     }
 
     private ItemStack named(Material material, String name, List<String> lore) {

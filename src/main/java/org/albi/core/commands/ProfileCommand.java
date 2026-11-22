@@ -1,5 +1,7 @@
 package org.albi.core.commands;
 
+import org.albi.core.gui.Messages;
+
 import org.albi.core.Core;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
@@ -27,7 +29,7 @@ public class ProfileCommand extends BaseCommand {
         if (args.length > 0) {
             target = Bukkit.getOfflinePlayer(args[0]);
             if (target == null || !target.hasPlayedBefore()) {
-                plugin.getMessageAPI().sendMessage(viewer, "&cThat player has never played on this server.");
+                plugin.getMessageAPI().sendMessage(viewer, Messages.text(viewer, "messages.profile-command.that-player-has-never-played-on-this-server"));
                 return true;
             }
         }
@@ -38,7 +40,7 @@ public class ProfileCommand extends BaseCommand {
         org.albi.core.data.MainPlayer targetMp = org.albi.core.data.StatManagement.getMain(finalTarget.getUniqueId());
         if (targetMp != null && !targetMp.visibleStats() && !viewer.getUniqueId().equals(finalTarget.getUniqueId())) {
             if (!viewer.hasPermission("core.profile.bypass")) {
-                plugin.getMessageAPI().sendMessage(viewer, "&cThat player's profile is currently private.");
+                plugin.getMessageAPI().sendMessage(viewer, Messages.text(viewer, "messages.profile-command.that-player-s-profile-is-currently-private"));
                 return true;
             }
         }

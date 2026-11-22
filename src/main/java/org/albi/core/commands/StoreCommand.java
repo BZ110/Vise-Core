@@ -1,5 +1,7 @@
 package org.albi.core.commands;
 
+import org.albi.core.gui.Messages;
+
 import net.md_5.bungee.api.chat.ClickEvent;
 import net.md_5.bungee.api.chat.HoverEvent;
 import net.md_5.bungee.api.chat.TextComponent;
@@ -31,7 +33,7 @@ public class StoreCommand extends BaseCommand {
         }
         var store = ConfigValues.httpEndpoint(plugin.getConfig().getString("network.store_url", ""));
         if (store == null) {
-            player.sendMessage("§7The store link is unavailable on this server.");
+            Messages.send(player, "messages.store-command.the-store-link-is-unavailable-on-this-server");
             return true;
         }
         TextComponent linkMsg = new TextComponent("§eSupport our server by clicking on this message and buying a rank.");
