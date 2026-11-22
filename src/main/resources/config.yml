@@ -55,11 +55,12 @@ network:
     enabled: false
     namespace: "default"
     server_id: "" # Exact proxy registration. Blank uses the lowercase region-id_number name.
-    pool: "" # Blank uses region. Set a location such as eu-east on each participating server.
+    pool: "" # Blank uses a known region or a location-prefixed proxy ID such as eu-east-1.
+    use_default_pools: true # Worldwide regions, routes, and latency estimates are bundled.
     host_matches: true # Set false for queue-only servers with no network arenas.
     return_after_match: true # Send fighters back to the server they queued on.
 
-    # Every step opens one more destination for each player. Region gates apply independently.
+    # Built-in routes open in tiers. An explicit priority list opens one destination per step.
     priority_step_seconds: 8
     cross_region_after_seconds: 45
     unlisted_after_seconds: -1 # -1 requires an explicit route in pools.
@@ -79,31 +80,10 @@ network:
     offers_per_poll: 12
     pending_per_host: 12
 
-    pools:
-      eu-east:
-        region: eu
-        priority: [eu-central, eu-west, middle-east, na-east, asia-central]
-        latency_ms: {eu-central: 20, eu-west: 35, middle-east: 65, na-east: 100, asia-central: 130}
-      eu-central:
-        region: eu
-        priority: [eu-east, eu-west, middle-east, na-east, asia-central]
-        latency_ms: {eu-east: 20, eu-west: 20, middle-east: 65, na-east: 90, asia-central: 145}
-      eu-west:
-        region: eu
-        priority: [eu-central, eu-east, na-east, middle-east, asia-central]
-        latency_ms: {eu-central: 20, eu-east: 35, na-east: 75, middle-east: 80, asia-central: 160}
-      middle-east:
-        region: middle-east
-        priority: [eu-east, eu-central, eu-west, asia-central, na-east]
-        latency_ms: {eu-east: 65, eu-central: 65, eu-west: 80, asia-central: 75, na-east: 150}
-      na-east:
-        region: na
-        priority: [eu-west, eu-central, eu-east, middle-east, asia-central]
-        latency_ms: {eu-west: 75, eu-central: 90, eu-east: 100, middle-east: 150, asia-central: 170}
-      asia-central:
-        region: asia
-        priority: [middle-east, eu-east, eu-central, eu-west, na-east]
-        latency_ms: {middle-east: 75, eu-east: 130, eu-central: 145, eu-west: 160, na-east: 170}
+    # Optional per-pool edits. Keep empty to use the bundled worldwide catalog.
+    # An explicit priority replaces that pool's built-in order. An empty list keeps it local.
+    # Add a measured estimate to latency_ms without replacing the default priority tiers.
+    pools: {}
   travel:
     # Same-region instance transfers use the proxy. Add destinations here for direct transfers.
     regions: {}

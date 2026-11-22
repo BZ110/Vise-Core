@@ -170,7 +170,7 @@ With `network.matchmaking.enabled`, `/queue`, `/quickqueue`, and `/rankedqueue` 
 
 #### How Core chooses a match
 
-1. **Start in each player's home pool.** A player joining on an `eu-east` server searches for an `eu-east` host first. By default, each player opens another entry in their own priority list every eight seconds. For a pool ordered `eu-central`, `eu-west`, `middle-east`, `na-east`, and `asia-central`, the first two destinations open after 8 and 16 seconds. Destinations outside the player's region also wait at least 45 seconds. For two players in the EU, an eligible EU host ranks above a host outside it.
+1. **Start in each player's home pool.** A player joining on an `eu-east` server searches for an `eu-east` host first. The defaults open alternate destinations in geographic tiers, so several nearby pools can become eligible together. Each tier adds eight seconds by default. Each player's cross-region routes stay closed for at least 45 seconds. For two players in the EU, an eligible EU host ranks above a host outside it. An explicit priority list opens one destination per step in the listed order.
 2. **Widen the latency and rating windows.** Core takes Paper's current ping sample at the source and adds the configured estimate for reaching the candidate pool. Both players must meet their individual ping limit, and their ping difference must fit the limit earned by the player who has waited less. Defaults start at 110 ms per player and a 45 ms difference. Both limits grow by 15 ms every five seconds, up to 260 ms and a 130 ms difference. Ranked starts at ±50 Elo and adds 25 every three seconds. The longer-waiting player's Elo window can admit the pair.
 3. **Pick a host that both players can use.** Among eligible servers, Core prefers the region and pool priorities that work for both players. It then minimizes the worse estimated ping and the ping difference. Available player slots, an open arena for the ruleset, and current host load also affect selection. An eligible `eu-central` host can take a duel between players on `eu-east` and `eu-west`, even if neither player is already connected there. Source ping and directional adjustments are estimates. The proxy topology affects the actual in-match latency.
 4. **Prepare the arena, then transfer.** Redis claims the two queue tickets atomically. The chosen host reserves a warm Polar world or completes a schematic paste, and both source servers confirm the players are still eligible. Core flushes dirty profiles before remote transfer and requests a proxy connection only for players who need to move. As soon as both players connect, their profiles load, and the lobby arrival completes, Core starts the normal duel countdown on the reserved arena.
@@ -178,7 +178,7 @@ With `network.matchmaking.enabled`, `/queue`, `/quickqueue`, and `/rankedqueue` 
 #### Set up the network
 
 1. Put participating backends on a BungeeCord-compatible proxy network, with the destination server IDs registered on each participating proxy. Set `bungee-plugin-message-channel = true` in Velocity. Install the same Vise Core version and enable Duels on each participating backend. [PaperMC proxy messaging](https://docs.papermc.io/paper/dev/plugin-messaging/) · [Velocity configuration](https://docs.papermc.io/velocity/configuration/)
-2. Point every participant at the same Redis primary and MySQL database. The Redis connection needs permission to run Lua scripts alongside the existing data commands. Enable `network.matchmaking.enabled`, set the same `namespace`, give each backend a unique `server_id` matching the proxy exactly, and set its `pool`. Use the same `pools` and latency settings across the fleet. The shipped configuration includes examples for EU East, EU Central, EU West, the Middle East, North America East, and Central Asia. Redis 7 is used in CI. [Default configuration](src/main/resources/config.yml)
+2. Point every participant at the same Redis primary and MySQL database. The Redis connection needs permission to run Lua scripts alongside the existing data commands. Enable `network.matchmaking.enabled` and use the same `namespace`. Each backend needs a unique proxy registration. Set `server_id` to match it exactly, or leave it blank if the proxy already uses the lowercase `region-id_number` name. Leave `pool` and `pools` at their defaults to use the built-in geography. Redis 7 is used in CI. [Default configuration](src/main/resources/config.yml)
 3. Configure the lobby spawn on each backend. Install public kits using the same names and rules on each hosting backend. Set up its local schematic slots or compatible Polar origins and ranked arena lists. Set `host_matches: false` on queue-only backends. A queue-only backend with local arenas can still host local matches during an outage.
 
 | `network.matchmaking` key | Purpose |
@@ -186,11 +186,29 @@ With `network.matchmaking.enabled`, `/queue`, `/quickqueue`, and `/rankedqueue` 
 | `enabled`, `namespace` | Enable shared queues and select a Redis namespace. Existing servers have standalone queues until explicitly enabled. |
 | `server_id`, `pool`, `host_matches` | Set the exact proxy destination, the home pool of players queued here, and whether this server advertises as a network host. |
 | `return_after_match` | Defaults to `true`. Returns fighters in a network match to the server they queued on so their next queue starts in the same home pool. Set it to `false` to leave fighters in the duel host's lobby. |
-| `pools.<pool>.region`, `priority`, `latency_ms` | Group pools by geography, list each pool's preferred alternate hosts in order, and set directional latency estimates in milliseconds. The home pool is implicit. |
-| `priority_step_seconds`, `cross_region_after_seconds`, `unlisted_after_seconds` | Control when each alternate opens, the earliest cross-region attempt, and whether unlisted pools can become eligible. The default `-1` requires a listed route. |
+| `use_default_pools`, `pools.<pool>.region`, `priority`, `latency_ms` | Use the built-in catalog or define a custom route table. Override a pool's region, its alternate destinations in order, or a specific directional latency estimate in milliseconds. The home pool is implicit. |
+| `priority_step_seconds`, `cross_region_after_seconds`, `unlisted_after_seconds` | Control when each tier or explicit alternate opens, the earliest cross-region attempt, and when unlisted pools become eligible. The default `-1` requires a listed route. |
 | `ping.start_ms`, `max_ms`, `gap_start_ms`, `gap_max_ms` | Set the starting and maximum limits for estimated individual ping and the difference between players. |
 | `ping.relax_every_seconds`, `relax_by_ms`, `same_region_add_ms`, `cross_region_add_ms` | Tune the widening interval and increment, and set defaults for unconfigured route estimates. |
 | `poll_ticks`, `scan_size`, `offers_per_poll`, `pending_per_host` | Tune the exchange interval, queue sample size, offers attempted per scan, and outstanding handoffs on each host. Each bounded scan samples oldest, rotating, and random tickets. |
+
+#### Built-in pools and automatic selection
+
+Vise Core ships with **54 pools**. With `pool: ""`, it looks for a specific built-in or custom pool in `region`. Otherwise it checks for a recognized location prefix in the proxy ID, then uses the broad region in `region`. If both labels are unfamiliar, the backend joins the neutral `global` pool. Transfers between unlabeled backends use the cross-region wait and general latency estimate. For example, a proxy backend called `sydney-01` selects `oc-east` and one called `na-west-2` selects `na-west`. Set `pool` explicitly to choose a different home pool. [Bundled pool catalog and aliases](src/main/resources/matchmaking/pools.yml)
+
+| Area | Pool coverage |
+| --- | --- |
+| Europe | `eu` and east, central, west, north, south, southeast, and southwest pools |
+| North America | `na` and east, central, west, northwest, north, south, Mexico, Central America, and Caribbean pools |
+| South America | `sa` and east, north, central, west, south, and southwest pools |
+| Africa | `af` and north, west, central, east, and south pools |
+| Asia and Middle East | `asia` and central, east, northeast, north, south, southeast, China, and Hong Kong pools, plus `middle-east` and `me-east`, `me-central`, and `me-west` |
+| Oceania | `oc` and eastern, southern, and western Australia, New Zealand, Melanesia, Micronesia, and Polynesia pools |
+| Antarctica and unknown locations | `antarctica` for a labeled backend and `global` for unfamiliar locations |
+
+The catalog uses approximate geographic reference points and includes regional divisions such as Central America and the Pacific island groups. Core combines the route estimate with each player's observed source ping and considers only eligible hosts registered by the same matchmaking network. [UN geographical regions](https://unstats.un.org/unsd/methodology/m49/)
+
+Upgrades pick up the catalog automatically, including servers with the original unedited six-pool examples. Custom pool settings take precedence. Setting `priority` replaces the built-in destinations for that pool. Set a single `latency_ms` value to tune its ping estimate while keeping the default order. To use only your own pool table, set `use_default_pools: false`.
 
 #### Redis outages and interrupted transfers
 

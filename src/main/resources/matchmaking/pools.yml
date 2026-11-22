@@ -1,0 +1,94 @@
+# Built-in matchmaking geography. Coordinates are approximate reference points, not host locations.
+# Each entry has a pool ID and [latitude, longitude]. Aliases also work as proxy ID prefixes.
+# The unqualified pool in each group uses a representative location for broad region labels.
+regions:
+  eu:
+    eu: {point: [50.1, 8.7], aliases: [europe], broad: true} # Frankfurt
+    eu-east: {point: [52.2, 21.0], aliases: [eastern-europe, warsaw]}
+    eu-central: {point: [50.1, 8.7], aliases: [central-europe, frankfurt]}
+    eu-west: {point: [51.5, -0.1], aliases: [western-europe, london]}
+    eu-north: {point: [59.3, 18.1], aliases: [northern-europe, stockholm, nordics]}
+    eu-south: {point: [45.5, 9.2], aliases: [southern-europe, milan]}
+    eu-southeast: {point: [38.0, 23.7], aliases: [southeastern-europe, balkans, athens]}
+    eu-southwest: {point: [40.4, -3.7], aliases: [southwestern-europe, iberia, madrid]}
+  na:
+    na: {point: [41.9, -87.6], aliases: [north-america, northern-america, us, usa], broad: true} # Chicago
+    na-east: {point: [40.7, -74.0], aliases: [us-east, north-america-east, new-york]}
+    na-central: {point: [41.9, -87.6], aliases: [us-central, north-america-central, chicago]}
+    na-west: {point: [34.1, -118.2], aliases: [us-west, north-america-west, los-angeles]}
+    na-northwest: {point: [47.6, -122.3], aliases: [us-northwest, seattle]}
+    na-south: {point: [32.8, -96.8], aliases: [us-south, north-america-south, dallas]}
+    na-north: {point: [45.5, -73.6], aliases: [canada, ca-east, ca-central, montreal]}
+    na-mexico: {point: [19.4, -99.1], aliases: [mx, mexico, mexico-city]}
+    na-central-america: {point: [9.0, -79.5], aliases: [central-america, panama]}
+    na-caribbean: {point: [18.5, -66.1], aliases: [caribbean, san-juan]}
+  sa:
+    sa: {point: [-23.6, -46.6], aliases: [south-america], broad: true} # São Paulo
+    sa-east: {point: [-23.6, -46.6], aliases: [br, brazil, sao-paulo]}
+    sa-north: {point: [4.7, -74.1], aliases: [bogota, colombia]}
+    sa-central: {point: [-16.5, -68.2], aliases: [la-paz, bolivia]}
+    sa-west: {point: [-12.0, -77.0], aliases: [lima, peru]}
+    sa-south: {point: [-34.6, -58.4], aliases: [buenos-aires, argentina]}
+    sa-southwest: {point: [-33.4, -70.7], aliases: [santiago, chile]}
+  middle-east:
+    middle-east: {point: [25.2, 55.3], aliases: [me, mena-east, asia-west, west-asia, western-asia], broad: true} # Dubai
+    me-east: {point: [25.2, 55.3], aliases: [dubai, uae, gulf]}
+    me-west: {point: [41.0, 29.0], aliases: [istanbul, turkiye, turkey]}
+    me-central: {point: [24.7, 46.7], aliases: [riyadh, saudi-arabia]}
+  asia:
+    asia: {point: [1.4, 103.8], aliases: [as, ap, apac], broad: true} # Singapore
+    asia-central: {point: [43.2, 76.9], aliases: [central-asia, almaty]}
+    asia-east: {point: [35.7, 139.7], aliases: [east-asia, eastern-asia, tokyo, japan, jp]}
+    asia-northeast: {point: [37.6, 127.0], aliases: [seoul, korea]}
+    asia-north: {point: [55.0, 82.9], aliases: [north-asia, northern-asia, siberia, novosibirsk]}
+    asia-south: {point: [19.1, 72.9], aliases: [south-asia, southern-asia, mumbai, india, in]}
+    asia-southeast: {point: [1.4, 103.8], aliases: [southeast-asia, south-eastern-asia, singapore, sg]}
+    asia-china: {point: [31.2, 121.5], aliases: [china, cn, shanghai]}
+    asia-hong-kong: {point: [22.3, 114.2], aliases: [hong-kong, hk]}
+  af:
+    af: {point: [-26.2, 28.0], aliases: [africa], broad: true} # Johannesburg
+    af-north: {point: [30.0, 31.2], aliases: [north-africa, northern-africa, cairo]}
+    af-west: {point: [6.5, 3.4], aliases: [west-africa, western-africa, lagos]}
+    af-central: {point: [-4.3, 15.3], aliases: [central-africa, middle-africa, kinshasa]}
+    af-east: {point: [-1.3, 36.8], aliases: [east-africa, eastern-africa, nairobi]}
+    af-south: {point: [-26.2, 28.0], aliases: [south-africa, southern-africa, johannesburg, za]}
+  oc:
+    oc: {point: [-33.9, 151.2], aliases: [oceania, australia, au], broad: true} # Sydney
+    oc-east: {point: [-33.9, 151.2], aliases: [au-east, australia-east, sydney]}
+    oc-south: {point: [-37.8, 145.0], aliases: [au-south, melbourne]}
+    oc-west: {point: [-32.0, 115.9], aliases: [au-west, australia-west, perth]}
+    oc-new-zealand: {point: [-36.9, 174.8], aliases: [new-zealand, nz, auckland]}
+    oc-melanesia: {point: [-18.1, 178.4], aliases: [melanesia, fiji, suva]}
+    oc-micronesia: {point: [13.5, 144.8], aliases: [micronesia, guam]}
+    oc-polynesia: {point: [-17.5, -149.6], aliases: [polynesia, tahiti, papeete]}
+  antarctica:
+    antarctica: {point: [-77.8, 166.7], aliases: [antarctic, ant, aq, mcmurdo]} # Reference point only
+  global:
+    global: {aliases: [worldwide], broad: true} # For unlabeled installations. Uses general latency estimates.
+
+# Recognize the exact examples written by older Vise Core releases. Customized entries still take precedence.
+legacy_examples:
+  eu-east:
+    region: eu
+    priority: [eu-central, eu-west, middle-east, na-east, asia-central]
+    latency_ms: {eu-central: 20, eu-west: 35, middle-east: 65, na-east: 100, asia-central: 130}
+  eu-central:
+    region: eu
+    priority: [eu-east, eu-west, middle-east, na-east, asia-central]
+    latency_ms: {eu-east: 20, eu-west: 20, middle-east: 65, na-east: 90, asia-central: 145}
+  eu-west:
+    region: eu
+    priority: [eu-central, eu-east, na-east, middle-east, asia-central]
+    latency_ms: {eu-central: 20, eu-east: 35, na-east: 75, middle-east: 80, asia-central: 160}
+  middle-east:
+    region: middle-east
+    priority: [eu-east, eu-central, eu-west, asia-central, na-east]
+    latency_ms: {eu-east: 65, eu-central: 65, eu-west: 80, asia-central: 75, na-east: 150}
+  na-east:
+    region: na
+    priority: [eu-west, eu-central, eu-east, middle-east, asia-central]
+    latency_ms: {eu-west: 75, eu-central: 90, eu-east: 100, middle-east: 150, asia-central: 170}
+  asia-central:
+    region: asia
+    priority: [middle-east, eu-east, eu-central, eu-west, na-east]
+    latency_ms: {middle-east: 75, eu-east: 130, eu-central: 145, eu-west: 160, na-east: 170}

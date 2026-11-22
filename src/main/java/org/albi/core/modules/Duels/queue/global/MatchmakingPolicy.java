@@ -16,7 +16,11 @@ final class MatchmakingPolicy {
     record Host(String server, String session, String pool, Set<String> casual, Set<String> ranked,
                 int players, int capacity, int arenas) {}
 
-    record Pool(String region, List<String> priority, Map<String, Integer> latency) {}
+    record Pool(String region, List<String> priority, Map<String, Integer> latency, Map<String, Integer> steps) {
+        Pool(String region, List<String> priority, Map<String, Integer> latency) {
+            this(region, priority, latency, Map.of());
+        }
+    }
 
     record Rules(Map<String, Pool> pools, int priorityStep, int crossRegionAfter, int unlistedAfter,
                  int sameRegionLatency, int crossRegionLatency, int pingStart, int pingMax,
@@ -96,8 +100,8 @@ final class MatchmakingPolicy {
     }
 
     private Score score(Ticket first, Ticket second, int waitFirst, int waitSecond, Host host, int eloGap) {
-        int priorityFirst = priority(first.pool, host.pool, waitFirst);
-        int prioritySecond = priority(second.pool, host.pool, waitSecond);
+        int priorityFirst = priority(first, host, waitFirst);
+        int prioritySecond = priority(second, host, waitSecond);
         if (priorityFirst < 0 || prioritySecond < 0) return null;
 
         int pingFirst = ping(first, host);
@@ -113,24 +117,36 @@ final class MatchmakingPolicy {
                 Math.max(pingFirst, pingSecond), gap, pingFirst + pingSecond, eloGap, load, second.since);
     }
 
-    private int priority(String origin, String destination, int wait) {
-        if (origin.equals(destination)) return 0;
+    private int priority(Ticket ticket, Host host, int wait) {
+        String origin = ticket.pool;
+        String destination = host.pool;
+        if (origin.equals(destination)) {
+            if (!unlabeledTransfer(ticket, host)) return 0;
+            return wait >= rules.crossRegionAfter ? 1 : -1;
+        }
         Pool pool = rules.pools.get(origin);
         int rank = pool == null ? -1 : pool.priority.indexOf(destination);
-        if (rank < 0) {
-            if (rules.unlistedAfter < 0 || wait < rules.unlistedAfter) return -1;
-            rank = pool == null ? 0 : pool.priority.size();
-        }
-        int threshold = (rank + 1) * rules.priorityStep;
+        if (rank < 0 && rules.unlistedAfter < 0) return -1;
+        int priority = rank < 0 ? (pool == null ? 1 : pool.priority.size() + 1)
+                : pool.steps.getOrDefault(destination, rank + 1);
+        int threshold = rank < 0 ? rules.unlistedAfter : priority * rules.priorityStep;
         if (!sameRegion(origin, destination)) threshold = Math.max(threshold, rules.crossRegionAfter);
-        return wait >= threshold ? rank + 1 : -1;
+        return wait >= threshold ? priority : -1;
     }
 
     private int ping(Ticket ticket, Host host) {
-        if (ticket.pool.equals(host.pool)) return ticket.ping;
+        if (ticket.pool.equals(host.pool)) {
+            return ticket.ping + (unlabeledTransfer(ticket, host) ? rules.crossRegionLatency : 0);
+        }
         Pool pool = rules.pools.get(ticket.pool);
         int fallback = sameRegion(ticket.pool, host.pool) ? rules.sameRegionLatency : rules.crossRegionLatency;
         return ticket.ping + (pool == null ? fallback : pool.latency.getOrDefault(host.pool, fallback));
+    }
+
+    private boolean unlabeledTransfer(Ticket ticket, Host host) {
+        if (!"global".equals(ticket.pool) || ticket.server.equals(host.server)) return false;
+        Pool global = rules.pools.get("global");
+        return global != null && !global.steps.isEmpty();
     }
 
     private boolean sameRegion(String first, String second) {
