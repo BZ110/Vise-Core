@@ -79,7 +79,7 @@ Set each entry under `modules` to `true` or `false`. The defaults below apply to
 | `KnockbackSynchronization` | On | Ping-aware adjustments to combat knockback. Also has its own `enabled` setting. |
 | `AntiGhostArrow` | On | Arrow hit recovery when players and arrows move between server ticks. Also has its own `enabled` setting. |
 
-The optional PolarPaper backend has its own [version requirements](#polarpaper-arena-generation-support). PlaceholderAPI adds values for compatible tab lists, scoreboards, and chat plugins. FeatherServerAPI loads the optional `plugins/Core/server-background.png` as a server-list background. The RTP menu delegates to a separate plugin that provides the `xwr rtp` console command.
+The optional PolarPaper backend has its own [version requirements](#polarpaper-arena-generation-support). PlaceholderAPI adds values for compatible tab lists, scoreboards, and chat plugins. FeatherServerAPI loads the optional `plugins/Core/server-background.png` as a server-list background. **XenoWorldReset** powers the `/rtp` random-teleport menu. [XenoWorldReset documentation](https://wiki.bitaspire.com/en/docs/xenoworldreset)
 
 ## Duels, arenas, and matchmaking
 
@@ -306,7 +306,9 @@ With `Tournaments` enabled and valid Challonge credentials, Core runs **single-e
 
 `/tpa <player>` asks to go to that player. `/tpahere <player>` asks them to come to you. The recipient has **30 seconds** to run `/tpaccept <requester>` or use the clickable request.
 
-`/rtp` opens a selector for **Plains**, **Snowy**, **Desert**, **Badlands**, and **Mushroom**, and sends the chosen destination to the external `xwr rtp` command as console. Use `c_worlds` to designate worlds for Core's RTP-world behavior, including world-local death announcements, return to the lobby on respawn, and the one-use `/back` teleport to the last death location in those worlds. With Duels enabled, combat listeners also handle behaviors such as explosive beds in those worlds.
+`/rtp` opens a selector for **Plains**, **Snowy**, **Desert**, **Badlands**, and **Mushroom**. Vise Core passes the selected world and player to **XenoWorldReset** by running `xwr rtp <world> <player>` as console. Use a XenoWorldReset build that accepts this command and configure the destination worlds in its `worlds.yml`. [Vise Core menu source](src/main/java/org/albi/core/commands/RTPCommand.java) · [XenoWorldReset world configuration](https://wiki.bitaspire.com/en/docs/xenoworldreset/configuration-files/worlds)
+
+Use Vise Core's `c_worlds` list for world-local death announcements, return to the lobby on respawn, and the one-use `/back` teleport to the last death location in those worlds. With Duels enabled, combat listeners also handle behaviors such as explosive beds there.
 
 ### Travel and health across instances
 
@@ -672,7 +674,7 @@ Each group lists its registered commands, aliases, and permission nodes. Additio
 | `/store` | | `core.store` | Show the configured store link. |
 | `/travel` | | `core.travel` | Browse network instances and configured regions. |
 | `/health <server>` | | `core.health` | Read the latest diagnostics for an instance. |
-| `/rtp` | `/randomtp`, `/randomteleport` | `core.rtp` | Choose an RTP destination. |
+| `/rtp` | `/randomtp`, `/randomteleport` | `core.rtp` | Choose a XenoWorldReset random-teleport destination. |
 | `/tpa <player>`, `/tpahere <player>`, `/tpaccept <requester>` | | `core.tpa`, `core.tpahere`, `core.tpaccept` | Request and accept player teleports. |
 | `/back` | | `core.back` | Use the saved death location from an RTP world. |
 | `/bypass`, `/fly` | | `core.bypass`, `core.fly` | Toggle supported lobby bypass or flight. |
