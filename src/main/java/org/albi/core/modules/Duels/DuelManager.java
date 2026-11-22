@@ -12,6 +12,8 @@ import org.albi.core.modules.Duels.managers.CommandManager;
 import org.albi.core.modules.Duels.managers.EventManager;
 import org.albi.core.modules.Duels.ranked.RankedCommands;
 import org.albi.core.modules.Duels.ranked.RankedStats;
+import org.albi.core.modules.Duels.spectating.DuelSpectators;
+import org.bukkit.entity.Player;
 
 public final class DuelManager extends Module {
 
@@ -21,6 +23,7 @@ public final class DuelManager extends Module {
     private static DuelQueueModule duelQueueModule;
     private static RankedQueueModule rankedQueueModule;
     private static GlobalMatchmaking matchmaking;
+    private static DuelSpectators spectators;
 
     public DuelManager(Core plugin) {
         super(plugin);
@@ -62,6 +65,7 @@ public final class DuelManager extends Module {
         getPlugin().getLogger().info("[Duels] Loading Ranked Queue Module");
         rankedQueueModule = new RankedQueueModule(getPlugin());
         matchmaking = GlobalMatchmaking.create(getPlugin());
+        spectators = new DuelSpectators(getPlugin(), matchmaking);
 
         // Load Ranked Settings
         RankedStats.PLACEMENT_THRESHOLD = getPlugin().getConfig().getInt("ranked.placement_matches", 5);
@@ -81,9 +85,25 @@ public final class DuelManager extends Module {
         return matchmaking;
     }
 
+    public static DuelSpectators getSpectators() {
+        return spectators;
+    }
+
+    public static boolean canStartLocalDuel(Core plugin, Player player) {
+        var profile = plugin.getExtendedPlayer(player);
+        return profile.isReady() && profile.getPlayerDuelInstance() == null && !profile.isSpectating()
+                && (spectators == null || !spectators.busy(player));
+    }
+
+    public static void leaveQueues(Player player) {
+        if (duelQueueModule != null) duelQueueModule.leaveQueue(player);
+        if (rankedQueueModule != null) rankedQueueModule.leaveQueue(player);
+    }
+
     public static void shutdownMatchmaking() {
         if (matchmaking != null) matchmaking.close();
         matchmaking = null;
+        spectators = null;
     }
 
     public static DuelQueueModule getDuelQueueModule() {

@@ -34,7 +34,7 @@ public final class MovementOutside implements Listener {
                         Arena    a    = ep.getSpectatingArena();
                         Location base = ep.getSpectatingBase();
                         Location baseX = ep.teleportBase;
-                        if (a == null || base == null) continue;
+                        if (a == null || base == null || baseX == null || !p.getWorld().equals(base.getWorld())) continue;
 
                         if (outside(p, base, a, isActivePolarArena(a))) {
                             // Rubber‑band them back to the centre (2 blocks above base)

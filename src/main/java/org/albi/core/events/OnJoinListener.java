@@ -64,6 +64,8 @@ public class OnJoinListener implements Listener {
             Bukkit.getScheduler().runTask(plugin, () -> {
                 var matchmaking = DuelManager.getMatchmaking();
                 if (matchmaking != null) matchmaking.playerJoined(player);
+                var spectators = DuelManager.getSpectators();
+                if (spectators != null) spectators.playerJoined(player);
             });
         });
     }

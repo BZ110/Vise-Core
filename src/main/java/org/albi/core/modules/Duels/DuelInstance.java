@@ -44,6 +44,8 @@ public class DuelInstance implements Listener {
     // ──────────────────────────────────────────────────────────────────────
     private Player[] teamOne;
     private Player[] teamTwo;
+    private final UUID spectateId = UUID.randomUUID();
+    private Map<UUID, String> returnServers = Map.of();
     public List<Player> spectators = new ArrayList<>();
 
     private Arena arena;
@@ -156,6 +158,18 @@ public class DuelInstance implements Listener {
     public DuelInstance usePreparedPersonalKits() {
         usePreparedPersonalKits = true;
         return this;
+    }
+
+    public void returnPlayersTo(Map<UUID, String> sourceServers) {
+        returnServers = Map.copyOf(sourceServers);
+    }
+
+    public UUID spectateId() {
+        return spectateId;
+    }
+
+    public boolean isWatchable() {
+        return !finished && !canceled && teamLocOne != null && teamLocTwo != null;
     }
 
     public static int availableQueueSlots(Core plugin, Arena arena) {
@@ -538,17 +552,12 @@ public class DuelInstance implements Listener {
         int left = team == 1 ? maxRounds - roundsWonTeamOne
                 : maxRounds - roundsWonTeamTwo;
 
-        if (matchRecord != null) {
-            MatchTracker.get(plugin).stopTracking(matchRecord);
-            broadcastTelemetryLink();
-            matchRecord = null; // Prepare for next round
-        }
-
         if (left == 0) {
             finish(team);
             return;
         }
 
+        finishTelemetry(team);
         broadcast("duel_round_left",
                 String.valueOf(team), String.valueOf(left), colour);
 
@@ -763,18 +772,8 @@ public class DuelInstance implements Listener {
 
         if (isRanked && !canceled) {
             handleRankedResults(team);
-            if (matchRecord != null) {
-                MatchTracker.get(plugin).stopTracking(matchRecord);
-                broadcastTelemetryLink();
-                matchRecord = null;
-            }
-        } else if (telemetry && !canceled) {
-            if (matchRecord != null) {
-                MatchTracker.get(plugin).stopTracking(matchRecord);
-                broadcastTelemetryLink();
-                matchRecord = null;
-            }
         }
+        if (!canceled) finishTelemetry(team);
 
         broadcast("duel_over", winCol, loseCol,
                 String.valueOf(winR), String.valueOf(loseR));
@@ -800,9 +799,7 @@ public class DuelInstance implements Listener {
                         ExtendedPlayer ep = plugin.getExtendedPlayer(p);
                         if (ep != null)
                             ep.setPlayerDuelInstance(null);
-                        p.getInventory().clear();
-                        plugin.resetPlayer(p);
-                        plugin.teleportToLobby(p);
+                        returnFighterToLobby(p);
                     } catch (Exception ignored) {
                     }
                 }
@@ -819,6 +816,14 @@ public class DuelInstance implements Listener {
      * @param p The player that has left.
      */
     public void leave(Player p) {
+        leave(p, true);
+    }
+
+    public void disconnect(Player p) {
+        leave(p, false);
+    }
+
+    private void leave(Player p, boolean returnToLobby) {
         int team = 0;
         if (isOnTeam(p, teamOne))
             team = 1;
@@ -850,13 +855,24 @@ public class DuelInstance implements Listener {
             plugin.getExtendedPlayer(p).setPlayerDuelInstance(null);
         }
 
-        try {
-            plugin.resetPlayer(p);
-            plugin.teleportToLobby(p);
-        } catch (Exception ignored) {
+        if (returnToLobby) {
+            try {
+                returnFighterToLobby(p);
+            } catch (Exception ignored) {
+            }
         }
 
         removeFromTeam(p);
+    }
+
+    private void returnFighterToLobby(Player player) {
+        var spectatorService = DuelManager.getSpectators();
+        if (spectatorService != null) {
+            spectatorService.sendToLobby(player, returnServers.get(player.getUniqueId()));
+        } else if (player.isOnline()) {
+            plugin.resetPlayer(player);
+            plugin.teleportToLobby(player);
+        }
     }
 
     private void handleRankedResults(int winningTeam) {
@@ -1007,7 +1023,6 @@ public class DuelInstance implements Listener {
             var pdi = plugin.getExtendedPlayer(p).getPlayerDuelInstance();
             pdi.setStatus("InGame");
 
-            GlobalDuelCache.availableInstances.add(this);
             addRoundPlay(p);
             roundStartTime.put(p.getUniqueId(), System.currentTimeMillis());
 
@@ -1015,6 +1030,7 @@ public class DuelInstance implements Listener {
             applyEffects(p, pdi.getKit());
         }
 
+        GlobalDuelCache.availableInstances.add(this);
         if (isRanked) {
             new org.bukkit.scheduler.BukkitRunnable() {
                 @Override
@@ -1040,7 +1056,7 @@ public class DuelInstance implements Listener {
         for (Player p : merge(teamOne, teamTwo)) {
             ExtendedPlayer ep = plugin.getExtendedPlayer(p);
             ep.setPlayerDuelInstance(null);
-            plugin.teleportToLobby(p);
+            returnFighterToLobby(p);
             plugin.getMessageAPI().sendMessageLang(p, "duel_cancelled");
         }
 
@@ -1077,6 +1093,8 @@ public class DuelInstance implements Listener {
         World world = motherLocation.getWorld();
         teamLocOne = buildSpawn(world, arena.getSpawn1());
         teamLocTwo = buildSpawn(world, arena.getSpawn2());
+        var spectatorService = DuelManager.getSpectators();
+        if (spectatorService != null) spectatorService.moveToNextRound(this);
         if (old != null) {
             DuelManager.polarArenaManager.releaseArena(old, true);
         }
@@ -1438,9 +1456,7 @@ public class DuelInstance implements Listener {
         Player[] everyone = getEveryone();
         String activeWorld = getActiveWorldName();
         for (Player p : everyone) {
-            if (!isPlayerInActiveWorld(p, activeWorld)) {
-                removeSpectatorQuietly(p);
-            } else {
+            if (isPlayerInActiveWorld(p, activeWorld)) {
                 plugin.getMessageAPI().sendMessageLang(p, langKey, placeholders);
             }
         }
@@ -1450,9 +1466,7 @@ public class DuelInstance implements Listener {
         Player[] everyone = getEveryone();
         String activeWorld = getActiveWorldName();
         for (Player p : everyone) {
-            if (!isPlayerInActiveWorld(p, activeWorld)) {
-                removeSpectatorQuietly(p);
-            } else {
+            if (isPlayerInActiveWorld(p, activeWorld)) {
                 p.sendMessage(plugin.getMessageAPI().toColor(p, message));
             }
         }
@@ -1470,14 +1484,22 @@ public class DuelInstance implements Listener {
         Player[] everyone = getEveryone();
         String activeWorld = getActiveWorldName();
         for (Player p : everyone) {
-            if (!isPlayerInActiveWorld(p, activeWorld)) {
-                removeSpectatorQuietly(p);
-            } else if (url == null) {
+            if (!isPlayerInActiveWorld(p, activeWorld)) continue;
+            if (url == null) {
                 p.sendMessage(text);
             } else {
                 plugin.getMessageAPI().sendUrlMessage(p, text + " §8- §a&lView Match", url.toString());
             }
         }
+    }
+
+    private void finishTelemetry(int winningTeam) {
+        if (matchRecord == null) return;
+        Player[] winners = winningTeam == 1 ? teamOne : teamTwo;
+        if (winners.length > 0) matchRecord.setWinner(winners[0].getUniqueId());
+        MatchTracker.get(plugin).stopTracking(matchRecord);
+        broadcastTelemetryLink();
+        matchRecord = null;
     }
 
     private Player[] getEveryone() {
@@ -1507,11 +1529,8 @@ public class DuelInstance implements Listener {
         p.setGameMode(GameMode.SPECTATOR);
     }
 
-    private void removeSpectatorQuietly(Player p) {
-        try {
-            spectators.remove(p);
-        } catch (Exception ignored) {
-        }
+    public void removeSpectator(Player player) {
+        spectators.remove(player);
     }
 
     private void createAndStartMatchRecord() {
@@ -1531,6 +1550,8 @@ public class DuelInstance implements Listener {
 
     /** Resets every spectator, teleports them to lobby, and purges the list. */
     private void sendSpectatorsHome() {
+        var spectatorService = DuelManager.getSpectators();
+        if (spectatorService != null) spectatorService.closeMatch(this);
         for (Player spec : spectators) {
             ExtendedPlayer ep = plugin.getExtendedPlayer(spec);
             if (ep != null)

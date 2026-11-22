@@ -56,6 +56,7 @@ network:
     server_id: "" # Exact proxy registration. Blank uses the lowercase region-id_number name.
     pool: "" # Blank uses region. Set a location such as eu-east on each participating server.
     host_matches: true # Set false for queue-only servers with no network arenas.
+    return_after_match: true # Send fighters back to the server they queued on.
 
     # Every step opens one more destination for each player. Region gates apply independently.
     priority_step_seconds: 8
@@ -189,6 +190,7 @@ cooldowns:
   rules: 3
   spawn: 4
   vanish: 1
+  seegames: 2
   duel: 10
   duelaccept: 1
   party: 1
@@ -444,11 +446,17 @@ lang:
 
 
   duels_already_in_duel: "&7You can’t spectate while you’re in a duel."
+  duels_duel_not_found: "&7No public duel was found for that player."
   duels_not_in_duel: "&7That player isn’t in a duel."
   duels_duel_already_over: "&7That duel has already finished."
   duels_invalid_arena: "&7Couldn’t load that arena – try again later."
   duels_spectate_blocked: "&7You can't spectate this player."
   duels_now_spectating: "&7You are now spectating &d{1}&7."
+  duels_spectate_lobby: "&7Return to the lobby and leave any party or tournament before spectating across servers."
+  duels_spectate_connecting: "&7Connecting you to the duel server."
+  duels_spectate_unavailable: "&7The network spectate request expired or could not be completed. Try again."
+  duels_transfer_busy: "&7A server transfer is already in progress."
+  duels_return_unavailable: "&7Your original server could not be reached. You can stay here or use /travel."
 
   duel_sent: "&7Challenge sent."
 

@@ -87,8 +87,13 @@ public final class GlobalMatchmaking {
 
     public boolean join(Player player, String kit, boolean ranked) {
         UUID id = player.getUniqueId();
-        if (transfers.containsKey(id) || reservedFor(id)) {
+        if (hasPendingMatch(player)) {
             player.sendMessage("§eYour queued match is already being prepared.");
+            return false;
+        }
+        var spectators = DuelManager.getSpectators();
+        if (spectators != null && spectators.isTransitioning(player)) {
+            plugin.getMessageAPI().sendMessageLang(player, "duels_transfer_busy");
             return false;
         }
         if (!eligible(player, ranked)) {
@@ -115,6 +120,19 @@ public final class GlobalMatchmaking {
     public void leave(Player player, boolean ranked) {
         Waiting current = waiting.get(player.getUniqueId());
         if (current != null && current.ranked == ranked) drop(current, true);
+    }
+
+    public boolean hasPendingMatch(Player player) {
+        UUID id = player.getUniqueId();
+        return transfers.containsKey(id) || reservedFor(id);
+    }
+
+    public String namespace() {
+        return settings.namespace();
+    }
+
+    public String serverId() {
+        return settings.server();
     }
 
     public void playerJoined(Player player) {
@@ -328,6 +346,10 @@ public final class GlobalMatchmaking {
         transfers.remove(match.first().player());
         transfers.remove(match.second().player());
         changes.add(Change.host("finish", match.id()));
+        if (plugin.getConfig().getBoolean("network.matchmaking.return_after_match", true)) {
+            hold.reservation.duel().returnPlayersTo(Map.of(
+                    first.getUniqueId(), match.first().server(), second.getUniqueId(), match.second().server()));
+        }
         launch(hold.reservation, first, second, match.first().ranked());
     }
 

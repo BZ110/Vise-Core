@@ -131,6 +131,10 @@ public final class StatManagement {
         return INTERNAL.store.loadRecent(playerId, limit);
     }
 
+    public static UUID findRecentMatchPlayer(String name) {
+        return INTERNAL.store.findRecentMatchPlayer(name.toLowerCase(Locale.ROOT));
+    }
+
 
     /*────────────────── internal glue ──────────────────*/
     private static final class INTERNAL {
@@ -586,6 +590,34 @@ public final class StatManagement {
                 e.printStackTrace();
             }
             return list;
+        }
+
+        UUID findRecentMatchPlayer(String name) {
+            // The match names are present in existing telemetry records, so this also covers
+            // matches stored before network matchmaking without a profile schema change.
+            String query = """
+                    SELECT CASE
+                        WHEN LOWER(JSON_UNQUOTE(JSON_EXTRACT(data, '$.player1Name'))) = ? THEN player1
+                        ELSE player2
+                    END AS player_id
+                    FROM ranked_matches
+                    WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? SECOND)
+                        AND (LOWER(JSON_UNQUOTE(JSON_EXTRACT(data, '$.player1Name'))) = ?
+                            OR LOWER(JSON_UNQUOTE(JSON_EXTRACT(data, '$.player2Name'))) = ?)
+                    ORDER BY created_at DESC LIMIT 1
+                    """;
+            try (Connection connection = sql.getConnection();
+                 PreparedStatement statement = connection.prepareStatement(query)) {
+                statement.setString(1, name);
+                statement.setLong(2, matchTtlSeconds);
+                statement.setString(3, name);
+                statement.setString(4, name);
+                try (ResultSet result = statement.executeQuery()) {
+                    return result.next() ? UUID.fromString(result.getString(1)) : null;
+                }
+            } catch (SQLException e) {
+                return null;
+            }
         }
     }
 

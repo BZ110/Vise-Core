@@ -18,6 +18,8 @@ public class OnLeaveListener implements Listener {
 
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
+        var spectators = DuelManager.getSpectators();
+        if (spectators != null) spectators.playerQuit(event.getPlayer());
         var matchmaking = DuelManager.getMatchmaking();
         if (matchmaking != null) matchmaking.playerQuit(event.getPlayer());
         ExtendedPlayer ep = plugin.getCache().getExtendedPlayer(event.getPlayer());
@@ -29,7 +31,7 @@ public class OnLeaveListener implements Listener {
         if (ep.getPlayerDuelInstance() != null) {
             DuelInstance di = ep.getPlayerDuelInstance().getDuelInstance();
             if (di != null) {
-                di.leave(event.getPlayer());
+                di.disconnect(event.getPlayer());
             }
         }
 

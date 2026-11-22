@@ -35,6 +35,11 @@ public final class BotBackedDuelInstance extends DuelInstance {
     }
 
     @Override
+    public void disconnect(Player p) {
+        session.handlePlayerLeave();
+    }
+
+    @Override
     public Arena getArena() {
         return arena;
     }

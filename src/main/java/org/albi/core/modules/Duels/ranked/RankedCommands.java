@@ -44,16 +44,19 @@ public class RankedCommands implements CommandExecutor {
         }
 
         if (label.equalsIgnoreCase("seegames")) {
-            if (args.length == 0) {
-                showRecentGames(player, player);
-            } else {
-                Player target = Bukkit.getPlayer(args[0]);
-                if (target == null) {
-                    player.sendMessage("§cPlayer not found.");
-                    return true;
-                }
-                showRecentGames(player, target);
+            String name = args.length == 0 ? player.getName() : args[0];
+            if (!name.matches("[a-zA-Z0-9_]{1,16}")) {
+                player.sendMessage("§cEnter the player's exact Minecraft name.");
+                return true;
             }
+            var profile = plugin.getExtendedPlayer(player);
+            if (profile.checkCooldown("seegames")) {
+                plugin.getMessageAPI().sendMessageLang(player, "cooldown");
+                return true;
+            }
+            profile.addCooldown("seegames", plugin.getConfig().getInt("cooldowns.seegames", 2));
+            Player target = Bukkit.getPlayerExact(name);
+            showRecentGames(player, target == null ? name : target.getName(), target == null ? null : target.getUniqueId());
             return true;
         }
 
@@ -119,27 +122,29 @@ public class RankedCommands implements CommandExecutor {
         });
     }
 
-    private void showRecentGames(Player viewer, Player target) {
-        viewer.sendMessage("§8[§dRanked§8] §7Fetching recent games for §f" + target.getName() + "§7...");
+    private void showRecentGames(Player viewer, String name, UUID localId) {
+        viewer.sendMessage("§8[§dRanked§8] §7Fetching recent games for §f" + name + "§7...");
 
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-            List<RankedMatchRecord> matches = StatManagement.loadRecentMatches(target.getUniqueId(), 10);
-
-            if (matches.isEmpty()) {
-                viewer.sendMessage("§cNo recent ranked matches found for this player.");
-                return;
-            }
-
-            viewer.sendMessage("§8§m--------------------------------------");
-            viewer.sendMessage("§d§lRecent Ranked Matches - " + target.getName());
-            for (RankedMatchRecord m : matches) {
-                String result = m.getWinner() == null ? "§eDraw"
-                        : (m.getWinner().equals(target.getUniqueId()) ? "§aVictory" : "§cDefeat");
-                String opponent = m.getPlayer1().equals(target.getUniqueId()) ? m.getPlayer2Name() : m.getPlayer1Name();
-                viewer.sendMessage("§8» " + result + " §7vs §f" + opponent + " §8| §7ID: §f" + m.getMatchId()
-                        + (m.isSuspicious() ? " §c§l[Suspicious!]" : ""));
-            }
-            viewer.sendMessage("§8§m--------------------------------------");
+            UUID id = localId == null ? StatManagement.findRecentMatchPlayer(name) : localId;
+            List<RankedMatchRecord> matches = id == null ? List.of() : StatManagement.loadRecentMatches(id, 10);
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                if (!viewer.isOnline()) return;
+                if (matches.isEmpty()) {
+                    viewer.sendMessage("§cNo recent ranked matches found for this player.");
+                    return;
+                }
+                viewer.sendMessage("§8§m--------------------------------------");
+                viewer.sendMessage("§d§lRecent Ranked Matches - " + name);
+                for (RankedMatchRecord match : matches) {
+                    String result = match.getWinner() == null ? "§eDraw"
+                            : (match.getWinner().equals(id) ? "§aVictory" : "§cDefeat");
+                    String opponent = match.getPlayer1().equals(id) ? match.getPlayer2Name() : match.getPlayer1Name();
+                    viewer.sendMessage("§8» " + result + " §7vs §f" + opponent + " §8| §7ID: §f" + match.getMatchId()
+                            + (match.isSuspicious() ? " §c§l[Suspicious!]" : ""));
+                }
+                viewer.sendMessage("§8§m--------------------------------------");
+            });
         });
     }
 

@@ -2,6 +2,7 @@ package org.albi.core.modules.Duels.commands;
 
 import org.albi.core.Core;
 import org.albi.core.data.ExtendedPlayer;
+import org.albi.core.modules.Duels.DuelManager;
 import org.albi.core.modules.Duels.GUIs.DuelMainCommandGUIs;
 import org.albi.core.modules.Friends.FriendsManager;
 import org.albi.core.modules.ModuleManager;
@@ -32,6 +33,10 @@ public class DuelCommand extends BaseCommand {
         Player target = Bukkit.getPlayerExact(args[0]);
         if(target==null){ plugin.getMessageAPI().sendMessageLang(player,"duels_duel_specify");return true; }
         if(target==player) { plugin.getMessageAPI().sendMessageLang(player,"duels_duel_specify");return true; }
+        if (!DuelManager.canStartLocalDuel(plugin, player) || !DuelManager.canStartLocalDuel(plugin, target)) {
+            plugin.getMessageAPI().sendMessageLang(player, "duels_duel_unable");
+            return true;
+        }
         /* block-list & invite toggle */
         ExtendedPlayer et = plugin.getExtendedPlayer(target);
         FriendsManager friends = ModuleManager.getModule(FriendsManager.class);

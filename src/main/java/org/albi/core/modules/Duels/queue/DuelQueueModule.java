@@ -244,7 +244,7 @@ public class DuelQueueModule implements Listener {
         return queuedSince.containsKey(player.getUniqueId());
     }
 
-    private void leaveQueue(Player p) {
+    public void leaveQueue(Player p) {
         var matchmaking = DuelManager.getMatchmaking();
         if (matchmaking != null) matchmaking.leave(p, false);
         else removeQueueState(p.getUniqueId());

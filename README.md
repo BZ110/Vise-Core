@@ -91,7 +91,9 @@ Run `/duel <player>` to challenge an online player. The setup menus let the chal
 
 During the match, Core reserves an arena, equips the fighters, starts a countdown, and tracks round wins. Team matches use the same arena and kit system. Kits can define whether players can build, regenerate health naturally, lose hunger, or expose health indicators. Duel listeners handle damage during countdowns, prevent friendly hits, and resolve lethal hits as round outcomes while allowing totems to trigger. At the end, Core returns participants to the lobby and releases the arena for reuse.
 
-Run `/spectate <player>` to watch an active fight. Spectating respects the player's preference and applies restrictions to keep spectators out of combat. Use `/spawn` to leave. The [PlaceholderAPI expansion](#placeholderapi-reference) supplies team colors, health indicators, score, elapsed time, and spectator information to compatible displays.
+Run `/spectate <player>` to watch a fight through the countdown and rounds. Every fighter's spectator preference and block list apply, so choosing a different fighter in the same match still respects those settings. Viewers stay outside combat, follow the match when a Polar round moves to a new copy, and leave with `/spawn`. The [PlaceholderAPI expansion](#placeholderapi-reference) supplies team colors, health indicators, score, elapsed time, and spectator information to compatible displays.
+
+With [global matchmaking](#global-matchmaking) enabled, run `/spectate <exact player name>` from the lobby to watch a duel on another participating server. Leave any party or tournament before making a remote request. The duel host approves the request before the proxy transfers the viewer and checks the same match and permissions again on arrival. `/spawn`, the end of the match, or revoked access sends the viewer back to their original lobby. Redis outages leave local spectating available. Direct invitations and party and tournament sessions use their current Paper instance.
 
 #### How a duel runs
 
@@ -134,6 +136,7 @@ With `network.matchmaking.enabled`, `/queue`, `/quickqueue`, and `/rankedqueue` 
 | --- | --- |
 | `enabled`, `namespace` | Enable shared queues and select a Redis namespace. Existing servers have standalone queues until explicitly enabled. |
 | `server_id`, `pool`, `host_matches` | Set the exact proxy destination, the home pool of players queued here, and whether this server advertises as a network host. |
+| `return_after_match` | Defaults to `true`. Returns fighters in a network match to the server they queued on so their next queue starts in the same home pool. Set it to `false` to leave fighters in the duel host's lobby. |
 | `pools.<pool>.region`, `priority`, `latency_ms` | Group pools by geography, list each pool's preferred alternate hosts in order, and set directional latency estimates in milliseconds. The home pool is implicit. |
 | `priority_step_seconds`, `cross_region_after_seconds`, `unlisted_after_seconds` | Control when each alternate opens, the earliest cross-region attempt, and whether unlisted pools can become eligible. The default `-1` requires a listed route. |
 | `ping.start_ms`, `max_ms`, `gap_start_ms`, `gap_max_ms` | Set the starting and maximum limits for estimated individual ping and the difference between players. |
@@ -145,6 +148,8 @@ With `network.matchmaking.enabled`, `/queue`, `/quickqueue`, and `/rankedqueue` 
 When Redis is unavailable, each Paper instance can match players already connected there. Fresh local tickets can match right away. Recently published tickets wait for their possible network claims to expire, up to 31 seconds after the last publication attempt finishes. That prevents an old transfer and a new local duel from claiming the same player. Local fallback uses the same kit and ranked rating rules and a local arena. Global queues resume automatically when Redis responds.
 
 Unfinished network handoffs expire after 25 seconds. If a transfer fails or an opponent never arrives, players who already moved can queue again from the destination lobby. Queued players who stayed in place can resume the search. Duels already started continue on their host. The handoff uses short-lived keys under `vise:mm:v1:{<namespace>}:` and needs no MySQL schema change. [Matchmaking code](src/main/java/org/albi/core/modules/Duels/queue/global) · [Redis state transitions](src/main/resources/matchmaking/exchange.lua)
+
+The same namespace also shares short-lived routes for watchable duels. A spectator transfer names a specific duel and can be used once. Core clears spectator state on exit or disconnect. If a return transfer cannot complete, the player can use the current server's lobby. [Spectating code](src/main/java/org/albi/core/modules/Duels/spectating)
 
 ### Choosing an arena backend
 
@@ -226,13 +231,13 @@ Ranked duels record telemetry. In a direct challenge, the challenger can also en
 - Hit events capture attacker, distance, aim angles, and vertical separation. The distance calculation uses the player's eye ray against the target hitbox, with nearest-box distance as a fallback. Core also counts arm swings, total damage, and longest combos.
 - A repeating task samples both players' positions, health, and ping every 20 ticks. A second sampler collects ping every 100 ticks. The HTML report combines the event stream and periodic snapshots into charts for movement, health, reach, hit frequency, and network conditions.
 - The current record can flag unusual measured reach for review. It is a telemetry signal. Consult the recorded context before treating a flag as evidence of a rule violation.
-- On the normal round-end path, the telemetry record closes before the ranked result update. A saved report can show an unset winner or Elo deltas even though the ranked profiles have been updated.
+- The final ranked record includes the winner and both Elo changes. Intermediate rounds record their winner when telemetry is enabled for a multi-round challenge.
 
 [Match tracker](src/main/java/org/albi/core/modules/Duels/ranked/MatchTracker.java) · [Match record](src/main/java/org/albi/core/modules/Duels/ranked/RankedMatchRecord.java) · [HTML report generator](src/main/java/org/albi/core/modules/Duels/ranked/RankedReportGenerator.java)
 
 | Command or setting | What it does |
 | --- | --- |
-| `/seegames [player]` | Queries MySQL for up to ten recent records for yourself or the named online player. |
+| `/seegames [player]` | Queries shared MySQL for up to ten recent records. Use an exact Minecraft name to look up a player on another server or an offline player with retained match history. |
 | `/matchinfo <match_id>` | Reads a stored match and displays the kit, participants, average measured reach, and any recorded review flag. |
 | `/rankedreport <match_id>` | Generates an HTML report under `plugins/Core/reports/`. It includes charts and a match timeline for reviewing health, movement, reach measurements, combos, and network conditions. Charts use a browser-loaded library. |
 | `ranked.history_expiry_days` | Sets the Redis report cache lifetime and the age at which older SQL matches are pruned on startup. Defaults to seven days. |
@@ -583,7 +588,7 @@ The online player wrapper brings together active state, the saved profile, and s
 | `sharedkits:getkit:<code>`, `sharedkits:getcode:<uuid>:<slot>` | Thirty-day kit snapshots and reusable share codes. |
 | `link-code:<code>`, `link-wait:<uuid>` | Five-minute Discord linking state. Completed links use MySQL. |
 | `chat:global` | Live Redis Pub/Sub channel. Subscribers receive messages as they arrive. |
-| `vise:mm:v1:{<namespace>}:*` | Global queue tickets, per-player claims, host availability, and pending match handoffs. |
+| `vise:mm:v1:{<namespace>}:*` | Global queue tickets, per-player claims, host availability, pending match handoffs, and spectator routes and requests. |
 | `server:<id>:health:latest`, `server:<id>:health:stream` | Current server heartbeat and rolling health history. |
 
 On startup, Core opens SQL and ensures the tables exist before starting its command and module registrations. A failed SQL initialization disables the plugin. The Redis client checks for a PING response and retries failed connections. During a Redis outage the SQL fallback can still serve saved profiles and match records, while live functions such as travel discovery, Redis leaderboards, code redemption, and chat depend on Redis recovery. [Storage and connection code](src/main/java/org/albi/core/data/StatManagement.java) · [Player profile model](src/main/java/org/albi/core/data/MainPlayer.java)
@@ -661,7 +666,7 @@ Each group lists its registered commands, aliases, and permission nodes. Additio
 | --- | --- | --- | --- |
 | `/duel <player>` | | `core.duel` | Open challenge setup. |
 | `/acceptduel <challenger>` | | `core.duel` | Accept a direct challenge. |
-| `/spectate <player>` | | `core.spectate` | Watch an active match. |
+| `/spectate <player>` | | `core.spectate` | Watch an active duel locally or across servers with global matchmaking enabled. |
 | `/queue [leave]` | | `core.queue` | Browse casual queues or leave one. |
 | `/quickqueue [leave]` | | `core.quickqueue` | Enter or leave quick matchmaking. |
 | `/rankedqueue [leave]` | | `core.ranked` | Browse competitive queues or leave one. |

@@ -259,6 +259,7 @@ public final class ExtendedPlayer {
         spectating = false;
         spectatingArena = null;
         spectatingBase = null;
+        teleportBase = null;
     }
 
     public boolean hasPref(UUID opponent) {
