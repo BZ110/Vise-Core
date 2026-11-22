@@ -32,6 +32,7 @@ redis:
 
 storage:
   flush_interval_seconds: 600
+  shutdown_timeout_seconds: 15 # Maximum wait for queued writes and the final MySQL flush.
 
 modules:
   Duels: true

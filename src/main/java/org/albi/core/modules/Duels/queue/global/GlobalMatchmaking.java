@@ -170,7 +170,8 @@ public final class GlobalMatchmaking {
         if (!redisAvailable) fallback();
 
         // Probe with no publications while degraded so repeated failures cannot renew a fence.
-        List<Entry> entries = redisAvailable ? waiting.values().stream().map(this::snapshot).toList() : List.of();
+        List<Entry> entries = redisAvailable ? waiting.values().stream()
+                .filter(entry -> !reservedLocally(entry.player.getUniqueId())).map(this::snapshot).toList() : List.of();
         List<Change> batch = List.copyOf(changes);
         Map<Change, SaveBeforeTransfer> saves = new HashMap<>();
         List<Change> valid = new ArrayList<>();
@@ -290,7 +291,7 @@ public final class GlobalMatchmaking {
     private void handleSource(Assignment match, MatchmakingPolicy.Ticket ticket, boolean departed, long expires) {
         if (!settings.server().equals(ticket.server())) return;
         Waiting local = waiting.get(ticket.player());
-        if (local == null || !local.token.equals(ticket.token())) return;
+        if (local == null || !local.token.equals(ticket.token()) || reservedLocally(ticket.player())) return;
         if (!eligible(local.player, local.ranked)) {
             drop(local, true);
             return;
@@ -319,6 +320,11 @@ public final class GlobalMatchmaking {
     private void handleHostStart(Assignment match) {
         Hosted hold = hosted.get(match.id());
         if (hold == null) return;
+        if (!hold.reservation.isValid(match.first().ranked())) {
+            changes.add(Change.host("abort", match.id()));
+            discard(hold);
+            return;
+        }
         if ("offered".equals(match.state())) {
             if (hold.expires < deadline(RedisMatchmaking.MIN_READY_MS)
                     || (!hold.reservation.pending() && !hold.reservation.ready())) {
@@ -352,7 +358,7 @@ public final class GlobalMatchmaking {
             hold.reservation.duel().returnPlayersTo(Map.of(
                     first.getUniqueId(), match.first().server(), second.getUniqueId(), match.second().server()));
         }
-        launch(hold.reservation, first, second, match.first().ranked());
+        if (!launch(hold.reservation, first, second, match.first().ranked())) hold.reservation.release();
     }
 
     private Player arrived(MatchmakingPolicy.Ticket ticket) {
@@ -379,8 +385,6 @@ public final class GlobalMatchmaking {
             var reservation = host.reserve(match.kit(), a.ranked, a.custom, b.custom);
             if (reservation == null) continue;
 
-            drop(a, true);
-            drop(b, true);
             candidates.remove(match.first());
             candidates.remove(match.second());
             localMatches.add(new LocalMatch(a, b, reservation, deadline(RedisMatchmaking.MATCH_LEASE_MS)));
@@ -391,39 +395,38 @@ public final class GlobalMatchmaking {
 
     private void startLocalMatches() {
         for (LocalMatch match : List.copyOf(localMatches)) {
-            boolean eligible = eligible(match.first.player, match.first.ranked)
-                    && eligible(match.second.player, match.second.ranked);
+            boolean eligible = stillWaiting(match.first) && stillWaiting(match.second)
+                    && match.reservation.isValid(match.first.ranked);
             if (eligible && match.expires > System.nanoTime() && match.reservation.pending()) continue;
 
             localMatches.remove(match);
-            if (eligible && match.expires > System.nanoTime() && match.reservation.ready()) {
-                launch(match.reservation, match.first.player, match.second.player, match.first.ranked);
+            if (eligible && match.expires > System.nanoTime() && match.reservation.ready()
+                    && launch(match.reservation, match.first.player, match.second.player, match.first.ranked)) {
+                drop(match.first, true);
+                drop(match.second, true);
             } else {
                 match.reservation.release();
-                notifyTimeout(match.first.player.getUniqueId());
-                notifyTimeout(match.second.player.getUniqueId());
             }
         }
     }
 
-    private void launch(QueueDuelHost.Reservation reservation, Player first, Player second, boolean ranked) {
+    private boolean stillWaiting(Waiting entry) {
+        return waiting.get(entry.player.getUniqueId()) == entry && eligible(entry.player, entry.ranked);
+    }
+
+    private boolean launch(QueueDuelHost.Reservation reservation, Player first, Player second, boolean ranked) {
         try {
-            Messages.send(first, "messages.global-matchmaking.match-found-against", second.getName());
-            Messages.send(second, "messages.global-matchmaking.match-found-against", first.getName());
-            reservation.start(first, second, ranked);
+            if (!reservation.start(first, second, ranked)) return false;
         } catch (RuntimeException failure) {
             for (Player player : List.of(first, second)) {
-                ExtendedPlayer profile = plugin.getExtendedPlayer(player);
-                var current = profile.getPlayerDuelInstance();
-                if (current != null && current.getDuelInstance() == reservation.duel()) {
-                    profile.setPlayerDuelInstance(null);
-                    plugin.teleportToLobby(player);
-                }
                 notifyTimeout(player.getUniqueId());
             }
-            reservation.release();
             plugin.getLogger().log(java.util.logging.Level.WARNING, "[Matchmaking] Could not start queued duel.", failure);
+            return false;
         }
+        Messages.send(first, "messages.global-matchmaking.match-found-against", second.getName());
+        Messages.send(second, "messages.global-matchmaking.match-found-against", first.getName());
+        return true;
     }
 
     private Entry snapshot(Waiting local) {
@@ -458,7 +461,11 @@ public final class GlobalMatchmaking {
 
     private boolean reservedFor(UUID id) {
         return hosted.values().stream().anyMatch(hold -> isParticipant(hold.match, id))
-                || localMatches.stream().anyMatch(match -> match.first.player.getUniqueId().equals(id)
+                || reservedLocally(id);
+    }
+
+    private boolean reservedLocally(UUID id) {
+        return localMatches.stream().anyMatch(match -> match.first.player.getUniqueId().equals(id)
                 || match.second.player.getUniqueId().equals(id));
     }
 

@@ -4,17 +4,15 @@
 package org.albi.core.data;
 
 import com.google.gson.Gson;
+import com.google.common.cache.CacheBuilder;
 import com.google.gson.reflect.TypeToken;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import org.albi.core.util.ConfigValues;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.ConfigurationSection;
-import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import redis.clients.jedis.*;
-import redis.clients.jedis.params.ZAddParams;
-import redis.clients.jedis.resps.Tuple;
 
 import javax.net.ssl.*;
 import java.io.FileInputStream;
@@ -31,8 +29,9 @@ import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.logging.Level;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
 public final class StatManagement {
 
@@ -42,58 +41,135 @@ public final class StatManagement {
     public static void init(Plugin plugin, Config cfg) {
         int retentionDays = Math.max(1, plugin.getConfig().getInt("ranked.history_expiry_days", 7));
         INTERNAL.store = new StatStore(plugin, cfg, retentionDays);
-        INTERNAL.plugin = plugin;
     }
 
     public static void shutdown() {
         StatStore store = INTERNAL.store;
         if (store == null) return;
-        store.getRedis().close();
-        store.getSql().close();
-        INTERNAL.store = null;
-        INTERNAL.cache.clear();
-        INTERNAL.mainCache.clear();
+        try {
+            if (!store.writes.finish(() -> flush(store, true), store.shutdownTimeout)) {
+                store.plugin.getLogger().warning("[Stats] Final MySQL flush exceeded the shutdown timeout. Some writes may be incomplete.");
+            }
+        } finally {
+            INTERNAL.store = null;
+            store.getRedis().close();
+            store.getSql().close();
+            INTERNAL.cache.clear();
+            INTERNAL.mainCache.clear();
+            synchronized (INTERNAL.sessions) {
+                INTERNAL.pendingQuit.clear();
+            }
+        }
     }
-    public static CompletableFuture<PlayerStat> getAsync(UUID id, String name) {
-        return CompletableFuture.supplyAsync(() ->
-                INTERNAL.cache.computeIfAbsent(id, u -> INTERNAL.store.load(u, name))
-        );
-    }
-    public static void saveAndRemove(UUID id) {
-        PlayerStat ps = INTERNAL.cache.remove(id);
-        if (ps != null)
-            Bukkit.getScheduler().runTaskAsynchronously(
-                    INTERNAL.plugin, () -> INTERNAL.store.save(ps));
 
-        MainPlayer mp = INTERNAL.mainCache.remove(id);                     // NEW
-        if (mp != null)
-            Bukkit.getScheduler().runTaskAsynchronously(
-                    INTERNAL.plugin, () -> INTERNAL.store.saveMain(mp));       // NEW
+    public static void attach(UUID id, String name) {
+        StatStore store = INTERNAL.store;
+        if (store == null) return;
+        store.names.put(id, name);
+        synchronized (INTERNAL.sessions) {
+            INTERNAL.pendingQuit.remove(id);
+        }
+    }
+
+    public static CompletableFuture<PlayerStat> getAsync(UUID id, String name) {
+        StatStore store = INTERNAL.store;
+        if (name != null && !name.isBlank() && !name.equals("<unknown>")) store.names.asMap().putIfAbsent(id, name);
+        return CompletableFuture.supplyAsync(() -> INTERNAL.cache.computeIfAbsent(id, store::load));
+    }
+
+    public static void saveAndRemove(UUID id) {
+        StatStore store = INTERNAL.store;
+        if (store == null) return;
+        var quit = new Object();
+        synchronized (INTERNAL.sessions) {
+            INTERNAL.pendingQuit.put(id, quit);
+        }
+        store.writes.submit(() -> saveDeparture(store, id, quit));
+    }
+
+    private static void saveDeparture(StatStore store, UUID id, Object quit) {
+        synchronized (INTERNAL.sessions) {
+            if (INTERNAL.pendingQuit.get(id) != quit) return;
+        }
+        var stats = INTERNAL.cache.get(id);
+        var profile = INTERNAL.mainCache.get(id);
+        if (!persist(store, stats, profile, true)) return;
+        synchronized (INTERNAL.sessions) {
+            if ((stats != null && stats.isDirty()) || (profile != null && profile.isDirty())) return;
+            if (!INTERNAL.pendingQuit.remove(id, quit)) return;
+            if (stats != null) INTERNAL.cache.remove(id, stats);
+            if (profile != null) INTERNAL.mainCache.remove(id, profile);
+        }
     }
 
     public static void flushAllAsync() {
-        Bukkit.getScheduler().runTaskAsynchronously(INTERNAL.plugin, () -> {
-            INTERNAL.cache.values().forEach(INTERNAL.store::save);
-            INTERNAL.mainCache.values().forEach(INTERNAL.store::saveMain);
-        });
+        StatStore store = INTERNAL.store;
+        if (store == null || !store.flushing.compareAndSet(false, true)) return;
+        if (!store.writes.submit(() -> {
+            try {
+                flush(store, false);
+            } finally {
+                store.flushing.set(false);
+            }
+        })) store.flushing.set(false);
+    }
+
+    private static void flush(StatStore store, boolean shutdown) {
+        Map<UUID, Object> quit;
+        synchronized (INTERNAL.sessions) {
+            quit = shutdown ? Map.of() : Map.copyOf(INTERNAL.pendingQuit);
+        }
+        var ids = new HashSet<>(INTERNAL.cache.keySet());
+        ids.addAll(INTERNAL.mainCache.keySet());
+        ids.addAll(quit.keySet());
+        int failed = 0;
+        for (UUID id : ids) {
+            if (Thread.currentThread().isInterrupted()) return;
+            Object departure = quit.get(id);
+            if (departure != null) {
+                saveDeparture(store, id, departure);
+            } else if (!persist(store, INTERNAL.cache.get(id), INTERNAL.mainCache.get(id), !shutdown)) {
+                failed++;
+            }
+        }
+        if (shutdown && failed > 0) {
+            store.plugin.getLogger().warning("[Stats] Some player data could not be saved to MySQL at shutdown (" + failed + " profiles).");
+        }
+    }
+
+    private static boolean persist(StatStore store, PlayerStat stats, MainPlayer profile, boolean updateRedis) {
+        try {
+            boolean statsSaved = stats == null || store.save(stats, updateRedis);
+            boolean profileSaved = profile == null || store.saveMain(profile, updateRedis);
+            return statsSaved && profileSaved;
+        } catch (RuntimeException failure) {
+            store.plugin.getLogger().log(Level.WARNING, "[Stats] Could not save player data.", failure);
+            return false;
+        }
     }
 
     /** Flushes the source snapshot before a destination server starts loading it. Call off-thread. */
     public static boolean flushForTransfer(PlayerStat stat, MainPlayer profile) {
         StatStore store = INTERNAL.store;
-        return store != null && store.save(stat) && store.saveMain(profile);
+        return store != null && persist(store, stat, profile, true);
     }
 
     public static String getName(UUID id) {
-        return INTERNAL.store.getRedis().withJedis(j -> j.hget("lb:names", id.toString()));
+        var store = INTERNAL.store;
+        String name = store.names.getIfPresent(id);
+        return name != null ? name : store.redis.withJedis(j -> j.hget(Leaderboards.NAMES, id.toString()));
     }
 
     public static void resetWinStreak(UUID id, String game) {
         getAsync(id, "<unknown>").thenAccept(a -> a.resetWinStreak(game));
     }
-    public static List<LBRow> leaderboard(String game, Field f, int n) {
-        return INTERNAL.store.top(game, f.redis, n)
-                .stream().map(e -> new LBRow(e.getKey(), e.getValue())).toList();
+
+    public static List<LBRow> leaderboard(String game, Field field, int count) {
+        return INTERNAL.store.leaderboards.top(Leaderboards.Board.game(game, field), count);
+    }
+
+    public static List<LBRow> rankedLeaderboard(int count) {
+        return INTERNAL.store.leaderboards.top(Leaderboards.Board.overall(), count);
     }
 
     public static HikariDataSource getSql() {
@@ -110,9 +186,9 @@ public final class StatManagement {
     }
 
     public static CompletableFuture<MainPlayer> getMainAsync(org.bukkit.entity.Player p) {
-        return CompletableFuture.supplyAsync(() ->
-                INTERNAL.mainCache.computeIfAbsent(p.getUniqueId(), INTERNAL.store::loadMain)
-        );
+        StatStore store = INTERNAL.store;
+        UUID id = p.getUniqueId();
+        return CompletableFuture.supplyAsync(() -> INTERNAL.mainCache.computeIfAbsent(id, store::loadMain));
     }
 
     public static MainPlayer getMain(org.bukkit.entity.Player p) {
@@ -120,7 +196,8 @@ public final class StatManagement {
     }
 
     public static void saveMatchRecord(org.albi.core.modules.Duels.ranked.RankedMatchRecord record) {
-        Bukkit.getScheduler().runTaskAsynchronously(INTERNAL.plugin, () -> INTERNAL.store.saveMatch(record));
+        StatStore store = INTERNAL.store;
+        if (store != null) store.writes.submit(() -> store.saveMatch(record));
     }
 
     public static org.albi.core.modules.Duels.ranked.RankedMatchRecord loadMatchRecord(String matchId) {
@@ -138,11 +215,12 @@ public final class StatManagement {
 
     /*────────────────── internal glue ──────────────────*/
     private static final class INTERNAL {
-        private static StatStore store;
-        private static Plugin    plugin;
+        private static volatile StatStore store;
 
-        private static final Map<UUID, PlayerStat> cache     = new ConcurrentHashMap<>();
-        private static final Map<UUID, MainPlayer> mainCache = new ConcurrentHashMap<>();   // NEW
+        private static final Map<UUID, PlayerStat> cache = new ConcurrentHashMap<>();
+        private static final Map<UUID, MainPlayer> mainCache = new ConcurrentHashMap<>();
+        private static final Object sessions = new Object();
+        private static final Map<UUID, Object> pendingQuit = new HashMap<>();
     }
 
 
@@ -194,16 +272,27 @@ public final class StatManagement {
     }
 
     public enum Field {
-        KILLS  ("kills"),
-        DEATHS ("deaths"),
-        WINS   ("wins"),
-        STREAK ("streak"),
-        ROUNDS ("rounds"),
-        TIME   ("time");
+        KILLS("kills", "kills"),
+        DEATHS("deaths", "deaths"),
+        WINS("wins", "wins"),
+        STREAK("streak", "winStreak"),
+        ROUNDS("rounds", "roundsPlayed"),
+        TIME("time", "timePlayed");
+
         public final String redis;
-        Field(String r) { this.redis = r; }
+        final String json;
+
+        Field(String redis, String json) {
+            this.redis = redis;
+            this.json = json;
+        }
     }
-    public record LBRow(UUID uuid,long score){}
+
+    public record LBRow(UUID uuid, long score, String name) {
+        public LBRow(UUID uuid, long score) {
+            this(uuid, score, null);
+        }
+    }
 
     /*────────────────── stat beans (unchanged) ─────────*/
     public static final class Stat {
@@ -232,30 +321,38 @@ public final class StatManagement {
     }
 
     public static final class PlayerStat {
-        private final UUID uuid; private final Map<String,Stat> map=new HashMap<>();
-        private final Set<String> dirtyGames=new HashSet<>(); private boolean dirty;
-        public PlayerStat(UUID id){uuid=id;}
-        public Stat game(String g){dirty=true;return map.computeIfAbsent(g,k->new Stat());}
-        public void addKill(String g) { game(g).addKills(1);  dirtyGames.add(g); }
-        public void addDeath(String g){ game(g).addDeaths(1); dirtyGames.add(g); }
+        private final UUID uuid;
+        private final Map<String, Stat> games = new HashMap<>();
+        private final Set<String> dirtyGames = new HashSet<>();
+        private final Object writeLock = new Object();
+        private long revision;
+        private long persistedRevision;
 
-        /* new: addWin = +wins and +winstreak */
-        public void addWin(String g)  {
-            Stat s = game(g);
-            s.addWin();
-            dirtyGames.add(g);
+        public PlayerStat(UUID id) { uuid = id; }
+
+        public synchronized Stat game(String name) {
+            revision++;
+            dirtyGames.add(name);
+            return games.computeIfAbsent(name, key -> new Stat());
         }
 
-        public void addRound(String g){ game(g).addRound();   dirtyGames.add(g); }
-        public void addTime(String g,int s){ game(g).addTime(s); dirtyGames.add(g); }
+        public synchronized void addKill(String game) { game(game).addKills(1); }
+        public synchronized void addDeath(String game) { game(game).addDeaths(1); }
+        public synchronized void addWin(String game) { game(game).addWin(); }
+        public synchronized void addRound(String game) { game(game).addRound(); }
+        public synchronized void addTime(String game, int seconds) { game(game).addTime(seconds); }
+        public synchronized void resetWinStreak(String game) { game(game).resetWinStreak(); }
 
-        public void resetWinStreak(String g){
-            game(g).resetWinStreak();
-            dirtyGames.add(g);
+        public UUID uuid() { return uuid; }
+        public synchronized Map<String, Stat> all() { return Map.copyOf(games); }
+        public synchronized boolean isDirty() { return revision != persistedRevision; }
+        public synchronized void clearDirty() { markPersisted(revision); }
+        public synchronized Set<String> dirty() { return Set.copyOf(dirtyGames); }
+
+        private synchronized void markPersisted(long snapshot) {
+            persistedRevision = snapshot;
+            if (snapshot == revision) dirtyGames.clear();
         }
-        public Map<String,Stat> all(){return map;} public UUID uuid(){return uuid;}
-        public boolean isDirty(){return dirty;}  public void clearDirty(){dirty=false;dirtyGames.clear();}
-        public Set<String> dirty(){return dirtyGames;}
     }
 
     /*════════════════════════════════════════════════════
@@ -268,6 +365,13 @@ public final class StatManagement {
         private static final Gson G   = new Gson();
         private static final Type MAP = new TypeToken<Map<String,Stat>>(){}.getType();
         private final long matchTtlSeconds;
+        private final Plugin plugin;
+        private final Duration shutdownTimeout;
+        private final PersistenceWorker writes = new PersistenceWorker();
+        private final AtomicBoolean flushing = new AtomicBoolean();
+        private final com.google.common.cache.Cache<UUID, String> names = CacheBuilder.newBuilder().maximumSize(20_000).build();
+        private final Leaderboards leaderboards;
+        private final boolean storedNames;
 
         /* ---- SQL ---- */
         private final HikariDataSource sql;
@@ -277,6 +381,8 @@ public final class StatManagement {
 
         /* ---- ctor ---- */
         StatStore(Plugin plugin, Config c, int retentionDays) {
+            this.plugin = plugin;
+            shutdownTimeout = Duration.ofSeconds(Math.clamp(plugin.getConfig().getInt("storage.shutdown_timeout_seconds", 15), 1, 60));
             matchTtlSeconds = Duration.ofDays(retentionDays).toSeconds();
             HikariConfig hc = new HikariConfig();
             // Keep credentials out of the JDBC URL and let Connector/J handle address syntax.
@@ -285,14 +391,18 @@ public final class StatManagement {
             hc.addDataSourceProperty("port", c.mysqlPort());
             hc.addDataSourceProperty("databaseName", c.mysqlDatabase());
             hc.addDataSourceProperty("sslMode", c.mysqlSslMode());
+            hc.addDataSourceProperty("connectTimeout", 5000);
+            hc.addDataSourceProperty("socketTimeout", 8000);
+            hc.setConnectionTimeout(5000);
             hc.setUsername(c.mysqlUser());
             hc.setPassword(c.mysqlPass());
             hc.setMaximumPoolSize(c.mysqlPoolSize());
             sql = new HikariDataSource(hc);
 
             try {
-                setupDatabase(plugin, retentionDays);
+                storedNames = setupDatabase(plugin, retentionDays);
                 redis = new RedisWrapper(plugin, c.redisHost(), c.redisPort(), c.redisPass());
+                leaderboards = new Leaderboards(sql, redis, plugin.getLogger(), storedNames);
             } catch (RuntimeException e) {
                 sql.close();
                 throw e;
@@ -307,86 +417,128 @@ public final class StatManagement {
             return redis;
         }
 
-        /*────────────────── MAIN‐PROFILE LOAD ──────────────────*/
+        private record Score(Leaderboards.Board board, long value) {}
+        private record Snapshot(String json, long revision, List<Score> scores) {}
+
         MainPlayer loadMain(UUID id) {
-            String key = "main:" + id;
+            String json = loadProfileJson(id, "main");
+            return json == null ? new MainPlayer(id) : MainPlayer.fromJson(id, json);
+        }
 
-            /* 1️⃣  Redis cache */
-            String json = redis.withJedis(j -> j.get(key));
+        PlayerStat load(UUID id) {
+            var stats = new PlayerStat(id);
+            String json = loadProfileJson(id, "stats");
             if (json != null) {
-                redis.withJedis(j -> { j.expire(key, (int) TTL); return null; });
-                return MainPlayer.fromJson(id, json);
-            }
-
-            /* 2️⃣  SQL fallback */
-            try (Connection c = sql.getConnection();
-                 PreparedStatement ps = c.prepareStatement(
-                         "SELECT main FROM player_stats WHERE uuid=?")) {
-                ps.setString(1, id.toString());
-                ResultSet rs = ps.executeQuery();
-                if (rs.next()) {
-                    json = rs.getString(1);
-                    final String cacheIt = json;
-                    redis.withJedis(j -> { j.setex(key, (int) TTL, cacheIt); return null; });
-                    return MainPlayer.fromJson(id, json);
+                Map<String, Stat> loaded = G.fromJson(json, MAP);
+                if (loaded != null) {
+                    loaded.forEach((game, value) -> {
+                        if (game != null && value != null) stats.games.put(game, value);
+                    });
                 }
-            } catch (SQLException ignored) { }
-            return new MainPlayer(id);      // brand‑new profile
+            }
+            return stats;
         }
 
-        /*────────────────── MAIN‐PROFILE SAVE ──────────────────*/
-        boolean saveMain(MainPlayer mp) {
-            synchronized (mp) {
-                return saveMainLocked(mp);
+        private String loadProfileJson(UUID id, String column) {
+            // MySQL is authoritative even when the server was stopped while Redis was unavailable.
+            SQLException databaseError = null;
+            try (var connection = sql.getConnection();
+                 var statement = connection.prepareStatement("SELECT " + column + " FROM player_stats WHERE uuid=?")) {
+                statement.setString(1, id.toString());
+                try (var result = statement.executeQuery()) {
+                    if (result.next()) return result.getString(1);
+                }
+            } catch (SQLException failure) {
+                databaseError = failure;
+                plugin.getLogger().warning("[Stats] Could not load " + column + " for " + id + " from MySQL. Trying Redis.");
             }
+            String cached = redis.withJedis(j -> j.get(column + ":" + id));
+            if (cached == null && databaseError != null) throw new IllegalStateException("Player data unavailable", databaseError);
+            return cached;
         }
 
-        private boolean saveMainLocked(MainPlayer mp) {
-            if (!mp.isDirty()) return true;
-            String key  = "main:" + mp.uuid();
-            String json = mp.toJson();
-
-            /* 1️⃣  Redis */
-            Boolean cached = redis.withJedis(j -> {
-                j.setex(key, (int) TTL, json);
-                // Sync overall Elo to leaderboard
-                if (mp.getOverallRankedStats() != null) {
-                    j.zadd("lb:ranked:elo", (double) mp.getOverallRankedStats().getElo(), mp.uuid().toString());
+        boolean saveMain(MainPlayer profile, boolean updateRedis) {
+            synchronized (profile.writeLock) {
+                Snapshot snapshot;
+                synchronized (profile) {
+                    if (!profile.isDirty()) return true;
+                    snapshot = new Snapshot(profile.toJson(), profile.revision(),
+                            List.of(new Score(Leaderboards.Board.overall(), profile.getOverallRankedStats().getElo())));
                 }
-                // Store name for leaderboard lookups
-                Player p = Bukkit.getPlayer(mp.uuid());
-                if (p != null) {
-                    j.hset("lb:names", mp.uuid().toString(), p.getName());
-                }
+                if (!writeProfile(profile.uuid(), "main", snapshot, updateRedis)) return false;
+                profile.markPersisted(snapshot.revision);
                 return true;
-            });
+            }
+        }
 
-            /* 2️⃣  SQL (upsert) */
-            try (Connection c = sql.getConnection();
-                 PreparedStatement ps = c.prepareStatement(
-                         """
-                         INSERT INTO player_stats(uuid,stats,main)
-                         VALUES(?, '{}', ?)                       -- '{}' placeholder for stats if new row
-                         ON DUPLICATE KEY UPDATE main=VALUES(main)
-                         """)) {
-                ps.setString(1, mp.uuid().toString());
-                ps.setString(2, json);
-                ps.executeUpdate();
-            } catch (SQLException e) {
-                e.printStackTrace();
+        boolean save(PlayerStat stats, boolean updateRedis) {
+            synchronized (stats.writeLock) {
+                Snapshot snapshot;
+                synchronized (stats) {
+                    if (!stats.isDirty()) return true;
+                    List<Score> scores = new ArrayList<>();
+                    for (String game : stats.dirtyGames) {
+                        Stat row = stats.games.get(game);
+                        scores.add(new Score(Leaderboards.Board.game(game, Field.KILLS), row.kills()));
+                        scores.add(new Score(Leaderboards.Board.game(game, Field.DEATHS), row.deaths()));
+                        scores.add(new Score(Leaderboards.Board.game(game, Field.WINS), row.wins()));
+                        scores.add(new Score(Leaderboards.Board.game(game, Field.STREAK), row.winStreak()));
+                        scores.add(new Score(Leaderboards.Board.game(game, Field.ROUNDS), row.roundsPlayed()));
+                        scores.add(new Score(Leaderboards.Board.game(game, Field.TIME), row.timePlayed()));
+                    }
+                    snapshot = new Snapshot(G.toJson(stats.games), stats.revision, scores);
+                }
+                if (!writeProfile(stats.uuid(), "stats", snapshot, updateRedis)) return false;
+                stats.markPersisted(snapshot.revision);
+                return true;
+            }
+        }
+
+        private boolean writeProfile(UUID id, String column, Snapshot snapshot, boolean updateRedis) {
+            String playerName = names.getIfPresent(id);
+            String other = column.equals("main") ? "stats" : "main";
+            String upsert = storedNames
+                    ? "INSERT INTO player_stats(uuid, " + column + ", " + other + ", player_name) "
+                        + "VALUES(?, ?, '{}', ?) ON DUPLICATE KEY UPDATE " + column + "=?, player_name=COALESCE(?, player_name)"
+                    : "INSERT INTO player_stats(uuid, " + column + ", " + other + ") "
+                        + "VALUES(?, ?, '{}') ON DUPLICATE KEY UPDATE " + column + "=?";
+            try (var connection = sql.getConnection(); var statement = connection.prepareStatement(upsert)) {
+                statement.setString(1, id.toString());
+                statement.setString(2, snapshot.json);
+                if (storedNames) {
+                    statement.setString(3, playerName);
+                    statement.setString(4, snapshot.json);
+                    statement.setString(5, playerName);
+                } else {
+                    statement.setString(3, snapshot.json);
+                }
+                statement.executeUpdate();
+            } catch (SQLException failure) {
+                plugin.getLogger().warning("[Stats] Could not save " + column + " for " + id + " to MySQL (" + failure.getSQLState() + ").");
                 return false;
             }
-            if (Boolean.TRUE.equals(cached)) mp.clearDirty();
-            return Boolean.TRUE.equals(cached);
+
+            if (updateRedis) {
+                redis.withJedis(j -> {
+                    try (var pipeline = j.pipelined()) {
+                        pipeline.setex(column + ":" + id, (int) TTL, snapshot.json);
+                        if (playerName != null) pipeline.hset(Leaderboards.NAMES, id.toString(), playerName);
+                        for (Score score : snapshot.scores) Leaderboards.index(pipeline, score.board, id, score.value);
+                        pipeline.sync();
+                    }
+                    return null;
+                });
+            }
+            return true;
         }
 
-
         /* ensures table exists on first start */
-        private void setupDatabase(Plugin plugin, int expiryDays) {
+        private boolean setupDatabase(Plugin plugin, int expiryDays) {
             String[] ddlStatements = {
                 """
                 CREATE TABLE IF NOT EXISTS player_stats (
                   uuid  CHAR(36) PRIMARY KEY,
+                  player_name VARCHAR(64),
                   stats JSON      NOT NULL,
                   main JSON       NOT NULL
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -404,10 +556,26 @@ public final class StatManagement {
                 """
             };
 
+            boolean hasPlayerName;
             try (Connection c = sql.getConnection();
                  Statement st = c.createStatement()) {
                 for (String sqlStmt : ddlStatements) {
                     st.executeUpdate(sqlStmt);
+                }
+                try (var columns = c.getMetaData().getColumns(c.getCatalog(), null, "player_stats", "player_name")) {
+                    hasPlayerName = columns.next();
+                }
+                if (!hasPlayerName) {
+                    try {
+                        st.executeUpdate("ALTER TABLE player_stats ADD COLUMN player_name VARCHAR(64)");
+                        hasPlayerName = true;
+                    } catch (SQLException migration) {
+                        switch (migration.getErrorCode()) {
+                            case 1060 -> hasPlayerName = true; // Another instance already added it.
+                            case 1044, 1142 -> plugin.getLogger().warning("[Stats] Grant ALTER on player_stats to persist leaderboard names in MySQL.");
+                            default -> throw migration;
+                        }
+                    }
                 }
             } catch (SQLException e) {
                 throw new IllegalStateException("Could not initialize MySQL tables.", e);
@@ -422,122 +590,16 @@ public final class StatManagement {
             } catch (SQLException e) {
                 plugin.getLogger().warning("[Stats] Could not delete expired ranked matches.");
             }
+            return hasPlayerName;
         }
 
 
-
-        /* ───── load ───── */
-        PlayerStat load(UUID id,String name){
-            String key="stats:"+id;
-            String js = redis.withJedis(j -> j.get(key));
-            if(js!=null){
-                redis.withJedis(j -> { j.expire(key,(int)TTL); return null;});
-                return inflate(id,js);
-            }
-            /* cache miss -> SQL */
-            try(Connection c=sql.getConnection(); PreparedStatement ps=c.prepareStatement(
-                    "SELECT stats FROM player_stats WHERE uuid=?")){
-                ps.setString(1,id.toString()); ResultSet rs=ps.executeQuery();
-                if(rs.next()){ js=rs.getString(1);
-                    String finalJs = js;
-                    redis.withJedis(j -> { j.setex(key,(int)TTL, finalJs); return null;});
-                    return inflate(id,js);
-                }
-            }catch(SQLException ignored){}
-            return new PlayerStat(id);
-        }
-
-        /* ───── save ───── */
-        boolean save(PlayerStat p) {
-            synchronized (p) {
-                return saveLocked(p);
-            }
-        }
-
-        private boolean saveLocked(PlayerStat p) {
-            if (!p.isDirty()) return true;
-
-            String key = "stats:" + p.uuid();
-            Map<String, Stat> clean = p.all().entrySet().stream()
-                    .filter(e -> e.getKey() != null && e.getValue() != null)
-                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-            String js = G.toJson(clean);
-
-            Boolean cached = redis.withJedis(j -> {
-                j.setex(key, (int) TTL, js);
-                for (String g : p.dirty()) {
-                    Stat s = p.all().get(g);
-
-                    /* every metric → its own sorted-set */
-                    zset(j, g, "kills",   s.kills(),        p.uuid());
-                    zset(j, g, "deaths",  s.deaths(),       p.uuid());
-                    zset(j, g, "wins",    s.wins(),         p.uuid());
-                    zset(j, g, "streak",  s.winStreak(),    p.uuid());
-                    zset(j, g, "rounds",  s.roundsPlayed(), p.uuid());
-                    zset(j, g, "time",    s.timePlayed(),   p.uuid());
-                }
-                return true;
-            });
-
-            /* SQL upsert unchanged */
-            try (Connection c = sql.getConnection();
-                 PreparedStatement ps = c.prepareStatement(
-                         "INSERT INTO player_stats(uuid,stats,main) VALUES(?,?, '{}') " +
-                                 "ON DUPLICATE KEY UPDATE stats=?")) {
-                ps.setString(1, p.uuid().toString());
-                ps.setString(2, js);
-                ps.setString(3, js);
-                ps.executeUpdate();
-            } catch (SQLException e) {
-                e.printStackTrace();
-                return false;
-            }
-
-            if (Boolean.TRUE.equals(cached)) p.clearDirty();
-            return Boolean.TRUE.equals(cached);
-        }
-
-
-        /* ───── leaderboard ───── */
-        List<Map.Entry<UUID,Long>> top(String g,String f,int n){
-            return redis.withJedis(j -> {
-                List<Map.Entry<UUID,Long>> list=new ArrayList<>();
-                j.zrevrangeWithScores(lb(g,f),0,n-1)
-                        .forEach(t->list.add(Map.entry(UUID.fromString(t.getElement()),(long)t.getScore())));
-                return list;
-            });
-        }
-
-        /* ---- helpers ---- */
-        private static PlayerStat inflate(UUID id,String js){
-            PlayerStat p=new PlayerStat(id);
-            p.all().putAll(G.fromJson(js,MAP));
-            p.clearDirty();
-            return p;
-        }
-        private static void zset(Jedis j,String g,String f,long score,UUID uuid){
-            String z=lb(g,f);
-            long updated = j.zadd(z, score, uuid.toString(), ZAddParams.zAddParams().xx().ch());
-            if (updated == 0) {
-                j.zadd(z, score, uuid.toString());   // first‑time insert
-            }
-
-            j.zremrangeByRank(z,100,-1);
-        }
-        private static String lb(String g,String f){return "lb:"+g.replace(' ','_')+":"+f;}
 
         /*────────────────── MATCH STORAGE ──────────────────*/
         void saveMatch(org.albi.core.modules.Duels.ranked.RankedMatchRecord record) {
             String key = "match:" + record.getMatchId();
             String json = G.toJson(record);
 
-            /* 1️⃣ Redis */
-            redis.withJedis(j -> {
-                j.setex(key, (int) matchTtlSeconds, json);
-                return null;
-            });
-
-            /* 2️⃣ SQL */
             try (Connection c = sql.getConnection();
                  PreparedStatement ps = c.prepareStatement("INSERT INTO ranked_matches(uuid, player1, player2, data) VALUES(?, ?, ?, ?)")) {
                 ps.setString(1, record.getMatchId());
@@ -546,8 +608,12 @@ public final class StatManagement {
                 ps.setString(4, json);
                 ps.executeUpdate();
             } catch (SQLException e) {
-                e.printStackTrace();
+                plugin.getLogger().warning("[Stats] Could not save ranked match " + record.getMatchId() + " to MySQL.");
             }
+            redis.withJedis(j -> {
+                j.setex(key, (int) matchTtlSeconds, json);
+                return null;
+            });
         }
 
         org.albi.core.modules.Duels.ranked.RankedMatchRecord loadMatch(String matchId) {
@@ -729,7 +795,7 @@ public final class StatManagement {
 
         private synchronized void ensure() {
             long now = System.currentTimeMillis();
-            if (!healthy && !closed && !reconnecting && now >= nextAttemptTime) {
+            if (!healthy && !closed && !reconnecting && now >= nextAttemptTime && plugin.isEnabled()) {
                 reconnecting = true;
                 Bukkit.getScheduler().runTaskAsynchronously(plugin, this::init);
             }

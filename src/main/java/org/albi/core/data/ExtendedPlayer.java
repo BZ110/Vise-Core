@@ -98,8 +98,6 @@ public final class ExtendedPlayer {
 
     /* ────────────────────────── async‑load tracking ───────────────── */
     private final CompletableFuture<Void> loadFuture = new CompletableFuture<>();
-    private volatile boolean statLoaded = false;
-    private volatile boolean mpLoaded = false;
 
     /* ────────────────────────── misc state ────────────────────────── */
     private boolean bypassRegion = false;
@@ -120,29 +118,14 @@ public final class ExtendedPlayer {
     /* ════════════════════════ ctor ════════════════════════════════ */
     public ExtendedPlayer(Player p) {
         this.player = p;
+        StatManagement.attach(p.getUniqueId(), p.getName());
 
-        /* async load – STAT */
-        StatManagement.getAsync(p.getUniqueId(), p.getName())
-                .thenAccept(s -> {
-                    this.stat = s;
-                    statLoaded = true;
-                    checkReady();
-                });
-
-        /* async load – MAIN PROFILE */
-        StatManagement.getMainAsync(p)
-                .thenAccept(m -> {
-                    this.mp = m;
-                    mpLoaded = true;
-                    checkReady();
-                });
-    }
-
-    /* called after either async branch finishes */
-    private void checkReady() {
-        if (statLoaded && mpLoaded && !loadFuture.isDone()) {
-            loadFuture.complete(null); // signal that everything is ready
-        }
+        var statistics = StatManagement.getAsync(p.getUniqueId(), p.getName()).thenAccept(value -> stat = value);
+        var profile = StatManagement.getMainAsync(p).thenAccept(value -> mp = value);
+        CompletableFuture.allOf(statistics, profile).whenComplete((ignored, error) -> {
+            if (error == null) loadFuture.complete(null);
+            else loadFuture.completeExceptionally(error);
+        });
     }
 
     /* public helpers for the rest of the plugin */
@@ -151,7 +134,7 @@ public final class ExtendedPlayer {
     }
 
     public boolean isReady() {
-        return loadFuture.isDone();
+        return loadFuture.isDone() && !loadFuture.isCompletedExceptionally();
     }
 
     /* ═══════════════════════ free on quit ════════════════════════ */

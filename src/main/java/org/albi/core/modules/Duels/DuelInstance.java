@@ -6,7 +6,6 @@ import org.albi.core.Core;
 import org.albi.core.util.ConfigValues;
 import org.albi.core.data.ExtendedPlayer;
 import org.albi.core.data.MainPlayer;
-import org.albi.core.data.StatManagement;
 import org.albi.core.modules.CustomKit.helpers.CustomKit;
 import org.albi.core.modules.Duels.helpers.*;
 import org.albi.core.modules.Duels.polar.PolarArenaReservation;
@@ -180,11 +179,12 @@ public class DuelInstance implements Listener {
                 || arena.getSpawn2() == null || arena.getSpawn2().length < 5
                 || arena.getCornerParameters() == null || arena.getCornerParameters().length < 4) return 0;
         if (arena.isPolarArena()) {
-            return DuelManager.polarArenaManager.availableCopies(arena);
+            return DuelManager.polarArenaManager == null ? 0 : DuelManager.polarArenaManager.availableCopies(arena);
         }
         if (arena.getMaxPerLine() <= 0 || arena.getMaxArenas() <= 0 || arena.getSchematic() == null
-                || !getSchematicFile(plugin, arena).isFile()
                 || plugin.getServer().getWorld(arena.getName() + "-duel") == null) return 0;
+        File file = getSchematicFile(plugin, arena);
+        if (!file.isFile() || !DuelManager.schemManager.canReserve(file)) return 0;
         var used = GlobalDuelCache.usedArenas.get(arena);
         return Math.max(0, arena.getMaxArenas() - (used == null ? 0 : used.size()));
     }
@@ -210,10 +210,14 @@ public class DuelInstance implements Listener {
         return queueArenaReady;
     }
 
+    public boolean hasLoadedQueueArena() {
+        return motherLocation != null && motherLocation.isWorldLoaded();
+    }
+
     public void releaseQueueArena() {
         if (queueArenaReady != null && !queueArenaReady.isDone()) {
             // A slot under an outstanding paste stays owned until the paste stops writing.
-            queueArenaReady.thenRun(this::releaseQueueArena);
+            queueArenaReady.whenComplete((ready, failure) -> releaseQueueArena());
             return;
         }
         if (polarReservation != null && queueArenaReady != null && !queueArenaInPlay) {
@@ -224,6 +228,20 @@ public class DuelInstance implements Listener {
         }
         motherLocation = null;
         queueArenaReady = null;
+    }
+
+    /** Clears only state installed by this duel if an exception interrupts its start. */
+    public void abortQueueStart() {
+        canceled = true;
+        GlobalDuelCache.availableInstances.remove(this);
+        for (Player player : merge(teamOne, teamTwo)) {
+            ExtendedPlayer profile = plugin.getExtendedPlayer(player);
+            var current = profile == null ? null : profile.getPlayerDuelInstance();
+            if (current != null && current.getDuelInstance() == this) {
+                profile.setPlayerDuelInstance(null);
+                plugin.teleportToLobby(player);
+            }
+        }
     }
 
     private boolean reserveArena() {
@@ -246,18 +264,22 @@ public class DuelInstance implements Listener {
      * Prepares everything, and starts the duel.
      */
     public void initialize(int secondsToCount, boolean isPk) {
+        startPrepared(secondsToCount, isPk);
+    }
+
+    public boolean startPrepared(int secondsToCount, boolean isPk) {
         final Player[][] merged = { merge(teamOne, teamTwo) };
 
         // SAFETY CHECK: Is anyone in a duel?
         for (Player p : merged[0]) {
             ExtendedPlayer ep = plugin.getExtendedPlayer(p);
-            PlayerDuelInstance duelData = ep.getPlayerDuelInstance();
-            if (duelData != null && duelData.getStatus() != null) {
+            PlayerDuelInstance duelData = ep == null ? null : ep.getPlayerDuelInstance();
+            if (ep == null || (duelData != null && duelData.getStatus() != null)) {
                 for (Player pp : merged[0]) {
                     plugin.getMessageAPI().sendMessageLang(pp, "duel_in");
                 }
                 releaseQueueArena();
-                return;
+                return false;
             }
         }
 
@@ -265,7 +287,7 @@ public class DuelInstance implements Listener {
             for (Player pp : merged[0]) {
                 plugin.getMessageAPI().sendMessageLang(pp, "duel_no_arena");
             }
-            return;
+            return false;
         }
         createAndStartMatchRecord();
         queueArenaInPlay = queueArenaReady != null;
@@ -364,7 +386,9 @@ public class DuelInstance implements Listener {
             // Apply kit AFTER the async teleport completes so cross-world
             // player data saving doesn't wipe the inventory we just set.
             p.teleportAsync(dest)
-                    .thenRun(() -> Bukkit.getScheduler().runTask(plugin, () -> plugin.applyPossibleKit(p, kitToGive)));
+                    .thenRun(() -> Bukkit.getScheduler().runTask(plugin, () -> {
+                        if (!canceled) plugin.applyPossibleKit(p, kitToGive);
+                    }));
         }
 
         // -------------------------------------------------------------------------
@@ -500,6 +524,7 @@ public class DuelInstance implements Listener {
                 }
             }
         }.runTaskTimer(plugin, 0L, 1L); // start immediately, run every tick
+        return true;
     }
 
     /**
@@ -1390,7 +1415,7 @@ public class DuelInstance implements Listener {
     private String capFirst(String in) {
         if (in == null || in.isEmpty())
             return "";
-        in = in.toLowerCase();
+        in = in.toLowerCase(Locale.ROOT);
         return Character.toUpperCase(in.charAt(0)) + in.substring(1);
     }
 
@@ -1401,38 +1426,38 @@ public class DuelInstance implements Listener {
     }
 
     /* ─────────────────────────────────────────────────────── */
-    /* Async stat modifiers */
+    /* Gameplay stats are updated before the quit or shutdown snapshot. */
     /* ─────────────────────────────────────────────────────── */
 
     private void addWin(Player p) {
         String stat = buildStatName(p);
-        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> StatManagement.getAsync(p.getUniqueId(), p.getName())
-                .thenAccept(ps -> ps.addWin(stat)));
+        var data = plugin.getCache().getExtendedPlayer(p);
+        if (data != null && data.getStat() != null) data.getStat().addWin(stat);
     }
 
     private void addLoss(Player p) {
         String stat = buildStatName(p);
-        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> StatManagement.getAsync(p.getUniqueId(), p.getName())
-                .thenAccept(ps -> ps.resetWinStreak(stat)));
+        var data = plugin.getCache().getExtendedPlayer(p);
+        if (data != null && data.getStat() != null) data.getStat().resetWinStreak(stat);
     }
 
     private void addDeath(Player p) {
         String stat = buildStatName(p);
-        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> StatManagement.getAsync(p.getUniqueId(), p.getName())
-                .thenAccept(ps -> ps.addDeath(stat)));
+        var data = plugin.getCache().getExtendedPlayer(p);
+        if (data != null && data.getStat() != null) data.getStat().addDeath(stat);
     }
 
     /** Adds just one win‑streak increment without counting as a win. */
     private void addWinstreak(Player p) {
         String stat = buildStatName(p);
-        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> StatManagement.getAsync(p.getUniqueId(), p.getName())
-                .thenAccept(ps -> ps.addWin(stat))); // addWin already increases streak internally
+        var data = plugin.getCache().getExtendedPlayer(p);
+        if (data != null && data.getStat() != null) data.getStat().addWin(stat); // addWin already increases streak internally
     }
 
     private void addRoundPlay(Player p) {
         String stat = buildStatName(p);
-        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> StatManagement.getAsync(p.getUniqueId(), p.getName())
-                .thenAccept(ps -> ps.addRound(stat)));
+        var data = plugin.getCache().getExtendedPlayer(p);
+        if (data != null && data.getStat() != null) data.getStat().addRound(stat);
     }
 
     private void addTimePlayed(Player p) {
@@ -1441,14 +1466,14 @@ public class DuelInstance implements Listener {
         if (seconds <= 0)
             return;
         String stat = buildStatName(p);
-        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> StatManagement.getAsync(p.getUniqueId(), p.getName())
-                .thenAccept(ps -> ps.addTime(stat, seconds)));
+        var data = plugin.getCache().getExtendedPlayer(p);
+        if (data != null && data.getStat() != null) data.getStat().addTime(stat, seconds);
     }
 
     private void addKill(Player p) {
         String stat = buildStatName(p);
-        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> StatManagement.getAsync(p.getUniqueId(), p.getName())
-                .thenAccept(ps -> ps.addKill(stat)));
+        var data = plugin.getCache().getExtendedPlayer(p);
+        if (data != null && data.getStat() != null) data.getStat().addKill(stat);
     }
 
     /** Sends a lang-keyed message to fighters **and** spectators. */

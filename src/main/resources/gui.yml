@@ -1473,6 +1473,8 @@ text:
     total-playtime: "&fTotal Playtime: &e{1}"
     xp: "&7({1} / {2} XP)"
   ranked-commands:
+    leaderboard-elo: "&7Elo: &6{1}"
+    leaderboard-tier: "&7Tier: {1}"
     open-leaderboard: "&d#{1} &f{2}"
   ranked-queue-module:
     beat-a-pro-high-reward: "&7 - Beat a PRO: &aHigh Reward"

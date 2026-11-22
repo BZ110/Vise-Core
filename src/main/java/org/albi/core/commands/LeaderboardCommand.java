@@ -12,7 +12,6 @@ import org.albi.core.modules.Duels.DuelManager;
 import org.albi.core.modules.Duels.helpers.Kit;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
-import org.bukkit.OfflinePlayer;
 import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
@@ -21,16 +20,11 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
 import java.util.*;
-import java.util.concurrent.TimeUnit;
 
 /**
  * /leaderboard – GUI + CLI
  */
 public class LeaderboardCommand extends BaseCommand {
-
-    /* cache */
-    private static final long CACHE_TTL_MS = TimeUnit.MINUTES.toMillis(5);
-    private static final Map<String, CachedLB> CACHE = new HashMap<>();
 
     private final Core plugin;
     private final Map<UUID, StatManagement.Field> fieldMem = new HashMap<>();
@@ -45,7 +39,7 @@ public class LeaderboardCommand extends BaseCommand {
         /* text usage */
         if (a.length >= 2) {
             try {
-                StatManagement.Field f = StatManagement.Field.valueOf(a[0].toUpperCase());
+                StatManagement.Field f = StatManagement.Field.valueOf(a[0].toUpperCase(Locale.ROOT));
                 show(p, f, String.join(" ", Arrays.copyOfRange(a, 1, a.length)));
             } catch (IllegalArgumentException ex) {
                 plugin.getMessageAPI().sendMessage(p, Messages.text(p, "messages.leaderboard-command.invalid-field"));
@@ -131,9 +125,6 @@ public class LeaderboardCommand extends BaseCommand {
                     .map(Kit::getName).findFirst().orElse(raw);
             kitName = ChatColor.stripColor(kitName).trim();
 
-            // Capitalize first letter
-            kitName = kitName.substring(0, 1).toUpperCase() + kitName.substring(1);
-
             show(v,f,kitName+" "+size);
 
             fieldMem.remove(v.getUniqueId());
@@ -141,32 +132,35 @@ public class LeaderboardCommand extends BaseCommand {
         }
     }
 
-    /*──────────── fetch & print ────────────*/
-    private void show(Player v,StatManagement.Field f,String game){
-        Bukkit.getScheduler().runTaskAsynchronously(plugin,()->{
-            String cacheKey=game+":"+f.name(); long now=System.currentTimeMillis();
-            List<StatManagement.LBRow> rows;
-            CachedLB c=CACHE.get(cacheKey);
-            if(c!=null&&now-c.time<CACHE_TTL_MS) rows=c.rows;
-            else { rows=StatManagement.leaderboard(game,f,10); CACHE.put(cacheKey,new CachedLB(rows,now)); }
-
-            if(rows==null||rows.isEmpty()){plugin.getMessageAPI().sendMessage(v,Messages.text(v, "messages.leaderboard-command.no-data"));return;}
-
-            StringBuilder sb=new StringBuilder("§7Top §f").append(f.name().toLowerCase())
-                    .append("§7 – §d").append(game).append("§7:\n");
-            for(int i=0;i<rows.size();i++){
-                var r=rows.get(i); OfflinePlayer op=Bukkit.getOfflinePlayer(r.uuid());
-                String val=f==StatManagement.Field.TIME?fmt((int)r.score()):String.valueOf(r.score());
-                sb.append("  §e").append(i+1).append(". §b").append(op.getName())
-                        .append(" §7- §f").append(val).append("\n");
-            }
-            Bukkit.getScheduler().runTask(plugin,()->Arrays.stream(sb.toString().split("\n")).forEach(v::sendMessage));
+    private void show(Player viewer, StatManagement.Field field, String game) {
+        String key = game.strip().toLowerCase(Locale.ROOT);
+        if (!key.isEmpty()) key = Character.toUpperCase(key.charAt(0)) + key.substring(1);
+        String gameKey = key;
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            List<StatManagement.LBRow> rows = StatManagement.leaderboard(gameKey, field, 10);
+            Bukkit.getScheduler().runTask(plugin, () -> printLeaderboard(viewer, field, game, rows));
         });
+    }
+
+    private void printLeaderboard(Player viewer, StatManagement.Field field, String game,
+                                  List<StatManagement.LBRow> rows) {
+        if (!viewer.isOnline()) return;
+        if (rows.isEmpty()) {
+            Messages.send(viewer, "messages.leaderboard-command.no-data");
+            return;
+        }
+
+        Messages.send(viewer, "messages.leaderboard-command.heading", field.name().toLowerCase(Locale.ROOT), game);
+        for (int i = 0; i < rows.size(); i++) {
+            var row = rows.get(i);
+            String name = row.name() == null ? Bukkit.getOfflinePlayer(row.uuid()).getName() : row.name();
+            String score = field == StatManagement.Field.TIME ? fmt((int) row.score()) : Long.toString(row.score());
+            Messages.send(viewer, "messages.leaderboard-command.row", i + 1, name == null ? row.uuid() : name, score);
+        }
     }
 
     private String fmt(int s){int d=s/86400;s%=86400;int h=s/3600;s%=3600;int m=s/60;s%=60;
         StringBuilder b=new StringBuilder();if(d>0)b.append(d).append("d ");
         if(h>0)b.append(h).append("h ");if(m>0)b.append(m).append("m ");
         if(s>0||b.length()==0)b.append(s).append("s");return b.toString().trim();}
-    private record CachedLB(List<StatManagement.LBRow> rows,long time){}
 }

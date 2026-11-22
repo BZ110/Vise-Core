@@ -73,7 +73,7 @@ Scale a single instance with schematic slots or Polar world copies, or run a fle
 
 Run **Paper 1.21.3 with Java 21** and install **WorldEdit or FastAsyncWorldEdit** for Duels. Put the lobby and arena world on that instance. Start with the schematic backend, which is the default and works on the documented Paper version. A schematic arena can reuse physical slots in one loaded world as matches finish. [Schematic arena setup](#schematic-arenas)
 
-Plan for **one MySQL database and one Redis endpoint**. Both can run on the same machine as Paper if your host allows it, or you can use reachable endpoints supplied by your host. MySQL stores profiles, stats, and ranked history. Core disables itself at startup if it cannot initialize MySQL. Redis is useful even on one server because it backs profile caching, leaderboards, and kit-share codes. If Redis is temporarily unavailable, standalone duels still run and MySQL can serve saved profiles and match history. Redis features resume when the connection recovers. [Storage and connection code](src/main/java/org/albi/core/data/StatManagement.java)
+Plan for **one MySQL database and one Redis endpoint**. Both can run on the same machine as Paper if your host allows it, or you can use reachable endpoints supplied by your host. MySQL stores profiles, stats, and ranked history. Core disables itself at startup if it cannot initialize MySQL. Redis backs leaderboard indexes, kit-share codes, and profile snapshots. During a Redis outage, standalone duels still run and MySQL serves saved profiles, leaderboards, and match history. [Storage and connection code](src/main/java/org/albi/core/data/StatManagement.java)
 
 If you add Core to an existing survival server, test the join flow on a copy first. Core resets player state, clears inventory, and sends players to its configured lobby on join. That behavior fits a practice server and matters when the same Paper instance also hosts an SMP. [Join listener](src/main/java/org/albi/core/events/OnJoinListener.java) · [Player reset code](src/main/java/org/albi/core/Core.java)
 
@@ -269,7 +269,8 @@ The effective ready target is `max(max(1, polar_preload), active reservations + 
 - Each kit has its own rating, win and loss counts, and placements. Core also tracks an overall rating. Ratings start at **1,000 Elo**. The first **five matches** count as placements by default. The Elo adjustment uses a factor of 64 during placements and 32 after.
 - The initial search window is ±50 Elo. It grows by 25 for every three seconds waiting. A pair is eligible if the gap fits either player's current window. Wins against higher-rated opponents are worth more, and the match countdown previews the stakes.
 - Tiers run from Bronze through Silver, Gold, Platinum, Diamond, Master, Grandmaster, and Champion. Each tier has five 100-point divisions. Players see placement progress until they earn a displayed tier.
-- `/rankedlb` opens the top 27 by overall ranked Elo in Redis. The kit picker and match calculations use the selected kit's ladder. For an arena pool specific to a kit, use `/rankedadmin add <kit> <arena>`, `remove <kit> <arena>`, and `list <kit>`. If the pool is empty, the queue draws from the shared arena list. Staff can access the pool commands with both `core.rankedadmin` and `core.admin.ranked`.
+- If local matchmaking cannot prepare an arena, eligible players keep their queue position and elapsed wait. Core starts the duel once the arena is ready and both players are eligible.
+- `/rankedlb` opens the top 27 by overall ranked Elo. The kit picker and match calculations use the selected kit's ladder. For an arena pool specific to a kit, use `/rankedadmin add <kit> <arena>`, `remove <kit> <arena>`, and `list <kit>`. If the pool is empty, the queue draws from the shared arena list. Staff can access the pool commands with both `core.rankedadmin` and `core.admin.ranked`.
 
 [Ranked matcher](src/main/java/org/albi/core/modules/Duels/queue/RankedQueueModule.java) · [Elo calculation](src/main/java/org/albi/core/modules/Duels/ranked/EloCalculator.java) · [Leaderboard reader](src/main/java/org/albi/core/modules/Duels/ranked/RankedCommands.java)
 
@@ -504,6 +505,8 @@ The travel refresh uses Redis `SCAN` and rebuilds its menu snapshot every 100 ti
 
 `/stats [player]` opens paged statistics for applicable kit and team-size combinations. The UI displays stored results such as wins, kills, deaths, streak, time, and other activity information when present. `/leaderboard` gives a separate view by stat, kit, and team size. It also accepts `/leaderboard <field> <game>` for a text result. `/rankedlb` shows competitive Elo standings.
 
+Both leaderboard commands use Redis indexes of the 100 highest scores and can read the full leaderboard data from MySQL when an index is missing or Redis is unavailable. Core rebuilds the indexes from MySQL as boards are opened, so saved scores dropped by older Redis trimming reappear. If both services are unavailable, the instance serves its last successful result for that board when one is cached.
+
 Players can limit their profile and stats visibility in `/settings`. Staff with `core.profile.bypass` can open otherwise private profiles.
 
 ### Armor trims, kill effects, and particles
@@ -582,6 +585,7 @@ Gameplay listeners reset player state at key transitions, use world-local death 
 | `mysql` | Host, port, database, user, password, and connection pool size. A blank `ssl_mode` uses the legacy `ssl` flag. For TCP TLS verification, set a supported Connector/J mode such as `VERIFY_IDENTITY` with a trusted server certificate. |
 | `redis` | Host, port, optional password, and TLS. With TLS enabled, `ca_file` can point to a custom CA, relative to `plugins/Core/` or absolute. A blank value tries `certs/ca.crt` first, then the JVM trust store. |
 | `storage.flush_interval_seconds` | Frequency of periodic profile and stats flushes. The bundled default is 600 seconds. |
+| `storage.shutdown_timeout_seconds` | Maximum wait for pending writes and the final MySQL flush before storage closes. The default is 15 seconds. |
 | `network` | Redis chat bridge and global matchmaking, links for `/store` and `/discord`, and direct travel destinations. |
 | `announcements`, `autorestart` | Lobby tips and the startup restart schedule. |
 | `use_polar_worlds`, `polar_preload` | Toggle the PolarPaper backend and set its preload target. |
@@ -703,14 +707,14 @@ Set credentials in the environment of the Paper process. A defined variable take
 | Where | Data |
 | --- | --- |
 | `plugins/Core/data.dat` | Local plugin data, including spawn points, menu destinations, arenas, public kit definitions, categories, and event setup. Core writes the file through a temporary file when saving on shutdown. If the file cannot be read during startup, Core disables itself so an operator can recover the file. |
-| MySQL | `player_stats` stores player profiles and statistics. `ranked_matches` stores match history and telemetry. The optional Discord module stores completed account links in `player_discord_links`. |
+| MySQL | `player_stats` stores player profiles, statistics, and the last known player name. `ranked_matches` stores match history and telemetry. The optional Discord module stores completed account links in `player_discord_links`. |
 | Redis | Cached profiles, stats and match records, sorted-set leaderboards, kit-sharing codes, Discord link codes, chat messages in transit, matchmaking tickets and handoffs, and server heartbeats and health streams. |
 | Memory | Online profile state and active gameplay state such as queues, parties, pending teleport requests, and arena reservations. A Paper restart clears active sessions. |
 | `plugins/Core/reports/` | HTML files produced by explicit report export commands. |
 
 #### Data flow and cache lifetime
 
-The online player wrapper brings together active state, the saved profile, and statistics. On a process-local cache miss, Core checks Redis and then MySQL for the player JSON. A successful Redis read refreshes the 72-hour profile or stats cache lifetime. When a profile or stats object is dirty, a scheduled flush or a disconnect save writes the Redis cache and upserts the corresponding MySQL column. Keep both services healthy when verifying persistence. An in-game change can be visible before a save has reached either service.
+The online player wrapper brings together active state, the saved profile, and statistics. On a process-local cache miss, Core checks MySQL for the saved JSON and can fall back to the Redis snapshot. Periodic flushes and disconnect saves commit dirty changes to MySQL, then update Redis. On a graceful stop, Core waits for already queued writes and performs a final MySQL flush of dirty profiles and statistics within the configured timeout.
 
 | Redis key or channel | Purpose |
 | --- | --- |
@@ -723,7 +727,7 @@ The online player wrapper brings together active state, the saved profile, and s
 | `vise:mm:v1:{<namespace>}:*` | Global queue tickets, per-player claims, host availability, pending match handoffs, and spectator routes and requests. |
 | `server:<id>:health:latest`, `server:<id>:health:stream` | Current server heartbeat and rolling health history. |
 
-On startup, Core opens SQL and ensures the tables exist before starting its command and module registrations. A failed SQL initialization disables the plugin. The Redis client checks for a PING response and retries failed connections. During a Redis outage the SQL fallback can still serve saved profiles and match records, while live functions such as travel discovery, Redis leaderboards, code redemption, and chat depend on Redis recovery. [Storage and connection code](src/main/java/org/albi/core/data/StatManagement.java) · [Player profile model](src/main/java/org/albi/core/data/MainPlayer.java)
+On startup, Core opens SQL and ensures the tables exist before registering commands and modules. On upgrade, `ALTER` on `player_stats` lets Core add a column for leaderboard names. On schemas without that column, Core can still display scores using names known to Redis or Paper, with UUIDs for players it cannot identify. A failed SQL initialization disables the plugin. The Redis client checks for a PING response and retries failed connections. During a Redis outage, MySQL serves saved profiles, leaderboards, and match records. Travel discovery, code redemption, and cross-server chat depend on Redis recovery. [Storage and connection code](src/main/java/org/albi/core/data/StatManagement.java) · [Player profile model](src/main/java/org/albi/core/data/MainPlayer.java)
 
 ### Upgrading and troubleshooting
 

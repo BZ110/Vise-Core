@@ -415,7 +415,8 @@ public class DuelQueueModule implements Listener {
         playerChoice.remove(id);
         queuedSince.remove(id);
         Player p = Bukkit.getPlayer(id);
-        if (p != null) plugin.giveAppropriateLobbyItems(p);
+        var profile = p == null ? null : plugin.getCache().getExtendedPlayer(p);
+        if (profile != null && profile.getPlayerDuelInstance() == null) plugin.giveAppropriateLobbyItems(p);
     }
 
     private void startPendingQueuedDuel(Player p1, Player p2, Kit kitA, Kit kitB, boolean isPk) {

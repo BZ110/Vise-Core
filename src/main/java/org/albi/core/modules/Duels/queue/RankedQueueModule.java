@@ -8,17 +8,14 @@ import com.samjakob.spigui.buttons.SGButton;
 import com.samjakob.spigui.menu.SGMenu;
 import org.albi.core.Core;
 import org.albi.core.modules.Duels.queue.global.GlobalMatchmaking;
+import org.albi.core.modules.Duels.queue.global.QueueDuelHost;
 import org.albi.core.data.ExtendedPlayer;
-import org.albi.core.modules.Duels.DuelInstance;
 import org.albi.core.modules.Duels.DuelManager;
-import org.albi.core.modules.Duels.helpers.Arena;
-import org.albi.core.modules.Duels.helpers.DuelKitPageCategory;
 import org.albi.core.modules.Duels.helpers.Kit;
 import org.albi.core.modules.Duels.ranked.RankedStats;
 import org.albi.core.util.KitSafety;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
-import org.bukkit.Sound;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -28,24 +25,30 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.potion.PotionEffect;
-import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
-import java.util.concurrent.ThreadLocalRandom;
+import java.time.Duration;
+import java.util.logging.Level;
 
 public class RankedQueueModule implements Listener, CommandExecutor {
 
+    private record PendingMatch(Player first, Player second, String kit,
+                                QueueDuelHost.Reservation reservation, long expires) {}
+
+    private static final long ARENA_WAIT_NANOS = Duration.ofSeconds(30).toNanos();
     private final Core plugin;
+    private final QueueDuelHost host;
+    private final Map<UUID, PendingMatch> pending = new HashMap<>();
     private final Map<String, Deque<UUID>> queues = new ConcurrentHashMap<>();
     private final Map<UUID, Long> queuedSince = new ConcurrentHashMap<>();
     private final Map<UUID, String> queuedKey = new ConcurrentHashMap<>();
 
     public RankedQueueModule(Core plugin) {
         this.plugin = plugin;
+        this.host = new QueueDuelHost(plugin);
         Bukkit.getPluginManager().registerEvents(this, plugin);
         plugin.getCommand("rankedqueue").setExecutor(this);
 
@@ -207,7 +210,6 @@ public class RankedQueueModule implements Listener, CommandExecutor {
                 continue;
             }
             long elapsed = (System.currentTimeMillis() - entry.getValue()) / 1000L;
-            String kitName = queuedKey.get(player.getUniqueId());
             int eloRange = getEloRange((int) elapsed);
 
             player.sendActionBar(Messages.text(player, "messages.ranked-queue-module.s-range", elapsed, eloRange));
@@ -237,6 +239,7 @@ public class RankedQueueModule implements Listener, CommandExecutor {
 
     private void matchQueues() {
         if (DuelManager.getMatchmaking() != null) return;
+        finishReservations();
         for (Map.Entry<String, Deque<UUID>> entry : queues.entrySet()) {
             String kitName = entry.getKey();
             Deque<UUID> waiting = entry.getValue();
@@ -246,7 +249,7 @@ public class RankedQueueModule implements Listener, CommandExecutor {
             List<UUID> players = new ArrayList<>(waiting);
             for (int i = 0; i < players.size(); i++) {
                 Player p1 = Bukkit.getPlayer(players.get(i));
-                if (!kitName.equals(queuedKey.get(players.get(i))) || !GlobalMatchmaking.eligible(p1, true))
+                if (!canPair(p1, kitName))
                     continue;
 
                 long wait1 = (System.currentTimeMillis()
@@ -256,7 +259,7 @@ public class RankedQueueModule implements Listener, CommandExecutor {
 
                 for (int j = i + 1; j < players.size(); j++) {
                     Player p2 = Bukkit.getPlayer(players.get(j));
-                    if (!kitName.equals(queuedKey.get(players.get(j))) || !GlobalMatchmaking.eligible(p2, true))
+                    if (!canPair(p2, kitName))
                         continue;
 
                     long wait2 = (System.currentTimeMillis()
@@ -266,8 +269,7 @@ public class RankedQueueModule implements Listener, CommandExecutor {
 
                     int diff = Math.abs(elo1 - elo2);
                     if (diff <= range1 || diff <= range2) {
-                        // Match found!
-                        startRankedMatch(p1, p2, kitName);
+                        reserveMatch(p1, p2, kitName);
                         break;
                     }
                 }
@@ -275,53 +277,67 @@ public class RankedQueueModule implements Listener, CommandExecutor {
         }
     }
 
-    private void startRankedMatch(Player p1, Player p2, String kitName) {
-        removeQueueState(p1.getUniqueId());
-        removeQueueState(p2.getUniqueId());
-
-        for (Player p : List.of(p1, p2)) {
-            p.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 80, 4, false, false, false));
-            p.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 80, 4, false, false, false));
-            p.sendTitle(Messages.text(p, "messages.ranked-queue-module.ranked-match"), Messages.text(p, "messages.ranked-queue-module.opponent-found-teleporting"), 10, 60, 10);
-            p.playSound(p, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1.0f, 1.0f);
-        }
-
-        new BukkitRunnable() {
-            @Override
-            public void run() {
-                if (!GlobalMatchmaking.eligible(p1, true) || !GlobalMatchmaking.eligible(p2, true))
-                    return;
-
-                Kit kit = DuelManager.stor.getKitByName(kitName);
-                if (kit == null) return;
-                Arena arena = selectRandomRankedArena(kitName);
-
-                DuelInstance duel = new DuelInstance(plugin);
-                duel.setRanked(true);
-                duel.prepare(new Player[] { p1 }, new Player[] { p2 }, arena, kit, kit, 1);
-                duel.initialize(10, false);
-            }
-        }.runTaskLater(plugin, 60L);
+    private boolean canPair(Player player, String kit) {
+        return stillQueued(player, kit) && !pending.containsKey(player.getUniqueId());
     }
 
-    private Arena selectRandomRankedArena(String kitName) {
-        List<String> allowedArenas = DuelManager.stor.getRankedArenas().get(kitName);
-        List<Arena> arenas = DuelManager.stor.arenas.stream()
-                .filter(arena -> arena != null && !arena.deactivated)
-                .filter(arena -> allowedArenas == null || allowedArenas.isEmpty()
-                        || allowedArenas.stream().anyMatch(name -> name.equalsIgnoreCase(arena.getName())))
-                .toList();
-        return arenas.isEmpty() ? null : arenas.get(ThreadLocalRandom.current().nextInt(arenas.size()));
+    private boolean stillQueued(Player player, String kit) {
+        return GlobalMatchmaking.eligible(player, true) && kit.equals(queuedKey.get(player.getUniqueId()));
+    }
+
+    private void reserveMatch(Player first, Player second, String kit) {
+        var reservation = host.reserveRanked(kit);
+        if (reservation == null) return;
+        var match = new PendingMatch(first, second, kit, reservation, System.nanoTime() + ARENA_WAIT_NANOS);
+        pending.put(first.getUniqueId(), match);
+        pending.put(second.getUniqueId(), match);
+    }
+
+    private void finishReservations() {
+        for (PendingMatch match : new LinkedHashSet<>(pending.values())) {
+            boolean eligible = stillQueued(match.first, match.kit) && stillQueued(match.second, match.kit)
+                    && match.reservation.isValid(true) && match.expires > System.nanoTime();
+            if (eligible && match.reservation.pending()) continue;
+
+            forget(match);
+            boolean started = false;
+            try {
+                started = eligible && match.reservation.ready() && match.reservation.start(match.first, match.second, true);
+            } catch (RuntimeException failure) {
+                plugin.getLogger().log(Level.WARNING, "[Matchmaking] Could not start ranked duel.", failure);
+            } finally {
+                if (!started) match.reservation.release();
+            }
+            if (started) {
+                removeQueueState(match.first.getUniqueId());
+                removeQueueState(match.second.getUniqueId());
+            }
+        }
+    }
+
+    private void forget(PendingMatch match) {
+        pending.remove(match.first.getUniqueId(), match);
+        pending.remove(match.second.getUniqueId(), match);
+    }
+
+    public void close() {
+        new LinkedHashSet<>(pending.values()).forEach(match -> match.reservation.release());
+        pending.clear();
     }
 
     public void removeQueueState(UUID id) {
+        PendingMatch match = pending.get(id);
+        if (match != null) {
+            forget(match);
+            match.reservation.release();
+        }
         String key = queuedKey.remove(id);
         if (key == null) return;
         if (queues.containsKey(key)) queues.get(key).remove(id);
         queuedSince.remove(id);
         Player p = Bukkit.getPlayer(id);
-        if (p != null)
-            plugin.giveAppropriateLobbyItems(p);
+        var profile = p == null ? null : plugin.getCache().getExtendedPlayer(p);
+        if (profile != null && profile.getPlayerDuelInstance() == null) plugin.giveAppropriateLobbyItems(p);
     }
 
     public int getQueued(Kit k) {

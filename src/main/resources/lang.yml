@@ -566,6 +566,8 @@ messages:
     that-can-t-be-broken: That can't be broken.
     you-are-eliminated-spectator-mode-enabled: "&cYou are eliminated! Spectator mode enabled."
   leaderboard-command:
+    heading: "&7Top &f{1}&7 – &d{2}&7:"
+    row: "  &e{1}. &b{2} &7- &f{3}"
     error: "&cError."
     invalid-field: "&cInvalid field."
     no-data: "&cNo data."
@@ -577,6 +579,7 @@ messages:
   manager:
     all-npc-practice-sessions-are-in-use-try: "&cAll NPC practice sessions are in use. Try again in a moment."
   on-join-listener:
+    profile-unavailable: "&cYour profile could not load. Reconnect when storage is available."
     your-profile-is-now-ready: "&aYour profile is now ready."
   party-command:
     only-players-can-use-this-command: Only players can use this command.

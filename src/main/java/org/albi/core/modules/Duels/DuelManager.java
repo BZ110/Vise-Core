@@ -102,6 +102,7 @@ public final class DuelManager extends Module {
 
     public static void shutdownMatchmaking() {
         if (matchmaking != null) matchmaking.close();
+        if (rankedQueueModule != null) rankedQueueModule.close();
         matchmaking = null;
         spectators = null;
     }

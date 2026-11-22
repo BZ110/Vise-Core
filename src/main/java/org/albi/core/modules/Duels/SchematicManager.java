@@ -8,7 +8,6 @@ import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldedit.extent.clipboard.Clipboard;
 import com.sk89q.worldedit.extent.clipboard.io.ClipboardFormat;
 import com.sk89q.worldedit.extent.clipboard.io.ClipboardFormats;
-import com.sk89q.worldedit.extent.clipboard.io.ClipboardReader;
 import com.sk89q.worldedit.function.operation.Operation;
 import com.sk89q.worldedit.function.operation.Operations;
 import com.sk89q.worldedit.math.BlockVector3;
@@ -21,10 +20,15 @@ import org.bukkit.plugin.java.JavaPlugin;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.util.HashMap;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.nio.file.attribute.FileTime;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -35,14 +39,18 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * @version 1.0
  */
 public class SchematicManager {
+    private static final long RETRY_DELAY = TimeUnit.SECONDS.toNanos(2);
 
     private final JavaPlugin plugin; // Reference to your main plugin class
     private final boolean fastAsyncWorldEdit;
     private final Queue<PasteTask> queue = new ConcurrentLinkedQueue<>();
     private final AtomicBoolean isPasting = new AtomicBoolean(false);
 
-    // Cache for schematics, mapping the schematic file's name to its Clipboard.
-    private final HashMap<String, Clipboard> cacheSchem = new HashMap<>();
+    private record CachedClipboard(FileTime modified, long size, Clipboard clipboard) {}
+
+    // FAWE reads on a worker. Key by path because different arenas can use the same filename.
+    private final ConcurrentHashMap<Path, CachedClipboard> cacheSchem = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Path, Long> failedPastes = new ConcurrentHashMap<>();
 
     // Basic constructor, pass in your JavaPlugin class. (The variable "this" inside your main class)
     public SchematicManager(JavaPlugin plugin) {
@@ -71,6 +79,14 @@ public class SchematicManager {
         return completion;
     }
 
+    boolean canReserve(File file) {
+        Path path = file.toPath().toAbsolutePath().normalize();
+        Long retryAt = failedPastes.get(path);
+        if (retryAt == null) return true;
+        if (retryAt > System.nanoTime()) return false;
+        return failedPastes.remove(path, retryAt);
+    }
+
     /**
      * Process the next schematic in the queue, if any.
      */
@@ -94,6 +110,8 @@ public class SchematicManager {
                 plugin.getLogger().log(java.util.logging.Level.WARNING, "Schematic paste failed", e);
             }
             if (!success) {
+                // Let matchmaking try another arena while this file is being repaired.
+                failedPastes.put(task.file.toPath().toAbsolutePath().normalize(), System.nanoTime() + RETRY_DELAY);
                 plugin.getLogger().warning("Failed to paste schematic: " + task.file.getName());
             }
             // Optionally add a short delay before processing the next task.
@@ -120,16 +138,6 @@ public class SchematicManager {
      * @return success state as a boolean.
      */
     public boolean pasteHelper(Location location, File file, boolean air) {
-        // Try to get the cached clipboard.
-        Clipboard clipboard = cacheSchem.get(file.getName());
-
-        // Find the appropriate format for the schematic file.
-        ClipboardFormat format = ClipboardFormats.findByFile(file);
-        if (format == null) {
-            plugin.getLogger().warning("Unsupported schematic file: " + file.getName());
-            return false;
-        }
-
         // Compute the paste position as a BlockVector3.
         BlockVector3 pastePos = BlockVector3.at(location.getBlockX(), location.getBlockY(), location.getBlockZ());
         try {
@@ -138,15 +146,7 @@ public class SchematicManager {
                 return false;
             }
 
-            // If clipboard isn't already cached, load it from file and cache it.
-            if (clipboard == null) {
-                plugin.getLogger().warning("The schematic pasted was not cached. Caching.");
-                try (FileInputStream fis = new FileInputStream(file);
-                     ClipboardReader reader = format.getReader(fis)) {
-                    clipboard = reader.read();
-                    cacheSchem.put(file.getName(), clipboard);
-                }
-            }
+            Clipboard clipboard = loadClipboard(file);
 
             World weWorld = BukkitAdapter.adapt(location.getWorld());
             var builder = WorldEdit.getInstance().newEditSessionBuilder().world(weWorld);
@@ -162,9 +162,28 @@ public class SchematicManager {
                 if (fastAsyncWorldEdit) editSession.flushQueue();
             }
             return true;
-        } catch (IOException | WorldEditException e) {
-            e.printStackTrace();
+        } catch (IOException e) {
+            plugin.getLogger().warning("Could not read schematic " + file.getName() + ". " + e.getMessage());
             return false;
+        } catch (WorldEditException e) {
+            plugin.getLogger().log(java.util.logging.Level.WARNING, "Could not paste " + file.getName(), e);
+            return false;
+        }
+    }
+
+    private Clipboard loadClipboard(File file) throws IOException {
+        Path path = file.toPath().toRealPath();
+        var attrs = Files.readAttributes(path, BasicFileAttributes.class);
+        CachedClipboard cached = cacheSchem.get(path);
+        if (cached != null && cached.modified.equals(attrs.lastModifiedTime()) && cached.size == attrs.size()) {
+            return cached.clipboard;
+        }
+        ClipboardFormat format = ClipboardFormats.findByFile(file);
+        if (format == null) throw new IOException("Unsupported schematic format");
+        try (var input = new FileInputStream(file); var reader = format.getReader(input)) {
+            Clipboard clipboard = reader.read();
+            cacheSchem.put(path, new CachedClipboard(attrs.lastModifiedTime(), attrs.size(), clipboard));
+            return clipboard;
         }
     }
 

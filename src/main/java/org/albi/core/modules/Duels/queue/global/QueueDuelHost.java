@@ -15,31 +15,46 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
-final class QueueDuelHost {
-    record Reservation(DuelInstance duel, Arena arena, Kit first, Kit second, boolean personal) {
-        boolean pending() {
+public final class QueueDuelHost {
+    public record Reservation(DuelInstance duel, Arena arena, Kit first, Kit second, boolean personal) {
+        public boolean pending() {
             return !duel.queueArenaReady().isDone();
         }
 
-        boolean ready() {
+        public boolean ready() {
             return duel.queueArenaReady().getNow(false);
         }
 
-        void start(Player firstPlayer, Player secondPlayer, boolean ranked) {
-            duel.setRanked(ranked).usePreparedPersonalKits()
-                    .prepare(new Player[] { firstPlayer }, new Player[] { secondPlayer }, arena, first, second, 1);
-            duel.initialize(10, personal);
+        public boolean isValid(boolean ranked) {
+            return duel.hasLoadedQueueArena() && !arena.deactivated && DuelManager.stor.arenas.contains(arena)
+                    && (personal || DuelManager.stor.getKitByName(first.getName()) == first)
+                    && (!ranked || arenasFor(List.of(arena), first.getName(), true).contains(arena));
         }
 
-        void release() {
+        public boolean start(Player firstPlayer, Player secondPlayer, boolean ranked) {
+            duel.setRanked(ranked).usePreparedPersonalKits()
+                    .prepare(new Player[] { firstPlayer }, new Player[] { secondPlayer }, arena, first, second, 1);
+            try {
+                return duel.startPrepared(10, personal);
+            } catch (RuntimeException failure) {
+                duel.abortQueueStart();
+                throw failure;
+            }
+        }
+
+        public void release() {
             duel.releaseQueueArena();
         }
     }
 
     private final Core plugin;
 
-    QueueDuelHost(Core plugin) {
+    public QueueDuelHost(Core plugin) {
         this.plugin = plugin;
+    }
+
+    public Reservation reserveRanked(String kit) {
+        return reserve(kit, true, null, null);
     }
 
     MatchmakingPolicy.Host snapshot(String server, String session, String pool, int incoming) {

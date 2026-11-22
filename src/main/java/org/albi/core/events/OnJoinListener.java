@@ -40,27 +40,32 @@ public class OnJoinListener implements Listener {
         /* Fetch Tier data in background to warm cache */
         plugin.getTierManager().fetchAll(player.getUniqueId(), true);
 
-        ep.whenReady().thenRun(() ->
-                Bukkit.getScheduler().runTask(plugin, () -> {
-                    if (!player.isOnline() || Bukkit.getPlayer(player.getUniqueId()) != player) return;
-                    Messages.send(player, "messages.on-join-listener.your-profile-is-now-ready");
+        ep.whenReady().whenComplete((ignored, error) -> {
+            if (!plugin.isEnabled()) return;
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                if (!player.isOnline() || Bukkit.getPlayer(player.getUniqueId()) != player) return;
+                if (error != null) {
+                    Messages.send(player, "messages.on-join-listener.profile-unavailable");
+                    return;
+                }
+                Messages.send(player, "messages.on-join-listener.your-profile-is-now-ready");
 
-                    MainPlayer mp = ep.getMainPlayer();
+                MainPlayer mp = ep.getMainPlayer();
 
-                    if (player.hasPermission("core.elytra") && mp.elytra()) {
-                        ItemStack elytra = new ItemStack(Material.ELYTRA);
-                        ItemMeta elytraMeta = elytra.getItemMeta();
-                        if (player.hasPermission("core.elytra.enchanted")) {
-                            elytraMeta.addEnchant(Enchantment.UNBREAKING, 1, true);
-                            elytraMeta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
-                        }
-                        elytraMeta.setUnbreakable(true);
-                        elytraMeta.setLore(Collections.singletonList("§r§7" + player.getName() + "'s Elytra"));
-                        elytra.setItemMeta(elytraMeta);
-                        player.getInventory().setChestplate(elytra);
+                if (player.hasPermission("core.elytra") && mp.elytra()) {
+                    ItemStack elytra = new ItemStack(Material.ELYTRA);
+                    ItemMeta elytraMeta = elytra.getItemMeta();
+                    if (player.hasPermission("core.elytra.enchanted")) {
+                        elytraMeta.addEnchant(Enchantment.UNBREAKING, 1, true);
+                        elytraMeta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
                     }
-                })
-        );
+                    elytraMeta.setUnbreakable(true);
+                    elytraMeta.setLore(Collections.singletonList("§r§7" + player.getName() + "'s Elytra"));
+                    elytra.setItemMeta(elytraMeta);
+                    player.getInventory().setChestplate(elytra);
+                }
+            });
+        });
         lobbyArrival.thenCombine(ep.whenReady(), (arrived, ignored) -> arrived).thenAccept(arrived -> {
             if (!arrived || !plugin.isEnabled()) return;
             Bukkit.getScheduler().runTask(plugin, () -> {

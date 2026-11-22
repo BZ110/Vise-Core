@@ -86,44 +86,38 @@ public class RankedCommands implements CommandExecutor {
     }
 
     private void openLeaderboard(Player player) {
-        SGMenu menu = plugin.getMenus().create("ranked.leaderboard", 3);
-
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-            StatManagement.getRedis().withJedis(j -> {
-                List<redis.clients.jedis.resps.Tuple> tuples = j.zrevrangeWithScores("lb:ranked:elo", 0, 26);
-                List<SGButton> buttons = new ArrayList<>();
-                int rank = 1;
-
-                for (redis.clients.jedis.resps.Tuple tuple : tuples) {
-                    UUID uuid = UUID.fromString(tuple.getElement());
-                    int elo = (int) tuple.getScore();
-                    String name = StatManagement.getName(uuid);
-                    if (name == null)
-                        name = Bukkit.getOfflinePlayer(uuid).getName();
-                    if (name == null)
-                        name = "Unknown";
-
-                    ItemStack head = new ItemStack(Material.PLAYER_HEAD);
-                    SkullMeta meta = (SkullMeta) head.getItemMeta();
-                    meta.setOwningPlayer(Bukkit.getOfflinePlayer(uuid));
-                    meta.setDisplayName(GuiService.text("ranked-commands.open-leaderboard", rank, name));
-                    meta.setLore(List.of(
-                            "\u00A77Elo: \u00A76" + elo,
-                            "\u00A77Tier: " + RankedTier.getTierDisplay(elo)));
-                    head.setItemMeta(meta);
-
-                    buttons.add(new SGButton(head));
-                    rank++;
-                }
-
-                Bukkit.getScheduler().runTask(plugin, () -> {
-                    for (SGButton btn : buttons)
-                        menu.addButton(btn);
-                    GuiService.open(player, menu);
-                });
-                return null;
-            });
+            var rows = StatManagement.rankedLeaderboard(27);
+            Bukkit.getScheduler().runTask(plugin, () -> openLeaderboard(player, rows));
         });
+    }
+
+    private void openLeaderboard(Player player, List<StatManagement.LBRow> rows) {
+        if (!player.isOnline()) return;
+        if (rows.isEmpty()) {
+            Messages.send(player, "messages.leaderboard-command.no-data");
+            return;
+        }
+
+        SGMenu menu = plugin.getMenus().create("ranked.leaderboard", 3);
+        for (int i = 0; i < rows.size(); i++) {
+            var row = rows.get(i);
+            var owner = Bukkit.getOfflinePlayer(row.uuid());
+            String name = row.name() == null ? owner.getName() : row.name();
+            int elo = (int) row.score();
+
+            ItemStack head = new ItemStack(Material.PLAYER_HEAD);
+            SkullMeta meta = (SkullMeta) head.getItemMeta();
+            meta.setOwningPlayer(owner);
+            meta.setDisplayName(GuiService.text("ranked-commands.open-leaderboard", i + 1,
+                    name == null ? row.uuid() : name));
+            meta.setLore(List.of(
+                    GuiService.text("ranked-commands.leaderboard-elo", elo),
+                    GuiService.text("ranked-commands.leaderboard-tier", RankedTier.getTierDisplay(elo))));
+            head.setItemMeta(meta);
+            menu.addButton(new SGButton(head));
+        }
+        GuiService.open(player, menu);
     }
 
     private void showRecentGames(Player viewer, String name, UUID localId) {

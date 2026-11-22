@@ -139,12 +139,12 @@ public final class MainPlayer {
                 mp.showRankedParticles = false;
             }
         }
-        mp.dirty = false;
+        mp.persistedRevision = mp.revision;
         return mp;
     }
 
 
-    String toJson() {
+    synchronized String toJson() {
         return G.toJson(new Data(blocked, level, xp, timePlayed, visibleStats, allowMessages,
                 partyInvites, duelInvites, allowSpectators, partyDuelInvites, friendRequests, elytra,
                 lobbyJumpBoost, lobbySpeed, chatMentions,
@@ -164,7 +164,9 @@ public final class MainPlayer {
     private boolean globalChat = true;
     private boolean broadcastChats = true;
 
-    private boolean dirty = true;          // new objects start dirty
+    final Object writeLock = new Object();
+    private long revision = 1; // New profiles have not been persisted.
+    private long persistedRevision;
 
     public MainPlayer(UUID uuid) {
         this.uuid = uuid;
@@ -176,29 +178,29 @@ public final class MainPlayer {
     public int  xp()                   { return xp; }
     public int  xpNeeded()             { return neededXP(level); }
 
-    public void addXp(int amount) {
+    public synchronized void addXp(int amount) {
         if (amount <= 0) return;
         xp += amount;
         while (xp >= neededXP(level)) {
             xp -= neededXP(level);
             level++;
         }
-        dirty = true;
+        revision++;
     }
 
-    public void setLevelAndXp(int newLevel, int newXp) {
+    public synchronized void setLevelAndXp(int newLevel, int newXp) {
         level = Math.max(1, newLevel);
         xp    = Math.max(0, newXp);
-        dirty = true;
+        revision++;
     }
 
     /* ── block list helpers ─────────────────────────────────────── */
-    public boolean addBlock(UUID target) {
-        if (blocked.add(target)) { dirty = true; return true; }
+    public synchronized boolean addBlock(UUID target) {
+        if (blocked.add(target)) { revision++; return true; }
         return false;
     }
-    public boolean removeBlock(UUID target) {
-        if (blocked.remove(target)) { dirty = true; return true; }
+    public synchronized boolean removeBlock(UUID target) {
+        if (blocked.remove(target)) { revision++; return true; }
         return false;
     }
     public Set<UUID> getBlockedList() {
@@ -215,15 +217,16 @@ public final class MainPlayer {
         return kits[index];
     }
 
-    public void setKit(int index, CustomKit kit) {
+    public synchronized void setKit(int index, CustomKit kit) {
         if (index < 0 || index >= 50) throw new IndexOutOfBoundsException("Kit index must be 0‑49");
         kits[index] = kit;
-        dirty = true;
+        revision++;
     }
 
     /* ── dirty tracking ─────────────────────────────────────────── */
-    boolean isDirty()     { return dirty; }
-    void    clearDirty()  { dirty = false; }
+    synchronized boolean isDirty() { return revision != persistedRevision; }
+    synchronized long revision() { return revision; }
+    synchronized void markPersisted(long snapshot) { persistedRevision = snapshot; }
 
     /* ── private helpers ────────────────────────────────────────── */
     private static int neededXP(int lvl) {
@@ -234,61 +237,61 @@ public final class MainPlayer {
     /* ── state ───────────────────────────────────────────── */
 
     public int  timePlayed()            { return timePlayed; }
-    public void addTimePlayed(int sec)  {           // safe‑guard
+    public synchronized void addTimePlayed(int sec)  {           // safe‑guard
         if (sec <= 0) return;
         timePlayed += sec;
-        dirty = true;
+        revision++;
     }
 
     public boolean elytra() { return elytra; }
 
-    public void setElytra(boolean elytra) {
+    public synchronized void setElytra(boolean elytra) {
         this.elytra = elytra;
-        dirty = true;
+        revision++;
     }
 
     public String getDeathEffect() {
         return selectedDeathEffect;
     }
 
-    public void setDeathEffect(String effect) {
+    public synchronized void setDeathEffect(String effect) {
         this.selectedDeathEffect = effect == null ? "NONE" : effect;
-        dirty = true;
+        revision++;
     }
 
     public boolean showKillEffects() { return showKillEffects; }
-    public void setShowKillEffects(boolean show) {
+    public synchronized void setShowKillEffects(boolean show) {
         this.showKillEffects = show;
-        dirty = true;
+        revision++;
     }
 
     public boolean showRankedParticles() { return showRankedParticles; }
-    public void setShowRankedParticles(boolean show) {
+    public synchronized void setShowRankedParticles(boolean show) {
         this.showRankedParticles = show;
-        dirty = true;
+        revision++;
     }
     
     public boolean lobbyJumpBoost() { return lobbyJumpBoost; }
-    public void setLobbyJumpBoost(boolean lobbyJumpBoost) {
+    public synchronized void setLobbyJumpBoost(boolean lobbyJumpBoost) {
         this.lobbyJumpBoost = lobbyJumpBoost;
-        dirty = true;
+        revision++;
     }
 
     public boolean lobbySpeed() { return lobbySpeed; }
-    public void setLobbySpeed(boolean lobbySpeed) {
+    public synchronized void setLobbySpeed(boolean lobbySpeed) {
         this.lobbySpeed = lobbySpeed;
-        dirty = true;
+        revision++;
     }
 
     public boolean chatMentions() { return chatMentions; }
-    public void setChatMentions(boolean chatMentions) {
+    public synchronized void setChatMentions(boolean chatMentions) {
         this.chatMentions = chatMentions;
-        dirty = true;
+        revision++;
     }
 
-    public void setDuelInvites(boolean duelInvites) {
+    public synchronized void setDuelInvites(boolean duelInvites) {
         this.duelInvites = duelInvites;
-        dirty = true;
+        revision++;
     }
 
     public boolean duelInvites() {
@@ -299,36 +302,36 @@ public final class MainPlayer {
         return allowSpectators;
     }
 
-    public void setAllowSpectators(boolean allowSpectators) {
+    public synchronized void setAllowSpectators(boolean allowSpectators) {
         this.allowSpectators = allowSpectators;
-        dirty = true;
+        revision++;
     }
 
     public boolean isGlobalChat() {
         return globalChat;
     }
 
-    public void setGlobalChat(boolean globalChat) {
+    public synchronized void setGlobalChat(boolean globalChat) {
         this.globalChat = globalChat;
-        dirty = true;
+        revision++;
     }
 
     public boolean isBroadcastChats() {
         return broadcastChats;
     }
 
-    public void setBroadcastChats(boolean broadcastChats) {
+    public synchronized void setBroadcastChats(boolean broadcastChats) {
         this.broadcastChats = broadcastChats;
-        dirty = true;
+        revision++;
     }
 
     public boolean partyDuelInvites() {
         return partyDuelInvites;
     }
 
-    public void setPartyDuelInvites(boolean partyDuelInvites) {
+    public synchronized void setPartyDuelInvites(boolean partyDuelInvites) {
         this.partyDuelInvites = partyDuelInvites;
-        dirty = true;
+        revision++;
     }
 
 
@@ -339,9 +342,9 @@ public final class MainPlayer {
         return friendRequests;
     }
 
-    public void setFriendRequests(boolean friendRequests) {
+    public synchronized void setFriendRequests(boolean friendRequests) {
         this.friendRequests = friendRequests;
-        dirty = true;
+        revision++;
     }
 
     public boolean isFriendsWith(UUID target) {
@@ -352,23 +355,23 @@ public final class MainPlayer {
         return Collections.unmodifiableSet(friends);
     }
 
-    public boolean addFriend(UUID target) {
+    public synchronized boolean addFriend(UUID target) {
         if (target == null || uuid.equals(target)) return false;
         boolean added = friends.add(target);
-        if (added) dirty = true;
+        if (added) revision++;
         return added;
     }
 
-    public boolean removeFriend(UUID target) {
+    public synchronized boolean removeFriend(UUID target) {
         boolean removed = target != null && friends.remove(target);
-        if (removed) dirty = true;
+        if (removed) revision++;
         return removed;
     }
 
 
-    public void setPartyInvites(boolean partyInvites) {
+    public synchronized void setPartyInvites(boolean partyInvites) {
         this.partyInvites = partyInvites;
-        dirty = true;
+        revision++;
     }
 
     public boolean partyInvites() {
@@ -381,18 +384,18 @@ public final class MainPlayer {
         return kitInventoryEdits;
     }
 
-    public void setVisibleStats(boolean visible) {
+    public synchronized void setVisibleStats(boolean visible) {
         this.visibleStats = visible;
-        dirty = true;
+        revision++;
     }
 
     public boolean allowMessages() {
         return allowMessages;
     }
 
-    public void setAllowMessages(boolean visible) {
+    public synchronized void setAllowMessages(boolean visible) {
         this.allowMessages = visible;
-        dirty = true;
+        revision++;
     }
 
     public Map<String, String> getArmorTrims() {
@@ -400,14 +403,14 @@ public final class MainPlayer {
         return armorTrims;
     }
 
-    public void setArmorTrim(String slot, String comboId) {
+    public synchronized void setArmorTrim(String slot, String comboId) {
         getArmorTrims().put(slot, comboId);
-        dirty = true;
+        revision++;
     }
     
-    public void clearArmorTrim(String slot) {
+    public synchronized void clearArmorTrim(String slot) {
         getArmorTrims().remove(slot);
-        dirty = true;
+        revision++;
     }
 
 
@@ -431,15 +434,15 @@ public final class MainPlayer {
 
 
     // upsert/remove (mark profile dirty so your save loop catches it)
-    public void putKitEdit(KitInventoryEdits edit) {
+    public synchronized void putKitEdit(KitInventoryEdits edit) {
         kitInventoryEdits.removeIf(e -> e.getKitName().equalsIgnoreCase(edit.getKitName()));
         kitInventoryEdits.add(edit);
-        dirty = true; // <-- keep your existing pattern
+        revision++; // <-- keep your existing pattern
     }
 
-    public boolean removeKitEdit(String kitName) {
+    public synchronized boolean removeKitEdit(String kitName) {
         boolean changed = kitInventoryEdits.removeIf(e -> e.getKitName().equalsIgnoreCase(kitName));
-        if (changed) dirty = true;
+        if (changed) revision++;
         return changed;
     }
 
@@ -454,18 +457,18 @@ public final class MainPlayer {
         return ffaStats.get(kitName.toLowerCase(Locale.ROOT));
     }
 
-    public void addFFAKill(String kitName) {
+    public synchronized void addFFAKill(String kitName) {
         FFAStats s = getOrCreateFFAStats(kitName);
         if (s == null) return;
         s.incKill();
-        dirty = true;
+        revision++;
     }
 
-    public void addFFADeath(String kitName) {
+    public synchronized void addFFADeath(String kitName) {
         FFAStats s = getOrCreateFFAStats(kitName);
         if (s == null) return;
         s.incDeath();
-        dirty = true;
+        revision++;
     }
 
     /**
@@ -476,7 +479,7 @@ public final class MainPlayer {
      * @param kitName    the kit name
      * @param canonical  the canonical kit contents (slot -> SerializableItem), including armor/offhand slots if you use 36–40
      */
-    public KitInventoryEdits getKitEditOrDefault(String kitName, Map<Integer, org.albi.core.serializable.SerializableItem> canonical) {
+    public synchronized KitInventoryEdits getKitEditOrDefault(String kitName, Map<Integer, org.albi.core.serializable.SerializableItem> canonical) {
         if (kitInventoryEdits == null) kitInventoryEdits = new ArrayList<>(); // safety
 
         KitInventoryEdits existing = getKitEdit(kitName);
@@ -493,7 +496,7 @@ public final class MainPlayer {
         }
         // store & mark dirty so it persists
         kitInventoryEdits.add(def);
-        dirty = true;
+        revision++;
         return def;
     }
 
@@ -503,18 +506,18 @@ public final class MainPlayer {
     public int getFFAWinstreak(String kitName) { FFAStats s = getFFAStats(kitName); return s == null ? 0 : s.getWinStreak(); }
 
     /* ── Ranked stats helpers ─────────────────────────────────────── */
-    public RankedStats getOverallRankedStats() {
+    public synchronized RankedStats getOverallRankedStats() {
         if (overallRankedStats == null) overallRankedStats = new RankedStats();
         return overallRankedStats;
     }
 
-    public RankedStats getKitRankedStats(String kitName) {
+    public synchronized RankedStats getKitRankedStats(String kitName) {
         if (kitName == null) return null;
         return kitRankedStats.computeIfAbsent(kitName.toLowerCase(Locale.ROOT), k -> new RankedStats());
     }
 
-    public void markRankedDirty() {
-        this.dirty = true;
+    public synchronized void markRankedDirty() {
+        this.revision++;
     }
 
 
