@@ -1,11 +1,5 @@
 package org.albi.core.modules.Duels.polar;
 
-import live.minehub.polarpaper.BlockSelector;
-import live.minehub.polarpaper.Polar;
-import live.minehub.polarpaper.PolarWorld;
-import live.minehub.polarpaper.PolarWorldAccess;
-import live.minehub.polarpaper.PolarWriter;
-import live.minehub.polarpaper.source.FilePolarSource;
 import org.albi.core.Core;
 import org.albi.core.modules.Duels.DuelManager;
 import org.albi.core.modules.Duels.helpers.Arena;
@@ -16,7 +10,6 @@ import org.bukkit.WorldCreator;
 import org.bukkit.WorldType;
 import org.bukkit.entity.Player;
 
-import live.minehub.polarpaper.PolarReader;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -31,6 +24,7 @@ public final class PolarArenaManager {
 
     private final Core plugin;
     private final PolarQueue queue;
+    private final PolarBackend backend;
 
     private final Map<String, Deque<PolarArenaReservation>> available = new HashMap<>();
     private final Map<String, Set<PolarArenaReservation>> inUse = new HashMap<>();
@@ -43,11 +37,22 @@ public final class PolarArenaManager {
     public PolarArenaManager(Core plugin) {
         this.plugin = plugin;
         this.queue = new PolarQueue(plugin);
+        this.backend = loadBackend(plugin);
+    }
+
+    private static PolarBackend loadBackend(Core plugin) {
+        if (!plugin.getConfig().getBoolean("use_polar_worlds")
+                || !plugin.getServer().getPluginManager().isPluginEnabled("polarpaper")) return null;
+        try {
+            return new PolarBackend();
+        } catch (NoSuchMethodException | LinkageError failure) {
+            plugin.getLogger().warning("[PolarArena] Incompatible PolarPaper API (" + failure.getClass().getSimpleName() + ").");
+            return null;
+        }
     }
 
     public boolean isEnabled() {
-        return plugin.getConfig().getBoolean("use_polar_worlds")
-                && plugin.getServer().getPluginManager().isPluginEnabled("polarpaper");
+        return backend != null;
     }
 
     public boolean isPolarArena(Arena arena) {
@@ -81,7 +86,6 @@ public final class PolarArenaManager {
             boolean ok = false;
             try {
                 String originName = originWorldName(arena);
-                FilePolarSource source = originSource(arena);
                 Files.createDirectories(originPath(arena).getParent());
 
                 World loadedOrigin = Bukkit.getWorld(originName);
@@ -89,7 +93,7 @@ public final class PolarArenaManager {
                     if (!Files.exists(originPath(arena))) {
                         createBlankOriginSource(arena);
                     }
-                    Polar.loadWorld(source, originName).whenComplete((world, throwable) -> {
+                    backend.load(originPath(arena), originName).whenComplete((world, throwable) -> {
                         Bukkit.getScheduler().runTask(plugin, () -> {
                             boolean success = throwable == null && world != null;
                             if (success) {
@@ -136,7 +140,7 @@ public final class PolarArenaManager {
             return;
         }
 
-        queue.enqueue("polar-edit-load-" + arena.getName(), done -> Polar.loadWorld(originSource(arena), originName)
+        queue.enqueue("polar-edit-load-" + arena.getName(), done -> backend.load(originPath(arena), originName)
                 .whenComplete((world, throwable) -> Bukkit.getScheduler().runTask(plugin, () -> {
                     boolean success = throwable == null && world != null;
                     if (success) {
@@ -163,7 +167,7 @@ public final class PolarArenaManager {
                 World world = Bukkit.getWorld(originWorldName(arena));
                 if (world != null) {
                     Files.createDirectories(originPath(arena).getParent());
-                    Polar.saveWorld(world, originSource(arena));
+                    backend.save(world, originPath(arena));
 
                     refreshOriginCache(arena); // NEW: keep RAM cache synced
                     recycleAvailable(arena); // old preloaded instances are now stale
@@ -178,6 +182,29 @@ public final class PolarArenaManager {
             callback.accept(ok);
             done.run();
         });
+    }
+
+    public int availableCopies(Arena arena) {
+        if (!isPolarArena(arena)) return 0;
+        Deque<PolarArenaReservation> copies = available.get(key(arena));
+        return copies == null ? 0 : copies.size();
+    }
+
+    public PolarArenaReservation reservePreloadedArena(Arena arena) {
+        if (availableCopies(arena) == 0) return null;
+        String key = key(arena);
+        PolarArenaReservation reservation = available.get(key).removeFirst();
+        inUse.get(key).add(reservation);
+        warmArena(arena);
+        return reservation;
+    }
+
+    public void returnUnusedArena(PolarArenaReservation reservation) {
+        String key = key(reservation.getArena());
+        var used = inUse.get(key);
+        if (used != null && used.remove(reservation)) {
+            available.get(key).addFirst(reservation);
+        }
     }
 
     public PolarArenaReservation reserveArena(Arena arena) {
@@ -241,9 +268,7 @@ public final class PolarArenaManager {
     private PolarArenaReservation createRuntimeReservationNow(Arena arena, int id, String worldName) {
         try {
             byte[] originBytes = getCachedOriginBytes(arena);
-            PolarWorld polarWorld = PolarReader.read(originBytes);
-
-            World world = Polar.createWorld(polarWorld, worldName).join();
+            World world = backend.create(originBytes, worldName).join();
             if (world == null) {
                 plugin.getLogger().severe("[PolarArena] Polar.createWorld returned null for " + worldName);
                 return null;
@@ -405,10 +430,6 @@ public final class PolarArenaManager {
         return arena.getName().toLowerCase(Locale.ROOT);
     }
 
-    private FilePolarSource originSource(Arena arena) {
-        return new FilePolarSource(originPath(arena));
-    }
-
     private Path originPath(Arena arena) {
         org.bukkit.plugin.Plugin polarPlugin = plugin.getServer()
                 .getPluginManager()
@@ -471,9 +492,7 @@ public final class PolarArenaManager {
 
         Bukkit.getScheduler().runTask(plugin, () -> {
             try {
-                PolarWorld polarWorld = PolarReader.read(originBytes);
-
-                Polar.createWorld(polarWorld, worldName)
+                backend.create(originBytes, worldName)
                         .whenComplete((world, throwable) -> Bukkit.getScheduler().runTask(plugin, () -> {
                             try {
                                 if (throwable != null) {
@@ -516,10 +535,7 @@ public final class PolarArenaManager {
         }
 
         try {
-            PolarWorld polarWorld = PolarWorld.convert(tempWorld, PolarWorldAccess.POLAR_PAPER_FEATURES,
-                    BlockSelector.ALL);
-            byte[] data = PolarWriter.write(polarWorld);
-            Files.write(originPath(arena), data);
+            Files.write(originPath(arena), backend.encode(tempWorld));
         } finally {
             Bukkit.unloadWorld(tempWorld, false);
             deleteWorldFolder(tempWorldName);

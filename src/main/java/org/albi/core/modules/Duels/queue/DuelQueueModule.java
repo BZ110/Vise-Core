@@ -12,6 +12,7 @@ import org.albi.core.modules.Duels.commands.BaseCommand;
 import org.albi.core.modules.Duels.helpers.Arena;
 import org.albi.core.modules.Duels.helpers.DuelKitPageCategory;
 import org.albi.core.modules.Duels.helpers.Kit;
+import org.albi.core.modules.Duels.queue.global.GlobalMatchmaking;
 import org.albi.core.serializable.SerializableItem;
 import org.albi.core.util.KitSafety;
 import org.bukkit.Bukkit;
@@ -206,7 +207,7 @@ public class DuelQueueModule implements Listener {
     }
 
     private void queueQuick(Player player) {
-        leaveQueue(player);
+        if (!joinMatchmaking(player, QUICK_QUEUE)) return;
         queues.computeIfAbsent(QUICK_QUEUE, k -> new ConcurrentLinkedDeque<>()).add(player.getUniqueId());
         queuedSince.put(player.getUniqueId(), System.currentTimeMillis());
         queuedKey.put(player.getUniqueId(), QUICK_QUEUE);
@@ -216,21 +217,27 @@ public class DuelQueueModule implements Listener {
     }
 
     private void queue(Player player, Kit kitClicked) {
-        leaveQueue(player);
         String qId = kitClicked.isPk() ? PK_QUEUE : kitClicked.getName();
+        if (!joinMatchmaking(player, qId)) return;
         queues.computeIfAbsent(qId, k -> new ConcurrentLinkedDeque<>()).add(player.getUniqueId());
         playerChoice.put(player.getUniqueId(), kitClicked);
         queuedSince.put(player.getUniqueId(), System.currentTimeMillis());
         queuedKey.put(player.getUniqueId(), qId);
 
-        if (org.albi.core.modules.Tournaments.TournamentManager.getInstance() != null && org.albi.core.modules.Tournaments.TournamentManager.getInstance().isInTournament(player)) {
-            player.sendMessage("§cYou cannot queue for duels while you are in a tournament.");
-            return;
-        }
-
         player.sendMessage("§aQueued for §f" + KitSafety.queueDisplayName(kitClicked) + "§a. §7Use §f/queue leave §7to back out.");
         plugin.giveAppropriateLobbyItems(player);
         matchQueues();
+    }
+
+    private boolean joinMatchmaking(Player player, String kit) {
+        var matchmaking = DuelManager.getMatchmaking();
+        if (matchmaking != null) return matchmaking.join(player, kit, false);
+        if (!GlobalMatchmaking.eligible(player, false)) {
+            player.sendMessage("§cReturn to the lobby and finish your current activity before joining the queue.");
+            return false;
+        }
+        leaveQueue(player);
+        return true;
     }
 
     public boolean isInQueue(Player player) {
@@ -238,12 +245,9 @@ public class DuelQueueModule implements Listener {
     }
 
     private void leaveQueue(Player p) {
-        UUID id = p.getUniqueId();
-        queues.values().forEach(q -> q.remove(id));
-        playerChoice.remove(id);
-        queuedSince.remove(id);
-        queuedKey.remove(id);
-        plugin.giveAppropriateLobbyItems(p);
+        var matchmaking = DuelManager.getMatchmaking();
+        if (matchmaking != null) matchmaking.leave(p, false);
+        else removeQueueState(p.getUniqueId());
     }
 
     @EventHandler
@@ -253,7 +257,7 @@ public class DuelQueueModule implements Listener {
         for (Map.Entry<UUID, Long> entry : new HashMap<>(queuedSince).entrySet()) {
             Player player = Bukkit.getPlayer(entry.getKey());
             if (player == null || !player.isOnline()) {
-                clearPlayerQueueState(entry.getKey());
+                removeQueueState(entry.getKey());
                 continue;
             }
             ExtendedPlayer ep = plugin.getExtendedPlayer(player);
@@ -290,6 +294,7 @@ public class DuelQueueModule implements Listener {
     }
 
     private void matchQueues() {
+        if (DuelManager.getMatchmaking() != null) return;
         tryQuickMatches();
         tryStandardMatches();
     }
@@ -308,8 +313,8 @@ public class DuelQueueModule implements Listener {
                     quick.addFirst(secondQuick.getUniqueId());
                     return;
                 }
-                clearPlayerQueueState(quickPlayer.getUniqueId());
-                clearPlayerQueueState(secondQuick.getUniqueId());
+                removeQueueState(quickPlayer.getUniqueId());
+                removeQueueState(secondQuick.getUniqueId());
                 startPendingQueuedDuel(quickPlayer, secondQuick, random, random, false);
                 continue;
             }
@@ -320,8 +325,8 @@ public class DuelQueueModule implements Listener {
                 return;
             }
 
-            clearPlayerQueueState(quickPlayer.getUniqueId());
-            clearPlayerQueueState(target.player().getUniqueId());
+            removeQueueState(quickPlayer.getUniqueId());
+            removeQueueState(target.player().getUniqueId());
 
             if (PK_QUEUE.equals(target.queueId())) {
                 Kit kitA = resolvePersonalKit(quickPlayer);
@@ -356,8 +361,8 @@ public class DuelQueueModule implements Listener {
 
                 Kit choice1 = playerChoice.get(p1.getUniqueId());
                 boolean isPk = PK_QUEUE.equals(entry.getKey());
-                clearPlayerQueueState(p1.getUniqueId());
-                clearPlayerQueueState(p2.getUniqueId());
+                removeQueueState(p1.getUniqueId());
+                removeQueueState(p2.getUniqueId());
 
                 if (isPk) {
                     Kit kitA = resolvePersonalKit(p1);
@@ -390,13 +395,8 @@ public class DuelQueueModule implements Listener {
             UUID id = deque.poll();
             if (id == null) continue;
             Player player = Bukkit.getPlayer(id);
-            if (player == null || !player.isOnline()) {
-                clearPlayerQueueState(id);
-                continue;
-            }
-            ExtendedPlayer ep = plugin.getExtendedPlayer(player);
-            if (ep != null && ep.getPlayerDuelInstance() != null) {
-                clearPlayerQueueState(id);
+            if (!GlobalMatchmaking.eligible(player, false)) {
+                removeQueueState(id);
                 continue;
             }
             return player;
@@ -404,10 +404,12 @@ public class DuelQueueModule implements Listener {
         return null;
     }
 
-    private void clearPlayerQueueState(UUID id) {
+    public void removeQueueState(UUID id) {
+        String key = queuedKey.remove(id);
+        if (key == null) return;
+        if (queues.containsKey(key)) queues.get(key).remove(id);
         playerChoice.remove(id);
         queuedSince.remove(id);
-        queuedKey.remove(id);
         Player p = Bukkit.getPlayer(id);
         if (p != null) plugin.giveAppropriateLobbyItems(p);
     }
@@ -427,9 +429,7 @@ public class DuelQueueModule implements Listener {
             @Override
             public void run() {
                 if (!p1.isOnline() || !p2.isOnline()) return;
-                ExtendedPlayer ep1 = plugin.getExtendedPlayer(p1);
-                ExtendedPlayer ep2 = plugin.getExtendedPlayer(p2);
-                if ((ep1 != null && ep1.getPlayerDuelInstance() != null) || (ep2 != null && ep2.getPlayerDuelInstance() != null)) return;
+                if (!GlobalMatchmaking.eligible(p1, false) || !GlobalMatchmaking.eligible(p2, false)) return;
 
                 Arena arena = randomArena();
                 DuelInstance duel = new DuelInstance(plugin);

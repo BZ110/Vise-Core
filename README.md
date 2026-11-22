@@ -2,7 +2,7 @@
 
 Vise Core is a Minecraft PvP plugin for **Paper 1.21.3** and **Java 21**. It manages arenas, kits, queues, ranked matches, parties, and events. It also handles the lobby, player profiles, cosmetics, chat, and travel between server instances.
 
-Scale a single instance with schematic slots or Polar world copies, or add Paper instances that share profiles, leaderboards, and chat through MySQL and Redis. [Arena backends](#choosing-an-arena-backend) · [Scaling guide](#scaling-and-deployment-architecture)
+Scale a single instance with schematic slots or Polar world copies, or run a fleet that shares **regional matchmaking**, profiles, leaderboards, and chat. Redis coordinates queues and transfers, and MySQL stores player profiles and match history. [Global matchmaking](#global-matchmaking) · [Arena backends](#choosing-an-arena-backend) · [Scaling guide](#scaling-and-deployment-architecture)
 
 <a name="vise-core-vs-strikepractice"></a>
 
@@ -20,6 +20,7 @@ Scale a single instance with schematic slots or Polar world copies, or add Paper
 | PolarPaper arena generation from saved origins | ✅¹ | ❌ | ❌ | ❌ | ❌ |
 | Built-in HTML telemetry export with movement, health, and ping charts | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Redis chat bridge and regional travel menu | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Redis matchmaking with ranked and casual queues, ordered regional pools, and automatic duel transfers | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Built-in ping-aware knockback and ghost-arrow recovery | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Lava Rising survival events | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Challonge tournament brackets | ✅ | ❌ | ❌ | ❌ | ❌ |
@@ -37,6 +38,7 @@ Scale a single instance with schematic slots or Polar world copies, or add Paper
 
 - [Installation and module setup](#installation-and-module-setup)
 - [Duels, arenas, and matchmaking](#duels-arenas-and-matchmaking)
+  - [Global matchmaking](#global-matchmaking)
   - [PolarPaper arena generation support](#polarpaper-arena-generation-support)
 - [Ranked play and match reports](#ranked-play-and-match-reports)
 - [Experimental NPC practice](#experimental-npc-practice)
@@ -107,9 +109,42 @@ Run `/spectate <player>` to watch an active fight. Spectating respects the playe
 
 `/queue` opens a kit browser with queue counts. Choose a standard kit or **Per Custom Kit**. `/quickqueue` looks for a match in an active casual queue without making the player choose a specific ruleset. The action bar shows queue status while the player waits. Run `/queue leave` or `/quickqueue leave` to leave the casual queue.
 
-The casual matcher checks every two ticks and tries the quick queue first. Two quick-queue players can receive a random standard kit. A lone quick-queue player can take a match from another eligible queue, including Per Custom Kit when both players have usable selections. Regular kit queues pair eligible players waiting for the same kit. Casual matches start first-to-one and pick from active arenas. The match-found transition rechecks player state before starting the duel. [Casual matchmaking code](src/main/java/org/albi/core/modules/Duels/queue/DuelQueueModule.java)
+In standalone mode, the casual matcher checks every two ticks and tries the quick queue first. Two quick-queue players can receive a random standard kit. A quick-queue player can take a match from another eligible casual queue, including Per Custom Kit when both players have usable selections. Regular kit queues pair eligible players waiting for the same kit. Casual matches start first-to-one and pick from active arenas. Menu counts reflect players queued on the current Paper instance. [Casual matchmaking code](src/main/java/org/albi/core/modules/Duels/queue/DuelQueueModule.java)
 
 Staff can organize the duel and casual queue browsers into ruleset pages. Hold the item to use as the category icon, then run `/setpageduelkitcategory <page> <guiSlot>`. Use `/deletepageduelkitcategory <guiSlot>` to remove that entry from the category menu.
+
+### Global matchmaking
+
+With `network.matchmaking.enabled`, `/queue`, `/quickqueue`, and `/rankedqueue` look for opponents across participating servers. Ranked uses the same kit and rating rules as standalone play. Casual quick queue can fill a standard queue or join a Per Custom Kit match if both players queued with a valid kit. Core carries the selected personal-kit snapshots to the destination. Players can hold one network queue ticket at a time.
+
+#### How Core chooses a match
+
+1. **Start in each player's home pool.** A player joining on an `eu-east` server searches for an `eu-east` host first. By default, each player opens another entry in their own priority list every eight seconds. For a pool ordered `eu-central`, `eu-west`, `middle-east`, `na-east`, and `asia-central`, the first two destinations open after 8 and 16 seconds. Destinations outside the player's region also wait at least 45 seconds. For two players in the EU, an eligible EU host ranks above a host outside it.
+2. **Widen the latency and rating windows.** Core takes Paper's current ping sample at the source and adds the configured estimate for reaching the candidate pool. Both players must meet their individual ping limit, and their ping difference must fit the limit earned by the player who has waited less. Defaults start at 110 ms per player and a 45 ms difference. Both limits grow by 15 ms every five seconds, up to 260 ms and a 130 ms difference. Ranked starts at ±50 Elo and adds 25 every three seconds. The longer-waiting player's Elo window can admit the pair.
+3. **Pick a host that both players can use.** Among eligible servers, Core prefers the region and pool priorities that work for both players. It then minimizes the worse estimated ping and the ping difference. Available player slots, an open arena for the ruleset, and current host load also affect selection. An eligible `eu-central` host can take a duel between players on `eu-east` and `eu-west`, even if neither player is already connected there. Source ping and directional adjustments are estimates. The proxy topology affects the actual in-match latency.
+4. **Prepare the arena, then transfer.** Redis claims the two queue tickets atomically. The chosen host reserves a warm Polar world or completes a schematic paste, and both source servers confirm the players are still eligible. Core flushes dirty profiles before remote transfer and requests a proxy connection only for players who need to move. As soon as both players connect, their profiles load, and the lobby arrival completes, Core starts the normal duel countdown on the reserved arena.
+
+#### Set up the network
+
+1. Put participating backends on a BungeeCord-compatible proxy network, with the destination server IDs registered on each participating proxy. Set `bungee-plugin-message-channel = true` in Velocity. Install the same Vise Core version and enable Duels on each participating backend. [PaperMC proxy messaging](https://docs.papermc.io/paper/dev/plugin-messaging/) · [Velocity configuration](https://docs.papermc.io/velocity/configuration/)
+2. Point every participant at the same Redis primary and MySQL database. The Redis connection needs permission to run Lua scripts alongside the existing data commands. Enable `network.matchmaking.enabled`, set the same `namespace`, give each backend a unique `server_id` matching the proxy exactly, and set its `pool`. Use the same `pools` and latency settings across the fleet. The shipped configuration includes examples for EU East, EU Central, EU West, the Middle East, North America East, and Central Asia. Redis 7 is used in CI. [Default configuration](src/main/resources/config.yml)
+3. Configure the lobby spawn on each backend. Install public kits using the same names and rules on each hosting backend. Set up its local schematic slots or compatible Polar origins and ranked arena lists. Set `host_matches: false` on queue-only backends. A queue-only backend with local arenas can still host local matches during an outage.
+
+| `network.matchmaking` key | Purpose |
+| --- | --- |
+| `enabled`, `namespace` | Enable shared queues and select a Redis namespace. Existing servers have standalone queues until explicitly enabled. |
+| `server_id`, `pool`, `host_matches` | Set the exact proxy destination, the home pool of players queued here, and whether this server advertises as a network host. |
+| `pools.<pool>.region`, `priority`, `latency_ms` | Group pools by geography, list each pool's preferred alternate hosts in order, and set directional latency estimates in milliseconds. The home pool is implicit. |
+| `priority_step_seconds`, `cross_region_after_seconds`, `unlisted_after_seconds` | Control when each alternate opens, the earliest cross-region attempt, and whether unlisted pools can become eligible. The default `-1` requires a listed route. |
+| `ping.start_ms`, `max_ms`, `gap_start_ms`, `gap_max_ms` | Set the starting and maximum limits for estimated individual ping and the difference between players. |
+| `ping.relax_every_seconds`, `relax_by_ms`, `same_region_add_ms`, `cross_region_add_ms` | Tune the widening interval and increment, and set defaults for unconfigured route estimates. |
+| `poll_ticks`, `scan_size`, `offers_per_poll`, `pending_per_host` | Tune the exchange interval, queue sample size, offers attempted per scan, and outstanding handoffs on each host. Each bounded scan samples oldest, rotating, and random tickets. |
+
+#### Redis outages and interrupted transfers
+
+When Redis is unavailable, each Paper instance can match players already connected there. Fresh local tickets can match right away. Recently published tickets wait for their possible network claims to expire, up to 31 seconds after the last publication attempt finishes. That prevents an old transfer and a new local duel from claiming the same player. Local fallback uses the same kit and ranked rating rules and a local arena. Global queues resume automatically when Redis responds.
+
+Unfinished network handoffs expire after 25 seconds. If a transfer fails or an opponent never arrives, players who already moved can queue again from the destination lobby. Queued players who stayed in place can resume the search. Duels already started continue on their host. The handoff uses short-lived keys under `vise:mm:v1:{<namespace>}:` and needs no MySQL schema change. [Matchmaking code](src/main/java/org/albi/core/modules/Duels/queue/global) · [Redis state transitions](src/main/resources/matchmaking/exchange.lua)
 
 ### Choosing an arena backend
 
@@ -134,7 +169,7 @@ The schematic backend gives multiple matches separate physical slots inside one 
 5. Set a positive `perline` and `maxarenas` with `/dueladmin arena setmax <name> <perline|maxarenas> <count>`. Set X and Z spacing with `/dueladmin arena setoffset <name> <x|z> <blocks>`. Leave space between copies for the full playable footprint and the arena buffers. Use `/dueladmin arena info <name>` to inspect the settings and `/dueladmin arena deactivate <name>` to toggle selection in the direct duel and casual arena pickers.
 6. Test two simultaneous matches on the same map before adding capacity. Check that their spawn points and bounds are separate. Play a build round, break and place blocks, and check that the following round and the next match get the expected layout.
 
-Core caches decoded clipboards by filename within the process and runs one queued schematic paste at a time. The paste runs through a WorldEdit edit session on an asynchronous task. The queue schedules a five-tick gap after each paste. Duel launch and build-round reset can enqueue paste work, and a freed slot becomes eligible for reuse. A large map or multiple reset requests can delay other arenas using the same paste queue, including Lava Rising work. Keep distinct filenames for different maps and restart the instance after replacing a schematic in place so a cached clipboard is reloaded. [Schematic queue](src/main/java/org/albi/core/modules/Duels/SchematicManager.java) · [Duel allocation and lifecycle](src/main/java/org/albi/core/modules/Duels/DuelInstance.java) · [Arena setup commands](src/main/java/org/albi/core/modules/Duels/commands/DuelAdminCommand.java)
+Core caches decoded clipboards by filename and runs one queued schematic paste at a time. FastAsyncWorldEdit handles the paste on a worker thread. Standard WorldEdit handles it on Paper's tick thread. The queue waits five ticks between pastes. Global matchmaking waits for the paste to finish before transferring players, and a freed slot becomes eligible for reuse. Large maps and multiple reset requests can delay other work in the queue. Keep distinct filenames for different maps and restart the instance after replacing a schematic in place so Core reloads the cached clipboard. [Schematic queue](src/main/java/org/albi/core/modules/Duels/SchematicManager.java) · [Duel allocation and lifecycle](src/main/java/org/albi/core/modules/Duels/DuelInstance.java) · [Arena setup commands](src/main/java/org/albi/core/modules/Duels/commands/DuelAdminCommand.java)
 
 <a name="polar-arenas"></a>
 
@@ -144,6 +179,8 @@ Core can generate isolated match worlds from a saved **PolarPaper** origin. Map 
 
 > [!IMPORTANT]
 > Core's build targets Paper 1.21.3 and compiles the Polar integration against `live.minehub:polarpaper:1.21.11.17`. That dependency JAR declares Paper API 1.21.11. PolarPaper's historical 1.1.3 release for Paper 1.21.3 uses older load and save signatures and lacks the `FilePolarSource` class Core uses. Use schematic arenas on the documented Paper 1.21.3 setup. Validate the full Core, Paper, and PolarPaper combination on staging before turning on the optional backend. [Build dependency](build.gradle.kts) · [PolarPaper versions](https://hangar.papermc.io/MinehubMC/Polar/versions) · [Historical Paper 1.21.3 release](https://hangar.papermc.io/MinehubMC/Polar/versions/1.1.3)
+>
+> The Vise Core maintainer reports that the PolarPaper backend has been **thoroughly tested** and run **in production** on a compatible setup with virtually no issues.
 
 On a compatible setup, install PolarPaper, enable Duels, and restart Paper with the following settings.
 
@@ -332,7 +369,7 @@ network:
 
 ## Scaling and deployment architecture
 
-Vise Core runs the lobby, queues, arenas, and combat inside each Paper process. You can **scale up** by giving a busy instance more CPU, RAM, or storage throughput and choosing the arena backend that fits. You can **scale out** by putting multiple Vise Core instances behind a proxy and sharing MySQL and Redis. Adding instances increases the number of places that can host matches. Each queue still matches players on its own instance.
+Vise Core runs the lobby, arenas, and combat inside each Paper process. You can **scale up** by giving a busy instance more CPU, RAM, or storage throughput and choosing the arena backend that fits. You can **scale out** by putting multiple Vise Core instances behind a proxy and sharing MySQL and Redis. With global matchmaking enabled, each added backend can receive queue entries, host matches, or do both.
 
 ### Vertical scaling on one Paper instance
 
@@ -344,7 +381,7 @@ Start with the resource that limits the actual workload.
 | RAM and garbage collection | Loaded world chunks, the schematic clipboard cache, online profile objects, active match telemetry, and Polar origins and copies. One Polar map can hold several ready and reserved worlds at the same time. | For **high RAM and lower CPU headroom**, choose Polar on a compatible setup where ready copies avoid repeated pastes. For **low RAM and stronger CPU**, choose schematic slots. Check loaded worlds and heap after peak sessions drain as well as during warmup. |
 | Local storage | Startup world loads, first-time schematic reads, Polar origin saves and temporary world cleanup, `data.dat`, and report exports. | Give world and report files enough space. Profile cold and warm runs separately. When an arena has trouble cleaning up, check which runtime worlds remain loaded before moving any files. |
 | MySQL connections | Each Paper instance owns its own HikariCP pool. `mysql.pool_size` defaults to 20. Startup table work, profile misses and saves, and report history queries use it. | Count connection budgets across all processes. Four instances at the default can open up to 80 pooled MySQL connections in total, before other services. Increase the pool only if connection waits are the bottleneck and MySQL has capacity. |
-| Redis connections and response time | The Jedis pool is capped at 16 connections per instance in the current code. Profile caching, leaderboards, travel discovery, health streams, sharing, and linking use Redis. Global chat holds a subscription open. | Measure Redis latency and pool pressure along with Paper tick time. Run backends close to the game servers where possible. Watch shared-service load when adding instances. |
+| Redis connections and response time | The Jedis pool is capped at 16 connections per instance. Profile caching, leaderboards, travel discovery, health streams, sharing, linking, and optional global matchmaking use Redis. Global chat holds a subscription open. | Measure Redis latency and pool pressure along with Paper tick time. One worker scans queues per interval across the fleet. Each server publishes its own tickets and host status. |
 
 #### Capacity controls
 
@@ -384,13 +421,13 @@ Each instance has a unique `region` and `id_number`. Configure proxy entries wit
 
 | Shared by configured instances | Owned by each instance |
 | --- | --- |
-| Player profile and statistics rows, ranked match records, completed Discord links, Redis profile caches and leaderboards, shared-kit codes, Redis chat, and health discovery. | Loaded worlds and map assets, public kit and arena definitions, event setup, spawn and menu locations, and the active matchmaking queues, parties, duels, tournaments, and reservations. |
+| Player profiles, statistics, ranked match records, Discord links, leaderboards, kit-share codes, chat, health discovery, and optional global queue tickets and handoffs. | Worlds, map assets, kit and arena definitions, event setup, spawn and menu locations, standalone queues, parties, live duels, tournaments, and arena reservations. |
 
-- **Place players where they can match.** Two players using the same kit on different servers are in different queues. Use travel or proxy routing to bring them to the same instance. Plan where new players go if one practice server has the busiest ladder.
+- **Place players near their home pool.** The backend a player queues on determines their priority list and latency estimates. Route incoming players to their nearest lobby, then let the network queue choose a host. Standalone queues still require players to join the same instance. [Global matchmaking setup](#global-matchmaking)
 - **Provision local content on each instance.** Deploy the intended kit and arena definitions plus the matching schematic or Polar files to each match host. For Polar, the origin file and Core's accompanying arena definition belong together. Set lobby and event locations for each local world setup.
 - **Share backends deliberately.** MySQL stores durable rows and Redis is the live cache and messaging layer. Player keys and the `chat:global` channel are common to the deployment, so keep unrelated environments such as staging and production on separate services where they need isolation.
-- **Allow for persistence timing.** Profiles are cached by UUID in each process. Periodic saves and disconnect saves publish and upsert dirty JSON. Transfers are new joins on the destination, so plan for one active session per UUID and let pending saves settle when testing rapid transfers.
-- **Plan restarts per instance.** Active matches and queues live in memory. When rolling out changes, move players to another instance or allow matches to finish first. A shared SQL or Redis backend still needs its own availability and backup plan. [Profile and stats storage](src/main/java/org/albi/core/data/StatManagement.java)
+- **Allow for persistence timing.** Profiles are cached by UUID in each process. Network matchmaking flushes dirty profiles before a proxy transfer. Plan for one active proxy session per UUID. Travel and other proxy moves still use normal disconnect saves.
+- **Plan restarts per instance.** A Paper restart clears its live matches, local reservations, and queue sessions. Its global tickets and unfinished handoffs expire in Redis. Allow matches to finish or move players to another instance when rolling out changes. [Profile and stats storage](src/main/java/org/albi/core/data/StatManagement.java)
 
 ### Heartbeats, health streams, and diagnosis
 
@@ -491,7 +528,7 @@ Gameplay listeners reset player state at key transitions, use world-local death 
 | `mysql` | Host, port, database, user, password, and connection pool size. A blank `ssl_mode` uses the legacy `ssl` flag. For TCP TLS verification, set a supported Connector/J mode such as `VERIFY_IDENTITY` with a trusted server certificate. |
 | `redis` | Host, port, optional password, and TLS. With TLS enabled, `ca_file` can point to a custom CA, relative to `plugins/Core/` or absolute. A blank value tries `certs/ca.crt` first, then the JVM trust store. |
 | `storage.flush_interval_seconds` | Frequency of periodic profile and stats flushes. The bundled default is 600 seconds. |
-| `network` | Redis chat bridge, links for `/store` and `/discord`, and direct travel destinations. |
+| `network` | Redis chat bridge and global matchmaking, links for `/store` and `/discord`, and direct travel destinations. |
 | `announcements`, `autorestart` | Lobby tips and the startup restart schedule. |
 | `use_polar_worlds`, `polar_preload` | Toggle the PolarPaper backend and set its preload target. |
 | `duels` | TNT fuse, default round target, selectable round targets, and the `bots` settings. |
@@ -530,7 +567,7 @@ Set credentials in the environment of the Paper process. A defined variable take
 | --- | --- |
 | `plugins/Core/data.dat` | Local plugin data, including spawn points, menu destinations, arenas, public kit definitions, categories, and event setup. Core writes the file through a temporary file when saving on shutdown. If the file cannot be read during startup, Core disables itself so an operator can recover the file. |
 | MySQL | `player_stats` stores player profiles and statistics. `ranked_matches` stores match history and telemetry. The optional Discord module stores completed account links in `player_discord_links`. |
-| Redis | Cached profiles, stats and match records, sorted-set leaderboards, kit-sharing codes, Discord link codes, chat messages in transit, and server heartbeats and health streams. Network instances that share these features use the same Redis service. |
+| Redis | Cached profiles, stats and match records, sorted-set leaderboards, kit-sharing codes, Discord link codes, chat messages in transit, matchmaking tickets and handoffs, and server heartbeats and health streams. |
 | Memory | Online profile state and active gameplay state such as queues, parties, pending teleport requests, and arena reservations. A Paper restart clears active sessions. |
 | `plugins/Core/reports/` | HTML files produced by explicit report export commands. |
 
@@ -546,6 +583,7 @@ The online player wrapper brings together active state, the saved profile, and s
 | `sharedkits:getkit:<code>`, `sharedkits:getcode:<uuid>:<slot>` | Thirty-day kit snapshots and reusable share codes. |
 | `link-code:<code>`, `link-wait:<uuid>` | Five-minute Discord linking state. Completed links use MySQL. |
 | `chat:global` | Live Redis Pub/Sub channel. Subscribers receive messages as they arrive. |
+| `vise:mm:v1:{<namespace>}:*` | Global queue tickets, per-player claims, host availability, and pending match handoffs. |
 | `server:<id>:health:latest`, `server:<id>:health:stream` | Current server heartbeat and rolling health history. |
 
 On startup, Core opens SQL and ensures the tables exist before starting its command and module registrations. A failed SQL initialization disables the plugin. The Redis client checks for a PING response and retries failed connections. During a Redis outage the SQL fallback can still serve saved profiles and match records, while live functions such as travel discovery, Redis leaderboards, code redemption, and chat depend on Redis recovery. [Storage and connection code](src/main/java/org/albi/core/data/StatManagement.java) · [Player profile model](src/main/java/org/albi/core/data/MainPlayer.java)
@@ -567,7 +605,7 @@ The repository includes the Gradle Wrapper, a pinned GitHub Actions workflow, bu
 | Duel commands show no usable arena | Confirm Duels started, a public kit and active arena exist, the schematic world is loaded under its exact name or the compatible Polar origin is readable, and the map has spare reservations. |
 | A pasted map looks stale or overlaps another match | Check the schematic filename and the clipboard cache, slot spacing, relative corner coordinates, and the logs for queued paste failures. Verify one reset before increasing concurrency. |
 | Polar maps fail to generate or refill slowly | Check the installed Paper and PolarPaper API versions, the origin file path, and the `[PolarArena]` and `[PolarQueue]` logs. Profile immediate generation and check whether retired worlds still contain players. |
-| Two waiting players never match | Verify they joined the same Paper instance and kit queue. In ranked, compare their Elo range and whether they are already in a party, a tournament, or a match. |
+| Two waiting players never match | Check the kit and ranked Elo range, player eligibility, and available arenas. For global queues, check the namespace, registered proxy IDs, pool maps, ping limits, and the `[Matchmaking]` Redis status. Standalone queues match within one Paper instance. |
 | A server is online but missing in travel | Check `/health <server>`, the latest Redis heartbeat, `region` and `id_number`, and the corresponding proxy registry entry. |
 | A report link fails to load | Verify the record still exists, run `/rankedreport <match_id>` to create the file, and check how your external host serves `ranked.report_url_template`. |
 

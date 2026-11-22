@@ -3,6 +3,7 @@ package org.albi.core.events;
 import org.albi.core.Core;
 import org.albi.core.data.ExtendedPlayer;
 import org.albi.core.modules.Duels.DuelInstance;
+import org.albi.core.modules.Duels.DuelManager;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -17,6 +18,8 @@ public class OnLeaveListener implements Listener {
 
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
+        var matchmaking = DuelManager.getMatchmaking();
+        if (matchmaking != null) matchmaking.playerQuit(event.getPlayer());
         ExtendedPlayer ep = plugin.getCache().getExtendedPlayer(event.getPlayer());
         if (ep == null) return;
 

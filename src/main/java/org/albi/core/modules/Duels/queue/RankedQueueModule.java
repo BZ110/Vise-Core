@@ -3,6 +3,7 @@ package org.albi.core.modules.Duels.queue;
 import com.samjakob.spigui.buttons.SGButton;
 import com.samjakob.spigui.menu.SGMenu;
 import org.albi.core.Core;
+import org.albi.core.modules.Duels.queue.global.GlobalMatchmaking;
 import org.albi.core.data.ExtendedPlayer;
 import org.albi.core.modules.Duels.DuelInstance;
 import org.albi.core.modules.Duels.DuelManager;
@@ -142,6 +143,10 @@ public class RankedQueueModule implements Listener, CommandExecutor {
     private void joinQueue(Player player, Kit kit) {
         // Safety checks
         ExtendedPlayer ep = plugin.getExtendedPlayer(player);
+        if (ep == null || !ep.isReady()) {
+            player.sendMessage("§eWait for your profile to load before joining ranked.");
+            return;
+        }
         if (ep.getPlayerDuelInstance() != null) {
             player.sendMessage("§cYou cannot queue while in a duel!");
             return;
@@ -160,7 +165,13 @@ public class RankedQueueModule implements Listener, CommandExecutor {
             return;
         }
 
-        leaveQueue(player);
+        var matchmaking = DuelManager.getMatchmaking();
+        if (matchmaking != null) {
+            if (!matchmaking.join(player, kit.getName(), true)) return;
+        } else {
+            if (!GlobalMatchmaking.eligible(player, true)) return;
+            leaveQueue(player);
+        }
         queues.computeIfAbsent(kit.getName(), k -> new ConcurrentLinkedDeque<>()).add(player.getUniqueId());
         queuedSince.put(player.getUniqueId(), System.currentTimeMillis());
         queuedKey.put(player.getUniqueId(), kit.getName());
@@ -170,11 +181,9 @@ public class RankedQueueModule implements Listener, CommandExecutor {
     }
 
     public void leaveQueue(Player player) {
-        UUID id = player.getUniqueId();
-        queues.values().forEach(q -> q.remove(id));
-        queuedSince.remove(id);
-        queuedKey.remove(id);
-        plugin.giveAppropriateLobbyItems(player);
+        var matchmaking = DuelManager.getMatchmaking();
+        if (matchmaking != null) matchmaking.leave(player, true);
+        else removeQueueState(player.getUniqueId());
     }
 
     public boolean isInQueue(Player player) {
@@ -190,7 +199,7 @@ public class RankedQueueModule implements Listener, CommandExecutor {
         for (Map.Entry<UUID, Long> entry : new HashMap<>(queuedSince).entrySet()) {
             Player player = Bukkit.getPlayer(entry.getKey());
             if (player == null || !player.isOnline()) {
-                clearPlayerQueueState(entry.getKey());
+                removeQueueState(entry.getKey());
                 continue;
             }
             long elapsed = (System.currentTimeMillis() - entry.getValue()) / 1000L;
@@ -220,10 +229,11 @@ public class RankedQueueModule implements Listener, CommandExecutor {
     }
 
     private int getEloRange(int seconds) {
-        return 50 + (seconds / 3) * 25;
+        return GlobalMatchmaking.eloRange(seconds);
     }
 
     private void matchQueues() {
+        if (DuelManager.getMatchmaking() != null) return;
         for (Map.Entry<String, Deque<UUID>> entry : queues.entrySet()) {
             String kitName = entry.getKey();
             Deque<UUID> waiting = entry.getValue();
@@ -233,7 +243,7 @@ public class RankedQueueModule implements Listener, CommandExecutor {
             List<UUID> players = new ArrayList<>(waiting);
             for (int i = 0; i < players.size(); i++) {
                 Player p1 = Bukkit.getPlayer(players.get(i));
-                if (p1 == null)
+                if (!kitName.equals(queuedKey.get(players.get(i))) || !GlobalMatchmaking.eligible(p1, true))
                     continue;
 
                 long wait1 = (System.currentTimeMillis()
@@ -243,7 +253,7 @@ public class RankedQueueModule implements Listener, CommandExecutor {
 
                 for (int j = i + 1; j < players.size(); j++) {
                     Player p2 = Bukkit.getPlayer(players.get(j));
-                    if (p2 == null)
+                    if (!kitName.equals(queuedKey.get(players.get(j))) || !GlobalMatchmaking.eligible(p2, true))
                         continue;
 
                     long wait2 = (System.currentTimeMillis()
@@ -254,8 +264,6 @@ public class RankedQueueModule implements Listener, CommandExecutor {
                     int diff = Math.abs(elo1 - elo2);
                     if (diff <= range1 || diff <= range2) {
                         // Match found!
-                        waiting.remove(p1.getUniqueId());
-                        waiting.remove(p2.getUniqueId());
                         startRankedMatch(p1, p2, kitName);
                         break;
                     }
@@ -265,8 +273,8 @@ public class RankedQueueModule implements Listener, CommandExecutor {
     }
 
     private void startRankedMatch(Player p1, Player p2, String kitName) {
-        clearPlayerQueueState(p1.getUniqueId());
-        clearPlayerQueueState(p2.getUniqueId());
+        removeQueueState(p1.getUniqueId());
+        removeQueueState(p2.getUniqueId());
 
         for (Player p : List.of(p1, p2)) {
             p.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 80, 4, false, false, false));
@@ -278,21 +286,11 @@ public class RankedQueueModule implements Listener, CommandExecutor {
         new BukkitRunnable() {
             @Override
             public void run() {
-                if (!p1.isOnline() || !p2.isOnline())
+                if (!GlobalMatchmaking.eligible(p1, true) || !GlobalMatchmaking.eligible(p2, true))
                     return;
-
-                if (org.albi.core.modules.Tournaments.TournamentManager.getInstance() != null
-                        && org.albi.core.modules.Tournaments.TournamentManager.getInstance().isInTournament(p1)) {
-                    p1.sendMessage("§cYou cannot queue for ranked duels while you are in a tournament.");
-                    return;
-                }
-                if (org.albi.core.modules.Tournaments.TournamentManager.getInstance() != null
-                        && org.albi.core.modules.Tournaments.TournamentManager.getInstance().isInTournament(p2)) {
-                    p2.sendMessage("§cYou cannot queue for ranked duels while you are in a tournament.");
-                    return;
-                }
 
                 Kit kit = DuelManager.stor.getKitByName(kitName);
+                if (kit == null) return;
                 Arena arena = selectRandomRankedArena(kitName);
 
                 DuelInstance duel = new DuelInstance(plugin);
@@ -305,16 +303,19 @@ public class RankedQueueModule implements Listener, CommandExecutor {
 
     private Arena selectRandomRankedArena(String kitName) {
         List<String> allowedArenas = DuelManager.stor.getRankedArenas().get(kitName);
-        if (allowedArenas == null || allowedArenas.isEmpty()) {
-            return DuelManager.stor.arenas.get(ThreadLocalRandom.current().nextInt(DuelManager.stor.arenas.size()));
-        }
-        String arenaName = allowedArenas.get(ThreadLocalRandom.current().nextInt(allowedArenas.size()));
-        return DuelManager.stor.getArenaByName(arenaName);
+        List<Arena> arenas = DuelManager.stor.arenas.stream()
+                .filter(arena -> arena != null && !arena.deactivated)
+                .filter(arena -> allowedArenas == null || allowedArenas.isEmpty()
+                        || allowedArenas.stream().anyMatch(name -> name.equalsIgnoreCase(arena.getName())))
+                .toList();
+        return arenas.isEmpty() ? null : arenas.get(ThreadLocalRandom.current().nextInt(arenas.size()));
     }
 
-    private void clearPlayerQueueState(UUID id) {
+    public void removeQueueState(UUID id) {
+        String key = queuedKey.remove(id);
+        if (key == null) return;
+        if (queues.containsKey(key)) queues.get(key).remove(id);
         queuedSince.remove(id);
-        queuedKey.remove(id);
         Player p = Bukkit.getPlayer(id);
         if (p != null)
             plugin.giveAppropriateLobbyItems(p);

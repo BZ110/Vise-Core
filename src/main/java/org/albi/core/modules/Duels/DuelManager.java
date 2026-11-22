@@ -4,6 +4,7 @@ import org.albi.core.Core;
 import org.albi.core.modules.Duels.AutomatedCombat.Manager;
 import org.albi.core.modules.Duels.queue.DuelQueueModule;
 import org.albi.core.modules.Duels.queue.RankedQueueModule;
+import org.albi.core.modules.Duels.queue.global.GlobalMatchmaking;
 import org.albi.core.modules.Duels.polar.PolarArenaManager;
 import org.albi.core.modules.Module;
 import org.albi.core.modules.Duels.helpers.DuelStorage;
@@ -19,6 +20,7 @@ public final class DuelManager extends Module {
     public static PolarArenaManager polarArenaManager;
     private static DuelQueueModule duelQueueModule;
     private static RankedQueueModule rankedQueueModule;
+    private static GlobalMatchmaking matchmaking;
 
     public DuelManager(Core plugin) {
         super(plugin);
@@ -59,6 +61,7 @@ public final class DuelManager extends Module {
 
         getPlugin().getLogger().info("[Duels] Loading Ranked Queue Module");
         rankedQueueModule = new RankedQueueModule(getPlugin());
+        matchmaking = GlobalMatchmaking.create(getPlugin());
 
         // Load Ranked Settings
         RankedStats.PLACEMENT_THRESHOLD = getPlugin().getConfig().getInt("ranked.placement_matches", 5);
@@ -72,6 +75,15 @@ public final class DuelManager extends Module {
 
     public static RankedQueueModule getRankedQueueModule() {
         return rankedQueueModule;
+    }
+
+    public static GlobalMatchmaking getMatchmaking() {
+        return matchmaking;
+    }
+
+    public static void shutdownMatchmaking() {
+        if (matchmaking != null) matchmaking.close();
+        matchmaking = null;
     }
 
     public static DuelQueueModule getDuelQueueModule() {

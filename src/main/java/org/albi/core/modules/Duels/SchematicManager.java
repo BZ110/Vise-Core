@@ -23,6 +23,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Queue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -36,6 +37,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class SchematicManager {
 
     private final JavaPlugin plugin; // Reference to your main plugin class
+    private final boolean fastAsyncWorldEdit;
     private final Queue<PasteTask> queue = new ConcurrentLinkedQueue<>();
     private final AtomicBoolean isPasting = new AtomicBoolean(false);
 
@@ -45,6 +47,7 @@ public class SchematicManager {
     // Basic constructor, pass in your JavaPlugin class. (The variable "this" inside your main class)
     public SchematicManager(JavaPlugin plugin) {
         this.plugin = plugin;
+        fastAsyncWorldEdit = plugin.getServer().getPluginManager().isPluginEnabled("FastAsyncWorldEdit");
         plugin.getLogger().info("[SchematicManager] Loaded.");
     }
 
@@ -57,9 +60,15 @@ public class SchematicManager {
      * @param air      whether to paste air blocks (true = include air blocks)
      */
     public void enqueueSchematic(Location location, File file, boolean air) {
+        enqueueTrackedSchematic(location, file, air);
+    }
+
+    public CompletableFuture<Boolean> enqueueTrackedSchematic(Location location, File file, boolean air) {
         plugin.getLogger().warning("the schematic: '" + file.getName() + "' has been queued.");
-        queue.offer(new PasteTask(location, file, air));
+        var completion = new CompletableFuture<Boolean>();
+        queue.offer(new PasteTask(location, file, air, completion));
         processNext();
+        return completion;
     }
 
     /**
@@ -77,19 +86,28 @@ public class SchematicManager {
             isPasting.set(false);
             return;
         }
-        // Run the paste operation asynchronously so as not to block the main thread.
-        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-            boolean success = pasteHelper(task.location, task.file, task.air);
+        Runnable paste = () -> {
+            boolean success = false;
+            try {
+                success = pasteHelper(task.location, task.file, task.air);
+            } catch (RuntimeException e) {
+                plugin.getLogger().log(java.util.logging.Level.WARNING, "Schematic paste failed", e);
+            }
             if (!success) {
                 plugin.getLogger().warning("Failed to paste schematic: " + task.file.getName());
             }
             // Optionally add a short delay before processing the next task.
+            boolean pasted = success;
             Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                task.completion.complete(pasted);
                 isPasting.set(false);
                 plugin.getLogger().info("Finished pasting queued schematic.");
                 processNext();
             }, 5L);
-        });
+        };
+        // The Bukkit WorldEdit adapter accesses live blocks on the tick thread.
+        if (fastAsyncWorldEdit) Bukkit.getScheduler().runTaskAsynchronously(plugin, paste);
+        else Bukkit.getScheduler().runTask(plugin, paste);
     }
 
     /**
@@ -131,9 +149,9 @@ public class SchematicManager {
             }
 
             World weWorld = BukkitAdapter.adapt(location.getWorld());
-            // Create a new edit session with fastMode enabled.
-            try (EditSession editSession = WorldEdit.getInstance()
-                    .newEditSessionBuilder().world(weWorld).fastMode(true).build()) {
+            var builder = WorldEdit.getInstance().newEditSessionBuilder().world(weWorld);
+            if (fastAsyncWorldEdit) builder.fastMode(true);
+            try (EditSession editSession = builder.build()) {
                 // Build and complete the paste operation.
                 ClipboardHolder holder = new ClipboardHolder(clipboard);
                 Operation op = holder.createPaste(editSession)
@@ -141,7 +159,7 @@ public class SchematicManager {
                         .ignoreAirBlocks(!air)
                         .build();
                 Operations.complete(op);
-                editSession.flushQueue();
+                if (fastAsyncWorldEdit) editSession.flushQueue();
             }
             return true;
         } catch (IOException | WorldEditException e) {
@@ -157,11 +175,13 @@ public class SchematicManager {
         final Location location;
         final File file;
         final boolean air;
+        final CompletableFuture<Boolean> completion;
 
-        PasteTask(Location location, File file, boolean air) {
+        PasteTask(Location location, File file, boolean air, CompletableFuture<Boolean> completion) {
             this.location = location;
             this.file = file;
             this.air = air;
+            this.completion = completion;
         }
     }
 }

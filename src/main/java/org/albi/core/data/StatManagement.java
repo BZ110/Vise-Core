@@ -78,6 +78,12 @@ public final class StatManagement {
         });
     }
 
+    /** Flushes the source snapshot before a destination server starts loading it. Call off-thread. */
+    public static boolean flushForTransfer(PlayerStat stat, MainPlayer profile) {
+        StatStore store = INTERNAL.store;
+        return store != null && store.save(stat) && store.saveMain(profile);
+    }
+
     public static String getName(UUID id) {
         return INTERNAL.store.getRedis().withJedis(j -> j.hget("lb:names", id.toString()));
     }
@@ -325,14 +331,19 @@ public final class StatManagement {
         }
 
         /*────────────────── MAIN‐PROFILE SAVE ──────────────────*/
-        void saveMain(MainPlayer mp) {
-            if (!mp.isDirty()) return;
+        boolean saveMain(MainPlayer mp) {
+            synchronized (mp) {
+                return saveMainLocked(mp);
+            }
+        }
 
+        private boolean saveMainLocked(MainPlayer mp) {
+            if (!mp.isDirty()) return true;
             String key  = "main:" + mp.uuid();
             String json = mp.toJson();
 
             /* 1️⃣  Redis */
-            redis.withJedis(j -> {
+            Boolean cached = redis.withJedis(j -> {
                 j.setex(key, (int) TTL, json);
                 // Sync overall Elo to leaderboard
                 if (mp.getOverallRankedStats() != null) {
@@ -343,7 +354,7 @@ public final class StatManagement {
                 if (p != null) {
                     j.hset("lb:names", mp.uuid().toString(), p.getName());
                 }
-                return null;
+                return true;
             });
 
             /* 2️⃣  SQL (upsert) */
@@ -359,8 +370,10 @@ public final class StatManagement {
                 ps.executeUpdate();
             } catch (SQLException e) {
                 e.printStackTrace();
+                return false;
             }
-            mp.clearDirty();
+            if (Boolean.TRUE.equals(cached)) mp.clearDirty();
+            return Boolean.TRUE.equals(cached);
         }
 
 
@@ -431,8 +444,14 @@ public final class StatManagement {
         }
 
         /* ───── save ───── */
-        void save(PlayerStat p) {
-            if (!p.isDirty()) return;
+        boolean save(PlayerStat p) {
+            synchronized (p) {
+                return saveLocked(p);
+            }
+        }
+
+        private boolean saveLocked(PlayerStat p) {
+            if (!p.isDirty()) return true;
 
             String key = "stats:" + p.uuid();
             Map<String, Stat> clean = p.all().entrySet().stream()
@@ -440,7 +459,7 @@ public final class StatManagement {
                     .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
             String js = G.toJson(clean);
 
-            redis.withJedis(j -> {
+            Boolean cached = redis.withJedis(j -> {
                 j.setex(key, (int) TTL, js);
                 for (String g : p.dirty()) {
                     Stat s = p.all().get(g);
@@ -453,7 +472,7 @@ public final class StatManagement {
                     zset(j, g, "rounds",  s.roundsPlayed(), p.uuid());
                     zset(j, g, "time",    s.timePlayed(),   p.uuid());
                 }
-                return null;
+                return true;
             });
 
             /* SQL upsert unchanged */
@@ -465,9 +484,13 @@ public final class StatManagement {
                 ps.setString(2, js);
                 ps.setString(3, js);
                 ps.executeUpdate();
-            } catch (SQLException e) { e.printStackTrace(); }
+            } catch (SQLException e) {
+                e.printStackTrace();
+                return false;
+            }
 
-            p.clearDirty();
+            if (Boolean.TRUE.equals(cached)) p.clearDirty();
+            return Boolean.TRUE.equals(cached);
         }
 
 
@@ -574,12 +597,14 @@ public final class StatManagement {
         private final String host;
         private final int port;
         private final String password;
-        private JedisPool pool;
+        private volatile JedisPool pool;
         private final JedisPoolConfig cfg = new JedisPoolConfig();
 
         private volatile boolean healthy = false;
         private volatile int retryAttempts = 0;
-        private volatile long lastAttemptTime = 0;
+        private long nextAttemptTime;
+        private boolean reconnecting;
+        private boolean closed;
 
         RedisWrapper(Plugin plugin, String host, int port, String pwd) {
             this.plugin = plugin;
@@ -601,42 +626,47 @@ public final class StatManagement {
         }
 
         private void init() {
-            close();
-
+            JedisPool candidate = null;
+            Exception failure = null;
             try {
                 boolean sslEnabled = plugin.getConfig().getBoolean("redis.ssl");
                 if (sslEnabled) {
                     SSLContext sslContext = getSSLContext();
                     SSLParameters sslParameters = new SSLParameters();
                     sslParameters.setEndpointIdentificationAlgorithm("HTTPS");
-                    pool = new JedisPool(cfg, host, port, 8000, password, true,
+                    candidate = new JedisPool(cfg, host, port, 8000, password, true,
                             sslContext.getSocketFactory(), sslParameters, null);
                 } else {
-                    pool = new JedisPool(cfg, host, port, 8000, password);
+                    candidate = new JedisPool(cfg, host, port, 8000, password);
                 }
 
-                try (Jedis j = pool.getResource()) {
+                try (Jedis j = candidate.getResource()) {
                     if (!"PONG".equalsIgnoreCase(j.ping())) throw new RuntimeException("No PONG reply");
                 }
 
-                healthy = true;
-                retryAttempts = 0;
-                plugin.getLogger().info("[Stats] Redis pool ready.");
             } catch (Exception e) {
-                healthy = false;
-                retryAttempts++;
-                plugin.getLogger().warning("[Stats] Redis connection attempt " + retryAttempts + " failed ("
-                        + e.getClass().getSimpleName() + "). Check the endpoint, authentication and TLS settings.");
-
-                if (retryAttempts <= 3) {
-                    // Retry in 5 seconds
-                    Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, this::init, 20 * 5);
-                } else {
-                    plugin.getLogger().severe("[Stats] Redis disabled after 3 failed attempts.");
-                }
+                failure = e;
             }
 
-            lastAttemptTime = System.currentTimeMillis();
+            JedisPool old;
+            boolean ready;
+            synchronized (this) {
+                ready = !closed && failure == null;
+                old = pool;
+                pool = ready ? candidate : null;
+                healthy = ready;
+                retryAttempts = ready ? 0 : retryAttempts + 1;
+                reconnecting = false;
+                nextAttemptTime = System.currentTimeMillis() + 5000L * Math.min(6, Math.max(1, retryAttempts));
+            }
+            if (old != null) old.close();
+            if (!ready && candidate != null) candidate.close();
+            if (ready) {
+                plugin.getLogger().info("[Stats] Redis pool ready.");
+            } else if (failure != null && plugin.isEnabled()) {
+                plugin.getLogger().warning("[Stats] Redis connection attempt " + retryAttempts + " failed ("
+                        + failure.getClass().getSimpleName() + "). Check the endpoint, authentication and TLS settings.");
+            }
         }
 
         private SSLContext getSSLContext() throws Exception {
@@ -665,33 +695,48 @@ public final class StatManagement {
             return sslContext;
         }
 
-        private void ensure() {
-            if (healthy) return;
-
+        private synchronized void ensure() {
             long now = System.currentTimeMillis();
-            if (now - lastAttemptTime >= 5000 && retryAttempts < 3) {
+            if (!healthy && !closed && !reconnecting && now >= nextAttemptTime) {
+                reconnecting = true;
                 Bukkit.getScheduler().runTaskAsynchronously(plugin, this::init);
-                lastAttemptTime = now;
             }
         }
 
         public <R> R withJedis(Function<Jedis, R> fn) {
-            ensure();
+            if (!healthy) ensure();
             if (!healthy) return null;
 
-            try (Jedis j = pool.getResource()) {
+            JedisPool current = pool;
+            if (current == null) return null;
+            try (Jedis j = current.getResource()) {
                 return fn.apply(j);
-            } catch (Exception e) {
-                plugin.getLogger().warning("[Stats] Redis operation failed: " + e.getMessage());
-                healthy = false;
+            } catch (redis.clients.jedis.exceptions.JedisConnectionException e) {
+                if (markInterrupted(current)) {
+                    plugin.getLogger().warning("[Stats] Redis connection interrupted. Retrying in the background.");
+                }
+                return null;
+            } catch (RuntimeException e) {
+                plugin.getLogger().warning("[Stats] Redis operation failed (" + e.getClass().getSimpleName() + ").");
                 return null;
             }
         }
 
+        private synchronized boolean markInterrupted(JedisPool current) {
+            if (current != pool || !healthy) return false;
+            healthy = false;
+            return true;
+        }
+
         public void close() {
-            if (pool != null && !pool.isClosed()) {
-                pool.close();
+            JedisPool current;
+            synchronized (this) {
+                closed = true;
+                healthy = false;
+                current = pool;
+                pool = null;
             }
+            if (current != null) current.close();
         }
 
         public boolean isHealthy() {

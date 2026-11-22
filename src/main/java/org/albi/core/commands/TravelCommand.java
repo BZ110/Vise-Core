@@ -5,6 +5,7 @@ import com.samjakob.spigui.menu.SGMenu;
 import org.albi.core.Core;
 import org.albi.core.data.StatManagement;
 import org.albi.core.util.ConfigValues;
+import org.albi.core.util.ProxyTransfer;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.command.Command;
@@ -14,8 +15,6 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.SkullMeta;
 import redis.clients.jedis.params.ScanParams;
 
-import java.io.ByteArrayOutputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
@@ -165,14 +164,7 @@ public class TravelCommand extends BaseCommand {
     }
 
     private void sendPlayerToServer(Player player, String serverName) {
-        try (ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-             DataOutputStream output = new DataOutputStream(bytes)) {
-            output.writeUTF("Connect");
-            output.writeUTF(serverName);
-            player.sendPluginMessage(plugin, "BungeeCord", bytes.toByteArray());
-        } catch (IOException e) {
-            player.sendMessage("§cCould not request the server transfer.");
-        }
+        ProxyTransfer.connect(plugin, player, serverName);
     }
 
     private void refreshInstances() {

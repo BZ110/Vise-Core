@@ -35,6 +35,7 @@ import java.io.*;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
+import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
 import java.util.*;
 
@@ -154,6 +155,7 @@ public final class Core extends JavaPlugin {
     public void onDisable() {
         if (instance != this) return;
         try {
+            DuelManager.shutdownMatchmaking();
             Manager.shutdown(this);
             if (globalChatRedisListener != null) globalChatRedisListener.stop();
 
@@ -261,10 +263,15 @@ public final class Core extends JavaPlugin {
     }
 
     public void teleportToLobby(Player player) {
+        teleportToLobbyAsync(player);
+    }
+
+    public CompletableFuture<Boolean> teleportToLobbyAsync(Player player) {
         SerializableLocation spawnSerialized = (SerializableLocation) getData().get("spawn");
         ExtendedPlayer ep = getExtendedPlayer(player);
+        CompletableFuture<Boolean> teleport = CompletableFuture.completedFuture(true);
         if (spawnSerialized != null) {
-            player.teleportAsync(spawnSerialized.convertToLocation());
+            teleport = player.teleportAsync(spawnSerialized.convertToLocation());
 
             if (ep != null && ep.isHideLobbyPlayers()) {
                 for (Player other : Bukkit.getOnlinePlayers()) {
@@ -289,6 +296,7 @@ public final class Core extends JavaPlugin {
             }
         }
 
+        return teleport;
     }
 
     public void giveAppropriateLobbyItems(Player player) {

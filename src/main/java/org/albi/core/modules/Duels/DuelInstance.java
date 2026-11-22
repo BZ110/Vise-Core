@@ -72,6 +72,9 @@ public class DuelInstance implements Listener {
     private Location teamLocTwo;
 
     private Location motherLocation;
+    private boolean usePreparedPersonalKits;
+    private java.util.concurrent.CompletableFuture<Boolean> queueArenaReady;
+    private boolean queueArenaInPlay;
     private PolarArenaReservation polarReservation;
     private PolarArenaReservation nextPolarReservation;
 
@@ -150,6 +153,75 @@ public class DuelInstance implements Listener {
         return this;
     }
 
+    public DuelInstance usePreparedPersonalKits() {
+        usePreparedPersonalKits = true;
+        return this;
+    }
+
+    public static int availableQueueSlots(Core plugin, Arena arena) {
+        if (arena == null || arena.deactivated || arena.getName() == null
+                || arena.getSpawn1() == null || arena.getSpawn1().length < 5
+                || arena.getSpawn2() == null || arena.getSpawn2().length < 5
+                || arena.getCornerParameters() == null || arena.getCornerParameters().length < 4) return 0;
+        if (arena.isPolarArena()) {
+            return DuelManager.polarArenaManager.availableCopies(arena);
+        }
+        if (arena.getMaxPerLine() <= 0 || arena.getMaxArenas() <= 0 || arena.getSchematic() == null
+                || !getSchematicFile(plugin, arena).isFile()
+                || plugin.getServer().getWorld(arena.getName() + "-duel") == null) return 0;
+        var used = GlobalDuelCache.usedArenas.get(arena);
+        return Math.max(0, arena.getMaxArenas() - (used == null ? 0 : used.size()));
+    }
+
+    /** Holds a slot while queued players connect to this Paper instance. */
+    public boolean reserveQueueArena(Arena candidate) {
+        if (motherLocation != null || availableQueueSlots(plugin, candidate) == 0) return false;
+        arena = candidate;
+        if (candidate.isPolarArena()) {
+            polarReservation = DuelManager.polarArenaManager.reservePreloadedArena(arena);
+            if (polarReservation == null) return false;
+            motherLocation = polarReservation.getMotherLocation();
+            queueArenaReady = java.util.concurrent.CompletableFuture.completedFuture(true);
+        } else {
+            motherLocation = findArenaSpot(arena);
+            if (motherLocation == null) return false;
+            queueArenaReady = DuelManager.schemManager.enqueueTrackedSchematic(motherLocation, getSchematicFile(arena), true);
+        }
+        return true;
+    }
+
+    public java.util.concurrent.CompletableFuture<Boolean> queueArenaReady() {
+        return queueArenaReady;
+    }
+
+    public void releaseQueueArena() {
+        if (queueArenaReady != null && !queueArenaReady.isDone()) {
+            // A slot under an outstanding paste stays owned until the paste stops writing.
+            queueArenaReady.thenRun(this::releaseQueueArena);
+            return;
+        }
+        if (polarReservation != null && queueArenaReady != null && !queueArenaInPlay) {
+            DuelManager.polarArenaManager.returnUnusedArena(polarReservation);
+            polarReservation = null;
+        } else {
+            freeArena();
+        }
+        motherLocation = null;
+        queueArenaReady = null;
+    }
+
+    private boolean reserveArena() {
+        if (arena == null) return false;
+        if (arena.isPolarArena()) {
+            if (!usingPolarArena()) return false;
+            polarReservation = DuelManager.polarArenaManager.reserveArena(arena);
+            if (polarReservation != null) motherLocation = polarReservation.getMotherLocation();
+        } else {
+            motherLocation = findArenaSpot(arena);
+        }
+        return motherLocation != null;
+    }
+
     public void initialize() {
         initialize(10, false);
     }
@@ -158,7 +230,6 @@ public class DuelInstance implements Listener {
      * Prepares everything, and starts the duel.
      */
     public void initialize(int secondsToCount, boolean isPk) {
-        createAndStartMatchRecord();
         final Player[][] merged = { merge(teamOne, teamTwo) };
 
         // SAFETY CHECK: Is anyone in a duel?
@@ -169,31 +240,20 @@ public class DuelInstance implements Listener {
                 for (Player pp : merged[0]) {
                     plugin.getMessageAPI().sendMessageLang(pp, "duel_in");
                 }
+                releaseQueueArena();
                 return;
             }
         }
 
-        // Find a mother location or reserve a polar duel world.
-        if (usingPolarArena()) {
-            polarReservation = DuelManager.polarArenaManager.reserveArena(arena);
-            if (polarReservation == null) {
-                for (Player pp : merged[0]) {
-                    plugin.getMessageAPI().sendMessageLang(pp, "duel_no_arena");
-                }
-                return;
+        if (motherLocation == null && !reserveArena()) {
+            for (Player pp : merged[0]) {
+                plugin.getMessageAPI().sendMessageLang(pp, "duel_no_arena");
             }
-            motherLocation = polarReservation.getMotherLocation();
-        } else {
-            motherLocation = findArenaSpot(arena);
-            if (motherLocation == null) {
-                for (Player pp : merged[0]) {
-                    plugin.getMessageAPI().sendMessageLang(pp, "duel_no_arena");
-                }
-                return;
-            }
-
-            // We've found an arena, the duel can begin.
-            // Assume that the arena is empty. Queue it for schematic loading.
+            return;
+        }
+        createAndStartMatchRecord();
+        queueArenaInPlay = queueArenaReady != null;
+        if (!usingPolarArena() && !queueArenaInPlay) {
             DuelManager.schemManager.enqueueSchematic(motherLocation, getSchematicFile(arena), true);
         }
 
@@ -221,7 +281,7 @@ public class DuelInstance implements Listener {
                 }
 
                 /* per‑player kit? */
-                if (isPk) {
+                if (isPk && !usePreparedPersonalKits) {
                     Kit personal = personalKitFor(p, ep);
                     pdI.setKit(personal);
                 } else {
@@ -238,7 +298,7 @@ public class DuelInstance implements Listener {
                         pdI.setMendingRng(7);
                     }
                 }
-                if (isPk) {
+                if (isPk && !usePreparedPersonalKits) {
                     Kit personal = personalKitFor(p, ep);
                     pdI.setKit(personal);
                 } else {
@@ -1040,14 +1100,8 @@ public class DuelInstance implements Listener {
         }
 
         List<Location> used = GlobalDuelCache.usedArenas.get(arena);
-        List<Location> available = GlobalDuelCache.availableArenas.get(arena);
-
         if (used != null)
             used.remove(motherLocation);
-        if (available != null)
-            available.add(motherLocation);
-
-        // Optionally unload or reset the schematic region here
     }
 
     private Location findArenaSpot(Arena arena) {
@@ -1074,6 +1128,7 @@ public class DuelInstance implements Listener {
             int zOffset = arena.getOffsetZAxis();
             int xOffset = arena.getOffsetXAxis();
             int maxPerLine = arena.getMaxPerLine();
+            if (maxPerLine <= 0) return null;
 
             Location base = new Location(world, 0, 100, 0);
 
@@ -1140,6 +1195,10 @@ public class DuelInstance implements Listener {
      * @return Parsed schematic file.
      */
     private File getSchematicFile(Arena arena) {
+        return getSchematicFile(plugin, arena);
+    }
+
+    private static File getSchematicFile(Core plugin, Arena arena) {
         return new File(plugin.getDataFolder(),
                 "schems" + File.separator + "duels" + File.separator + arena.getSchematic());
     }

@@ -43,6 +43,9 @@ dependencies {
     implementation("net.kyori:adventure-api:4.26.1")
     implementation("net.kyori:adventure-text-serializer-legacy:4.26.1")
     implementation("net.kyori:adventure-text-minimessage:4.26.1")
+
+    testImplementation("org.junit.jupiter:junit-jupiter:5.11.4")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
 paperweight {
@@ -50,6 +53,11 @@ paperweight {
 }
 
 tasks {
+    test {
+        useJUnitPlatform()
+        inputs.property("redisTestPort", providers.environmentVariable("VISE_TEST_REDIS_PORT").orElse(""))
+    }
+
     processResources {
         inputs.property("version", project.version)
         filesMatching("plugin.yml") {

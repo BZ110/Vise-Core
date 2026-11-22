@@ -49,6 +49,59 @@ network:
   global_chat: true
   store_url: ""
   discord_url: ""
+  matchmaking:
+    # Enable on every participating Paper server behind the same proxy network.
+    enabled: false
+    namespace: "default"
+    server_id: "" # Exact proxy registration. Blank uses the lowercase region-id_number name.
+    pool: "" # Blank uses region. Set a location such as eu-east on each participating server.
+    host_matches: true # Set false for queue-only servers with no network arenas.
+
+    # Every step opens one more destination for each player. Region gates apply independently.
+    priority_step_seconds: 8
+    cross_region_after_seconds: 45
+    unlisted_after_seconds: -1 # -1 requires an explicit route in pools.
+    ping:
+      start_ms: 110
+      max_ms: 260
+      gap_start_ms: 45
+      gap_max_ms: 130
+      relax_every_seconds: 5
+      relax_by_ms: 15
+      # Added to the observed source ping when no origin-to-destination value is configured.
+      same_region_add_ms: 25
+      cross_region_add_ms: 100
+
+    poll_ticks: 10
+    scan_size: 128
+    offers_per_poll: 12
+    pending_per_host: 12
+
+    pools:
+      eu-east:
+        region: eu
+        priority: [eu-central, eu-west, middle-east, na-east, asia-central]
+        latency_ms: {eu-central: 20, eu-west: 35, middle-east: 65, na-east: 100, asia-central: 130}
+      eu-central:
+        region: eu
+        priority: [eu-east, eu-west, middle-east, na-east, asia-central]
+        latency_ms: {eu-east: 20, eu-west: 20, middle-east: 65, na-east: 90, asia-central: 145}
+      eu-west:
+        region: eu
+        priority: [eu-central, eu-east, na-east, middle-east, asia-central]
+        latency_ms: {eu-central: 20, eu-east: 35, na-east: 75, middle-east: 80, asia-central: 160}
+      middle-east:
+        region: middle-east
+        priority: [eu-east, eu-central, eu-west, asia-central, na-east]
+        latency_ms: {eu-east: 65, eu-central: 65, eu-west: 80, asia-central: 75, na-east: 150}
+      na-east:
+        region: na
+        priority: [eu-west, eu-central, eu-east, middle-east, asia-central]
+        latency_ms: {eu-west: 75, eu-central: 90, eu-east: 100, middle-east: 150, asia-central: 170}
+      asia-central:
+        region: asia
+        priority: [middle-east, eu-east, eu-central, eu-west, na-east]
+        latency_ms: {middle-east: 75, eu-east: 130, eu-central: 145, eu-west: 160, na-east: 170}
   travel:
     # Same-region instance transfers use the proxy. Add destinations here for direct transfers.
     regions: {}
