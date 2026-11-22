@@ -53,6 +53,7 @@ Scale a single instance with schematic slots or Polar world copies, or run a fle
 - [Codebase map](#codebase-map)
 - [PlaceholderAPI reference](#placeholderapi-reference)
 - [Command and permission reference](#command-and-permission-reference)
+- [License](#license)
 
 ## Installation and module setup
 
@@ -756,6 +757,10 @@ Each group lists its registered commands, aliases, and permission nodes. Additio
 | `core.admin.ranked`, `core.tournament.admin`, `core.customkit.admin` | Additional in-command checks for ranked administration, tournament administration, and custom-kit categories. |
 
 [Command registry](src/main/resources/plugin.yml)
+
+## License
+
+Vise Core is licensed under the [zlib License](LICENSE). You can use, modify, fork, and redistribute it, including commercially. Keep the license notice in source distributions, clearly identify modified versions, and represent the project's origins accurately.
 
 ## Credits
 
