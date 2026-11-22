@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "org.albi"
-version = "0.0.2"
+version = "0.0.3"
 
 java {
     toolchain.languageVersion.set(JavaLanguageVersion.of(21))
@@ -56,6 +56,7 @@ tasks {
     test {
         useJUnitPlatform()
         inputs.property("redisTestPort", providers.environmentVariable("VISE_TEST_REDIS_PORT").orElse(""))
+        inputs.property("mysqlTestPort", providers.environmentVariable("VISE_TEST_MYSQL_PORT").orElse(""))
     }
 
     processResources {

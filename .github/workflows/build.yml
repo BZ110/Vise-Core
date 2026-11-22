@@ -17,6 +17,16 @@ jobs:
         ports:
           - 6379/tcp
         options: --health-cmd "redis-cli ping" --health-interval 2s --health-timeout 2s --health-retries 10
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_DATABASE: vise_integration
+          MYSQL_USER: vise_test
+          MYSQL_PASSWORD: vise_test
+          MYSQL_RANDOM_ROOT_PASSWORD: 'yes'
+        ports:
+          - 3306/tcp
+        options: --health-cmd "mysqladmin ping -h 127.0.0.1 --silent" --health-interval 5s --health-timeout 5s --health-retries 12
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -31,6 +41,7 @@ jobs:
         run: ./gradlew --no-daemon build
         env:
           VISE_TEST_REDIS_PORT: ${{ job.services.redis.ports[6379] }}
+          VISE_TEST_MYSQL_PORT: ${{ job.services.mysql.ports[3306] }}
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ViseCore

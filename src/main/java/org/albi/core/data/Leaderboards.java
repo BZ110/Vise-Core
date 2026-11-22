@@ -16,6 +16,7 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BooleanSupplier;
 import java.util.logging.Logger;
 
 /** Redis is a bounded, rebuildable index. MySQL holds the full scores used to rebuild it. */
@@ -61,16 +62,19 @@ final class Leaderboards {
     private final DataSource sql;
     private final StatManagement.RedisWrapper redis;
     private final Logger logger;
-    private final boolean storedNames;
+    private final BooleanSupplier storedNames;
+    private final BooleanSupplier sqlAvailable;
     private final Cache<Board, List<LBRow>> lastGood = CacheBuilder.newBuilder().maximumSize(512).build();
     private final Cache<Board, List<LBRow>> recent = CacheBuilder.newBuilder().maximumSize(512)
             .expireAfterWrite(10, TimeUnit.SECONDS).build();
 
-    Leaderboards(DataSource sql, StatManagement.RedisWrapper redis, Logger logger, boolean storedNames) {
+    Leaderboards(DataSource sql, StatManagement.RedisWrapper redis, Logger logger,
+                 BooleanSupplier storedNames, BooleanSupplier sqlAvailable) {
         this.sql = sql;
         this.redis = redis;
         this.logger = logger;
         this.storedNames = storedNames;
+        this.sqlAvailable = sqlAvailable;
     }
 
     List<LBRow> top(Board board, int count) {
@@ -92,6 +96,7 @@ final class Leaderboards {
         });
         if (index != null && index.rows != null) return remember(board, index.rows);
 
+        if (!sqlAvailable.getAsBoolean()) return cached(board);
         try {
             List<LBRow> rows = readSql(board);
             if (index != null) {
@@ -127,7 +132,7 @@ final class Leaderboards {
     private List<LBRow> readSql(Board board) throws SQLException {
         // Only the column name is interpolated. JSON paths are bound parameters even for custom game names.
         String column = board.ranked ? "main" : "stats";
-        String name = storedNames ? "player_name" : "NULL";
+        String name = storedNames.getAsBoolean() ? "player_name" : "NULL";
         String query = "SELECT uuid, " + name + ", CAST(JSON_UNQUOTE(JSON_EXTRACT(" + column + ", ?)) AS SIGNED) AS score "
                 + "FROM player_stats WHERE JSON_CONTAINS_PATH(" + column + ", 'one', ?) "
                 + "ORDER BY score DESC, uuid DESC LIMIT ?";

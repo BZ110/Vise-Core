@@ -324,6 +324,7 @@ messages:
     your-message-has-been-blocked: "{1}Your message has been blocked."
   copy-kit-command:
     no-kit-found-with-that-code: "&cNo kit found with that code."
+    storage-unavailable: "&cKit sharing storage is unavailable on this server."
     usage-copykit-code: "&cUsage: /copykit <code>"
   copy-kit-select-slot-gui:
     copied-kit-into-slot: "&aCopied kit into slot &e{1}"
@@ -776,6 +777,7 @@ messages:
     sent-a-summon-request-to: "&aSent a summon request to &f{1}"
     wants-you-to-teleport-to-them-type-tpaccept: "&e{1} wants you to teleport to them. Type &a/tpaccept {2}"
   travel-command:
+    profile-save-unavailable: "&cTravel is paused until your profile can be saved to MySQL."
     transferring-to: "&7Transferring to &b{1}&7..."
   vanish-command:
     only-players-can-run-this-command: Only players can run this command.

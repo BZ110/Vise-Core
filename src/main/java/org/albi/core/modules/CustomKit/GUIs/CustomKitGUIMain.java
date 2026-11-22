@@ -1323,7 +1323,7 @@ public class CustomKitGUIMain {
 
 
             SGButton share = new SGButton(tag).withListener(e -> {
-                shareKit(p, slotKit); // save to Redis and show code
+                shareKit(p, slotKit);
             });
 
 
@@ -1583,7 +1583,6 @@ public class CustomKitGUIMain {
     }
 
 
-    /** Saves the kit in Redis (async) and sends the player the share‑code (sync). */
     private void shareKit(Player p, int slotKit) {
 
         ExtendedPlayer ep = plugin.getExtendedPlayer(p);
@@ -1597,43 +1596,21 @@ public class CustomKitGUIMain {
             return;
         }
 
-        final int TTL = 30 * 24 * 60 * 60; // 30 days
-        final String keyCode = "sharedkits:getcode:" + p.getUniqueId() + ":" + slotKit;
+        var shared = StatManagement.getSharedState();
+        if (!shared.isEnabled()) {
+            Messages.send(p, "messages.copy-kit-command.storage-unavailable");
+            return;
+        }
 
-        /* ---------------------------------------------------------------
-         *  1)  Redis work ⇒ async
-         * ------------------------------------------------------------- */
+        String snapshot = kit.toJson();
         plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
-
-            String[] outCode = new String[1]; // pass-by-ref wrapper
-
-            StatManagement.getRedis().withJedis(jedis -> {
-
-                String code = jedis.get(keyCode);
-                if (code == null) {
-                    // Loop until truly unique (extremely rare collision)
-                    do {
-                        code = java.util.UUID.randomUUID()
-                                .toString().substring(0, 8).toUpperCase();
-                    } while (jedis.exists("sharedkits:getkit:" + code));
-                }
-
-                // Save / refresh both keys
-                jedis.setex(keyCode,            TTL, code);
-                jedis.setex("sharedkits:getkit:" + code, TTL, kit.toJson());
-
-                outCode[0] = code;              // capture for sync part
-                return null;
-            });
-
-            /* -----------------------------------------------------------
-             *  2)  Back to main thread for Bukkit API
-             * --------------------------------------------------------- */
+            String code = shared.shareKit(p.getUniqueId(), slotKit, snapshot);
             plugin.getServer().getScheduler().runTask(plugin, () -> {
-                if (outCode[0] == null) {
+                if (!p.isOnline()) return;
+                if (code == null) {
                     Messages.send(p, "messages.custom-kit-guimain.failed-to-share-kit-try-again");
                 } else {
-                    Messages.send(p, "messages.custom-kit-guimain.your-kit-has-been-shared-use-command-copykit", outCode[0]);
+                    Messages.send(p, "messages.custom-kit-guimain.your-kit-has-been-shared-use-command-copykit", code);
                     p.closeInventory();
                 }
             });

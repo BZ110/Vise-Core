@@ -8,6 +8,7 @@ import com.google.common.cache.CacheBuilder;
 import com.google.gson.reflect.TypeToken;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
+import org.albi.core.modules.Duels.ranked.RankedMatchRecord;
 import org.albi.core.util.ConfigValues;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.ConfigurationSection;
@@ -30,6 +31,7 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.function.Function;
 
@@ -40,7 +42,12 @@ public final class StatManagement {
     /*─────────────────────────────────────────────────────────────────────────*/
     public static void init(Plugin plugin, Config cfg) {
         int retentionDays = Math.max(1, plugin.getConfig().getInt("ranked.history_expiry_days", 7));
-        INTERNAL.store = new StatStore(plugin, cfg, retentionDays);
+        StatStore store = new StatStore(plugin, cfg, retentionDays);
+        INTERNAL.store = store;
+        Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, store::recover, 20L, 100L);
+        if (!cfg.redisEnabled()) {
+            plugin.getLogger().info("[Storage] Redis is disabled. Network queues and chat are unavailable.");
+        }
     }
 
     public static void shutdown() {
@@ -48,7 +55,7 @@ public final class StatManagement {
         if (store == null) return;
         try {
             if (!store.writes.finish(() -> flush(store, true), store.shutdownTimeout)) {
-                store.plugin.getLogger().warning("[Stats] Final MySQL flush exceeded the shutdown timeout. Some writes may be incomplete.");
+                store.plugin.getLogger().warning("[Storage] Final flush exceeded the shutdown timeout. Some writes may not have reached durable storage.");
             }
         } finally {
             INTERNAL.store = null;
@@ -133,7 +140,7 @@ public final class StatManagement {
             }
         }
         if (shutdown && failed > 0) {
-            store.plugin.getLogger().warning("[Stats] Some player data could not be saved to MySQL at shutdown (" + failed + " profiles).");
+            store.plugin.getLogger().severe("[Storage] Could not save or queue " + failed + " profiles at shutdown.");
         }
     }
 
@@ -151,7 +158,14 @@ public final class StatManagement {
     /** Flushes the source snapshot before a destination server starts loading it. Call off-thread. */
     public static boolean flushForTransfer(PlayerStat stat, MainPlayer profile) {
         StatStore store = INTERNAL.store;
-        return store != null && persist(store, stat, profile, true);
+        if (store == null || !store.sqlReady || !persist(store, stat, profile, true) || !store.sqlReady) return false;
+        UUID player = profile != null ? profile.uuid() : stat == null ? null : stat.uuid();
+        return player != null && store.journal.latest("main:" + player) == null && store.journal.latest("stats:" + player) == null;
+    }
+
+    public static boolean isSqlReady() {
+        var store = INTERNAL.store;
+        return store != null && store.sqlReady;
     }
 
     public static String getName(UUID id) {
@@ -180,6 +194,10 @@ public final class StatManagement {
         return INTERNAL.store.getRedis();
     }
 
+    public static SharedState getSharedState() {
+        return INTERNAL.store.shared;
+    }
+
     /*────────────────── MAIN‑PROFILE FACADE ──────────────────*/
     public static MainPlayer getMain(UUID id) {
         return INTERNAL.mainCache.computeIfAbsent(id, INTERNAL.store::loadMain);
@@ -195,16 +213,16 @@ public final class StatManagement {
         return getMain(p.getUniqueId());
     }
 
-    public static void saveMatchRecord(org.albi.core.modules.Duels.ranked.RankedMatchRecord record) {
+    public static void saveMatchRecord(RankedMatchRecord record) {
         StatStore store = INTERNAL.store;
         if (store != null) store.writes.submit(() -> store.saveMatch(record));
     }
 
-    public static org.albi.core.modules.Duels.ranked.RankedMatchRecord loadMatchRecord(String matchId) {
+    public static RankedMatchRecord loadMatchRecord(String matchId) {
         return INTERNAL.store.loadMatch(matchId);
     }
 
-    public static List<org.albi.core.modules.Duels.ranked.RankedMatchRecord> loadRecentMatches(UUID playerId, int limit) {
+    public static List<RankedMatchRecord> loadRecentMatches(UUID playerId, int limit) {
         return INTERNAL.store.loadRecent(playerId, limit);
     }
 
@@ -227,7 +245,8 @@ public final class StatManagement {
     /*────────────────── simple records/enums ───────────*/
     public record Config(
             String mysqlHost, int mysqlPort, String mysqlDatabase, String mysqlUser, String mysqlPass,
-            String mysqlSslMode, int mysqlPoolSize, String redisHost, int redisPort, String redisPass) {
+            String mysqlSslMode, int mysqlPoolSize, boolean redisEnabled, String redisHost, int redisPort,
+            String redisPass, boolean sqlSharedState, boolean redisFallbackToMysql) {
 
         public static Config from(ConfigurationSection yaml) {
             String sslMode = yaml.getString("mysql.ssl_mode", "").strip().toUpperCase(Locale.ROOT);
@@ -235,7 +254,9 @@ public final class StatManagement {
             if (!Set.of("DISABLED", "PREFERRED", "REQUIRED", "VERIFY_CA", "VERIFY_IDENTITY").contains(sslMode)) {
                 throw new IllegalArgumentException("mysql.ssl_mode must be a Connector/J TLS mode.");
             }
-            String redisPassword = ConfigValues.envOrYaml(yaml, "redis.password", "VISE_REDIS_PASSWORD");
+            // Older files relied on Redis being enabled. A newly generated file has an explicit opt-out.
+            boolean redisEnabled = !yaml.contains("redis.enabled", true) || yaml.getBoolean("redis.enabled");
+            String redisPassword = redisEnabled ? ConfigValues.envOrYaml(yaml, "redis.password", "VISE_REDIS_PASSWORD") : "";
             int poolSize = yaml.getInt("mysql.pool_size", 20);
             if (poolSize < 1) throw new IllegalArgumentException("mysql.pool_size must be positive.");
 
@@ -245,10 +266,12 @@ public final class StatManagement {
                     required(yaml, "mysql.database", "VISE_MYSQL_DATABASE"),
                     required(yaml, "mysql.user", "VISE_MYSQL_USER"),
                     ConfigValues.envOrYaml(yaml, "mysql.password", "VISE_MYSQL_PASSWORD"),
-                    sslMode, poolSize,
-                    required(yaml, "redis.host", "VISE_REDIS_HOST"),
-                    port(yaml, "redis.port", "VISE_REDIS_PORT", 6379),
-                    redisPassword.isEmpty() ? null : redisPassword);
+                    sslMode, poolSize, redisEnabled,
+                    redisEnabled ? required(yaml, "redis.host", "VISE_REDIS_HOST") : "",
+                    redisEnabled ? port(yaml, "redis.port", "VISE_REDIS_PORT", 6379) : 0,
+                    redisPassword.isEmpty() ? null : redisPassword,
+                    yaml.getBoolean("storage.experimental_sql_shared_state", false),
+                    yaml.getBoolean("redis.fallback_to_mysql", false));
         }
 
         private static String required(ConfigurationSection yaml, String path, String env) {
@@ -371,17 +394,32 @@ public final class StatManagement {
         private final AtomicBoolean flushing = new AtomicBoolean();
         private final com.google.common.cache.Cache<UUID, String> names = CacheBuilder.newBuilder().maximumSize(20_000).build();
         private final Leaderboards leaderboards;
-        private final boolean storedNames;
+        private volatile boolean storedNames;
+        private volatile boolean sqlReady;
+        private final int retentionDays;
+        private final AtomicBoolean recovering = new AtomicBoolean();
 
         /* ---- SQL ---- */
         private final HikariDataSource sql;
 
         /* ---- Redis wrapper ---- */
         private final RedisWrapper redis;
+        private final SharedState shared;
+        private final RecoveryJournal journal;
+        private final RecoveryDatabase recoveryDb;
+        private final SqlRedisRelay relay;
+        private final RedisRecovery requests;
+        private final com.google.common.cache.Cache<String, RecoveryJournal.Profile> bases =
+                CacheBuilder.newBuilder().maximumSize(40_000).build();
+        private long nextWarning;
+        private String warnedState;
+        private long nextCleanup;
+        private int replayOffset;
 
         /* ---- ctor ---- */
         StatStore(Plugin plugin, Config c, int retentionDays) {
             this.plugin = plugin;
+            this.retentionDays = retentionDays;
             shutdownTimeout = Duration.ofSeconds(Math.clamp(plugin.getConfig().getInt("storage.shutdown_timeout_seconds", 15), 1, 60));
             matchTtlSeconds = Duration.ofDays(retentionDays).toSeconds();
             HikariConfig hc = new HikariConfig();
@@ -397,12 +435,20 @@ public final class StatManagement {
             hc.setUsername(c.mysqlUser());
             hc.setPassword(c.mysqlPass());
             hc.setMaximumPoolSize(c.mysqlPoolSize());
+            hc.setInitializationFailTimeout(-1); // Allow a cold start during a MySQL outage.
             sql = new HikariDataSource(hc);
 
             try {
-                storedNames = setupDatabase(plugin, retentionDays);
-                redis = new RedisWrapper(plugin, c.redisHost(), c.redisPort(), c.redisPass());
-                leaderboards = new Leaderboards(sql, redis, plugin.getLogger(), storedNames);
+                redis = new RedisWrapper(plugin, c.redisEnabled(), c.redisHost(), c.redisPort(), c.redisPass());
+                journal = new RecoveryJournal(plugin.getDataFolder().toPath().resolve("recovery"), plugin.getLogger());
+                recoveryDb = new RecoveryDatabase(sql);
+                relay = new SqlRedisRelay(sql);
+                String namespace = plugin.getConfig().getString("storage.recovery_namespace", "").strip();
+                requests = new RedisRecovery(redis, namespace.isEmpty() ? c.mysqlDatabase() : namespace);
+                shared = new SharedState(redis, sql, c.sqlSharedState(), c.redisFallbackToMysql(), relay, () -> sqlReady, plugin.getLogger());
+                leaderboards = new Leaderboards(sql, redis, plugin.getLogger(), () -> storedNames, () -> sqlReady);
+                prepareSql();
+                warnIfDegraded();
             } catch (RuntimeException e) {
                 sql.close();
                 throw e;
@@ -422,7 +468,7 @@ public final class StatManagement {
 
         MainPlayer loadMain(UUID id) {
             String json = loadProfileJson(id, "main");
-            return json == null ? new MainPlayer(id) : MainPlayer.fromJson(id, json);
+            return json == null || "{}".equals(json.strip()) ? new MainPlayer(id) : MainPlayer.fromJson(id, json);
         }
 
         PlayerStat load(UUID id) {
@@ -440,21 +486,200 @@ public final class StatManagement {
         }
 
         private String loadProfileJson(UUID id, String column) {
-            // MySQL is authoritative even when the server was stopped while Redis was unavailable.
-            SQLException databaseError = null;
+            String key = column + ":" + id;
+            var pending = journal.latest(key);
+            if (pending != null) return remember(column, id, new RecoveryJournal.Profile(pending.json()));
+            if (sqlReady) {
+                try {
+                    return remember(column, id, new RecoveryJournal.Profile(loadSqlProfile(id, column)));
+                } catch (SQLException failure) {
+                    noteSqlFailure(failure);
+                }
+            }
+            var asked = requests.latest(key);
+            if (asked != null) return remember(column, id, new RecoveryJournal.Profile(asked.json()));
+            var local = journal.readProfile(column, id);
+            if (local != null) {
+                bases.put(key, local);
+                return local.json();
+            }
+            String remote = redis.withJedis(j -> j.get(key));
+            return remote == null ? null : remember(column, id, new RecoveryJournal.Profile(remote));
+        }
+
+        private String remember(String column, UUID id, RecoveryJournal.Profile profile) {
+            bases.put(column + ":" + id, profile);
+            journal.rememberProfile(column, id, profile);
+            return profile.json();
+        }
+
+        private String loadSqlProfile(UUID id, String column) throws SQLException {
             try (var connection = sql.getConnection();
                  var statement = connection.prepareStatement("SELECT " + column + " FROM player_stats WHERE uuid=?")) {
                 statement.setString(1, id.toString());
                 try (var result = statement.executeQuery()) {
-                    if (result.next()) return result.getString(1);
+                    return result.next() ? result.getString(1) : null;
+                }
+            }
+        }
+
+        private void prepareSql() {
+            try {
+                storedNames = setupDatabase(plugin, retentionDays);
+                sqlReady = true;
+                plugin.getLogger().info("[Storage] MySQL is ready. Queued writes will be replayed.");
+            } catch (IllegalStateException failure) {
+                sqlReady = false;
+            }
+            if (sqlReady) prepareOptionalTables();
+        }
+
+        private void prepareOptionalTables() {
+            try {
+                if (!recoveryDb.receiptsAvailable()) recoveryDb.prepare();
+            } catch (SQLException failure) {
+                plugin.getLogger().warning("[Recovery] Could not create the replay receipt table (" + failure.getSQLState() + ").");
+            }
+            try {
+                if (redis.isEnabled() && !relay.available()) relay.prepare();
+            } catch (SQLException failure) {
+                plugin.getLogger().warning("[Recovery] Could not create the Redis relay table (" + failure.getSQLState() + ").");
+            }
+            try {
+                shared.prepareSql();
+            } catch (SQLException failure) {
+                plugin.getLogger().warning("[Recovery] Could not create the experimental shared keys table (" + failure.getSQLState() + ").");
+            }
+        }
+
+        private boolean verifySql() {
+            try (var connection = sql.getConnection()) {
+                return connection.isValid(2);
+            } catch (SQLException failure) {
+                return false;
+            }
+        }
+
+        private void noteSqlFailure(SQLException failure) {
+            String state = failure.getSQLState();
+            if (failure instanceof SQLTransientConnectionException || (state != null && state.startsWith("08"))) {
+                sqlReady = false;
+            }
+        }
+
+        private void recover() {
+            if (!recovering.compareAndSet(false, true)) return;
+            try {
+                if (sqlReady) sqlReady = verifySql();
+                if (!sqlReady) prepareSql();
+                if (redis.isEnabled()) redis.withJedis(Jedis::ping); // Keep reconnecting with network features switched off.
+                if (!sqlReady) flushAllAsync();
+                replayLocal();
+                if (sqlReady && redis.isHealthy()) {
+                    for (var write : requests.pending()) replay(write);
+                    drainRedisRelay();
+                }
+                if (sqlReady && System.nanoTime() >= nextCleanup) {
+                    nextCleanup = System.nanoTime() + TimeUnit.SECONDS.toNanos(60);
+                    prepareOptionalTables();
+                    shared.purgeExpired();
+                }
+                warnIfDegraded();
+            } catch (RuntimeException failure) {
+                plugin.getLogger().log(Level.WARNING, "[Recovery] A recovery pass failed. Pending records were retained.", failure);
+            } finally {
+                recovering.set(false);
+            }
+        }
+
+        private void replayLocal() {
+            var pending = journal.pending();
+            if (pending.isEmpty()) return;
+            int start = Math.floorMod(replayOffset, pending.size());
+            int count = Math.min(64, pending.size());
+            replayOffset = start + count;
+            for (int step = 0; step < count; step++) {
+                var write = pending.get((start + step) % pending.size());
+                if (sqlReady && replay(write)) journal.acknowledge(write);
+                else if (!sqlReady && requests.acknowledged(write)) journal.acknowledge(write);
+                else if (!sqlReady) requests.ask(write);
+            }
+        }
+
+        private boolean replay(RecoveryJournal.Write write) {
+            if (!sqlReady) return false;
+            try {
+                var result = recoveryDb.apply(write, storedNames, true);
+                if (result == RecoveryDatabase.Result.CONFLICT) return false;
+                if (result == RecoveryDatabase.Result.WRITTEN) publishCache(write, write.json(), List.of());
+                requests.acknowledge(write);
+                return true;
+            } catch (SQLException failure) {
+                noteSqlFailure(failure);
+                return false;
+            }
+        }
+
+        private void drainRedisRelay() {
+            if (!relay.available()) return;
+            try {
+                for (var job : relay.requests()) {
+                    if (!redis.isHealthy() || !sqlReady) break;
+                    if (!relay.claim(job)) continue;
+                    boolean sent;
+                    if (job.key().startsWith("health:")) {
+                        sent = Boolean.TRUE.equals(shared.publishRelayedHealth(job.key().substring(7), job.payload()));
+                    } else {
+                        sent = publishRelayedCache(job.key());
+                    }
+                    if (sent) relay.finish(job);
                 }
             } catch (SQLException failure) {
-                databaseError = failure;
-                plugin.getLogger().warning("[Stats] Could not load " + column + " for " + id + " from MySQL. Trying Redis.");
+                noteSqlFailure(failure);
             }
-            String cached = redis.withJedis(j -> j.get(column + ":" + id));
-            if (cached == null && databaseError != null) throw new IllegalStateException("Player data unavailable", databaseError);
-            return cached;
+        }
+
+        private boolean publishRelayedCache(String key) throws SQLException {
+            String[] parts = key.split(":", 2);
+            if (parts.length != 2) return true;
+            String json;
+            switch (parts[0]) {
+                case "main", "stats" -> {
+                    if (!parts[1].matches("[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}")) return true;
+                    json = loadSqlProfile(UUID.fromString(parts[1]), parts[0]);
+                }
+                case "match" -> {
+                    if (!parts[1].matches("[0-9A-Za-z]{1,8}")) return true;
+                    json = loadSqlMatch(parts[1]);
+                }
+                default -> { return true; }
+            }
+            if (json == null) return true;
+            long ttl = parts[0].equals("match") ? matchTtlSeconds : TTL;
+            return Boolean.TRUE.equals(redis.withJedis(j -> {
+                j.setex(key, ttl, json);
+                return true;
+            }));
+        }
+
+        private void warnIfDegraded() {
+            long now = System.nanoTime();
+            String state = !sqlReady ? (redis.isHealthy() ? "mysql" : "standalone")
+                    : redis.isEnabled() && !redis.isHealthy() ? "redis" : "ready";
+            if (state.equals(warnedState) && now < nextWarning) return;
+            warnedState = state;
+            nextWarning = now + TimeUnit.SECONDS.toNanos(30);
+            if (state.equals("standalone")) {
+                plugin.getLogger().severe("[Recovery] MySQL and Redis are unavailable. Running standalone and saving pending changes under plugins/Core/recovery. Restore MySQL before moving players to other servers.");
+            } else if (state.equals("mysql")) {
+                plugin.getLogger().severe("[Recovery] MYSQL DOWN. Urgent writes are queued on disk and in Redis. Any instance with MySQL access can save them. Restore MySQL access to drain the queue.");
+            } else if (state.equals("redis")) {
+                plugin.getLogger().warning("[Recovery] REDIS DOWN. Gameplay is local and durable data is in MySQL. Asking a healthy peer to republish supported Redis keys. Restore Redis for global features.");
+            }
+            int pending = journal.pending().size();
+            if (sqlReady && pending != 0) {
+                plugin.getLogger().warning("[Recovery] " + pending + " local writes are awaiting replay. Writes based on older or unknown data are retained if MySQL already has newer data.");
+            }
         }
 
         boolean saveMain(MainPlayer profile, boolean updateRedis) {
@@ -495,41 +720,55 @@ public final class StatManagement {
         }
 
         private boolean writeProfile(UUID id, String column, Snapshot snapshot, boolean updateRedis) {
-            String playerName = names.getIfPresent(id);
-            String other = column.equals("main") ? "stats" : "main";
-            String upsert = storedNames
-                    ? "INSERT INTO player_stats(uuid, " + column + ", " + other + ", player_name) "
-                        + "VALUES(?, ?, '{}', ?) ON DUPLICATE KEY UPDATE " + column + "=?, player_name=COALESCE(?, player_name)"
-                    : "INSERT INTO player_stats(uuid, " + column + ", " + other + ") "
-                        + "VALUES(?, ?, '{}') ON DUPLICATE KEY UPDATE " + column + "=?";
-            try (var connection = sql.getConnection(); var statement = connection.prepareStatement(upsert)) {
-                statement.setString(1, id.toString());
-                statement.setString(2, snapshot.json);
-                if (storedNames) {
-                    statement.setString(3, playerName);
-                    statement.setString(4, snapshot.json);
-                    statement.setString(5, playerName);
-                } else {
-                    statement.setString(3, snapshot.json);
+            String key = column + ":" + id;
+            var base = bases.getIfPresent(key);
+            if (base == null) base = journal.readProfile(column, id);
+            var write = journal.newWrite(column, id.toString(), base, snapshot.json, names.getIfPresent(id));
+            boolean saved = commitOrQueue(write, updateRedis, snapshot.scores);
+            if (saved) remember(column, id, new RecoveryJournal.Profile(snapshot.json));
+            return saved;
+        }
+
+        private boolean commitOrQueue(RecoveryJournal.Write write, boolean updateRedis, List<Score> scores) {
+            if (sqlReady && journal.latest(write.key()) == null) {
+                try {
+                    var result = recoveryDb.apply(write, storedNames, false);
+                    if (result != RecoveryDatabase.Result.CONFLICT) {
+                        if (updateRedis) publishCache(write, write.json(), scores);
+                        return true;
+                    }
+                } catch (SQLException failure) {
+                    noteSqlFailure(failure);
                 }
-                statement.executeUpdate();
-            } catch (SQLException failure) {
-                plugin.getLogger().warning("[Stats] Could not save " + column + " for " + id + " to MySQL (" + failure.getSQLState() + ").");
-                return false;
             }
 
-            if (updateRedis) {
-                redis.withJedis(j -> {
-                    try (var pipeline = j.pipelined()) {
-                        pipeline.setex(column + ":" + id, (int) TTL, snapshot.json);
-                        if (playerName != null) pipeline.hset(Leaderboards.NAMES, id.toString(), playerName);
-                        for (Score score : snapshot.scores) Leaderboards.index(pipeline, score.board, id, score.value);
-                        pipeline.sync();
+            boolean onDisk = journal.enqueue(write);
+            boolean offered = requests.ask(write);
+            return onDisk || offered;
+        }
+
+        private void publishCache(RecoveryJournal.Write write, String json, List<Score> scores) {
+            if (!redis.isEnabled()) return;
+            boolean match = write.type().equals("match");
+            Boolean updated = redis.withJedis(j -> {
+                try (var pipeline = j.pipelined()) {
+                    pipeline.setex(write.key(), match ? matchTtlSeconds : TTL, json);
+                    if (!match && write.name() != null) pipeline.hset(Leaderboards.NAMES, write.subject(), write.name());
+                    if (!scores.isEmpty()) {
+                        UUID player = UUID.fromString(write.subject());
+                        for (Score score : scores) Leaderboards.index(pipeline, score.board, player, score.value);
                     }
-                    return null;
-                });
+                    pipeline.sync();
+                }
+                return true;
+            });
+            if (updated == null && sqlReady && !redis.isHealthy()) {
+                try {
+                    relay.offer(write.key(), "", 300);
+                } catch (SQLException failure) {
+                    noteSqlFailure(failure);
+                }
             }
-            return true;
         }
 
         /* ensures table exists on first start */
@@ -596,69 +835,70 @@ public final class StatManagement {
 
 
         /*────────────────── MATCH STORAGE ──────────────────*/
-        void saveMatch(org.albi.core.modules.Duels.ranked.RankedMatchRecord record) {
-            String key = "match:" + record.getMatchId();
-            String json = G.toJson(record);
-
-            try (Connection c = sql.getConnection();
-                 PreparedStatement ps = c.prepareStatement("INSERT INTO ranked_matches(uuid, player1, player2, data) VALUES(?, ?, ?, ?)")) {
-                ps.setString(1, record.getMatchId());
-                ps.setString(2, record.getPlayer1().toString());
-                ps.setString(3, record.getPlayer2().toString());
-                ps.setString(4, json);
-                ps.executeUpdate();
-            } catch (SQLException e) {
-                plugin.getLogger().warning("[Stats] Could not save ranked match " + record.getMatchId() + " to MySQL.");
+        void saveMatch(RankedMatchRecord record) {
+            var write = journal.newWrite("match", record.getMatchId(), null, G.toJson(record), null);
+            if (!commitOrQueue(write, true, List.of())) {
+                plugin.getLogger().severe("[Recovery] Could not save or queue ranked match " + record.getMatchId());
             }
-            redis.withJedis(j -> {
-                j.setex(key, (int) matchTtlSeconds, json);
-                return null;
-            });
         }
 
-        org.albi.core.modules.Duels.ranked.RankedMatchRecord loadMatch(String matchId) {
+        RankedMatchRecord loadMatch(String matchId) {
             String key = "match:" + matchId;
-
-            /* 1️⃣ Redis */
-            String json = redis.withJedis(j -> j.get(key));
-            if (json != null) {
-                return G.fromJson(json, org.albi.core.modules.Duels.ranked.RankedMatchRecord.class);
-            }
-
-            /* 2️⃣ SQL */
-            try (Connection c = sql.getConnection();
-                 PreparedStatement ps = c.prepareStatement("SELECT data FROM ranked_matches WHERE uuid=?")) {
-                ps.setString(1, matchId.toString());
-                ResultSet rs = ps.executeQuery();
-                if (rs.next()) {
-                    json = rs.getString(1);
-                    return G.fromJson(json, org.albi.core.modules.Duels.ranked.RankedMatchRecord.class);
+            var pending = journal.latest(key);
+            if (pending == null) pending = requests.latest(key);
+            String json = pending == null ? redis.withJedis(j -> j.get(key)) : pending.json();
+            if (json == null && sqlReady) {
+                try {
+                    json = loadSqlMatch(matchId);
+                } catch (SQLException failure) {
+                    noteSqlFailure(failure);
                 }
-            } catch (SQLException e) {
-                e.printStackTrace();
             }
-            return null;
+            return json == null ? null : G.fromJson(json, RankedMatchRecord.class);
         }
 
-        List<org.albi.core.modules.Duels.ranked.RankedMatchRecord> loadRecent(UUID playerId, int limit) {
-            List<org.albi.core.modules.Duels.ranked.RankedMatchRecord> list = new ArrayList<>();
-            try (Connection c = sql.getConnection();
-                 PreparedStatement ps = c.prepareStatement(
-                         "SELECT data FROM ranked_matches WHERE player1=? OR player2=? ORDER BY created_at DESC LIMIT ?")) {
-                ps.setString(1, playerId.toString());
-                ps.setString(2, playerId.toString());
-                ps.setInt(3, limit);
-                ResultSet rs = ps.executeQuery();
-                while (rs.next()) {
-                    list.add(G.fromJson(rs.getString(1), org.albi.core.modules.Duels.ranked.RankedMatchRecord.class));
+        private String loadSqlMatch(String matchId) throws SQLException {
+            try (Connection connection = sql.getConnection();
+                 PreparedStatement query = connection.prepareStatement("SELECT data FROM ranked_matches WHERE uuid=?")) {
+                query.setString(1, matchId);
+                try (ResultSet result = query.executeQuery()) {
+                    return result.next() ? result.getString(1) : null;
                 }
-            } catch (SQLException e) {
-                e.printStackTrace();
             }
-            return list;
+        }
+
+        List<RankedMatchRecord> loadRecent(UUID playerId, int limit) {
+            Map<String, RankedMatchRecord> matches = new HashMap<>();
+            if (sqlReady) {
+                try (var connection = sql.getConnection();
+                     var query = connection.prepareStatement(
+                             "SELECT data FROM ranked_matches WHERE player1=? OR player2=? ORDER BY created_at DESC LIMIT ?")) {
+                    query.setString(1, playerId.toString());
+                    query.setString(2, playerId.toString());
+                    query.setInt(3, limit);
+                    try (var rows = query.executeQuery()) {
+                        while (rows.next()) {
+                            var match = G.fromJson(rows.getString(1), RankedMatchRecord.class);
+                            matches.put(match.getMatchId(), match);
+                        }
+                    }
+                } catch (SQLException failure) {
+                    noteSqlFailure(failure);
+                }
+            }
+            for (var write : journal.pending()) {
+                if (!write.type().equals("match")) continue;
+                var match = G.fromJson(write.json(), RankedMatchRecord.class);
+                if (playerId.equals(match.getPlayer1()) || playerId.equals(match.getPlayer2())) {
+                    matches.putIfAbsent(match.getMatchId(), match);
+                }
+            }
+            return matches.values().stream().sorted(Comparator.comparingLong(RankedMatchRecord::getStartTime).reversed())
+                    .limit(Math.max(0, limit)).toList();
         }
 
         UUID findRecentMatchPlayer(String name) {
+            if (!sqlReady) return null;
             // The match names are present in existing telemetry records, so this also covers
             // matches stored before network matchmaking without a profile schema change.
             String query = """
@@ -690,8 +930,9 @@ public final class StatManagement {
     /*──────────────────────────────────────── RedisWrapper ────────────────*/
 
 
-    public static final class RedisWrapper {
+    public static final class RedisWrapper implements AutoCloseable {
         private final Plugin plugin;
+        private final boolean enabled;
         private final String host;
         private final int port;
         private final String password;
@@ -705,8 +946,9 @@ public final class StatManagement {
         private boolean reconnecting;
         private boolean closed;
 
-        RedisWrapper(Plugin plugin, String host, int port, String pwd) {
+        RedisWrapper(Plugin plugin, boolean enabled, String host, int port, String pwd) {
             this.plugin = plugin;
+            this.enabled = enabled;
             this.host = host;
             this.port = port;
             this.password = pwd;
@@ -724,7 +966,7 @@ public final class StatManagement {
             cfg.setTimeBetweenEvictionRuns(Duration.ofMinutes(1));
             cfg.setNumTestsPerEvictionRun(3);
 
-            init(); // first attempt
+            if (enabled) init(); // first attempt
         }
 
         private void init() {
@@ -806,6 +1048,7 @@ public final class StatManagement {
         }
 
         public <R> R withJedis(Function<Jedis, R> fn) {
+            if (!enabled) return null;
             if (!healthy) ensure();
             if (!healthy) return null;
 
@@ -830,6 +1073,7 @@ public final class StatManagement {
             return true;
         }
 
+        @Override
         public void close() {
             JedisPool current;
             synchronized (this) {
@@ -843,6 +1087,10 @@ public final class StatManagement {
 
         public boolean isHealthy() {
             return healthy;
+        }
+
+        public boolean isEnabled() {
+            return enabled;
         }
     }
 }

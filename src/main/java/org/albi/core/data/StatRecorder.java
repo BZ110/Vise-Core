@@ -3,12 +3,9 @@ package org.albi.core.data;
 import org.albi.core.util.ConfigValues;
 
 import org.albi.core.Core;
-import org.albi.core.data.StatManagement.RedisWrapper;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.bukkit.scheduler.BukkitRunnable;
-import redis.clients.jedis.Pipeline;
-import redis.clients.jedis.params.XAddParams;
 
 import java.lang.management.GarbageCollectorMXBean;
 import java.lang.management.ManagementFactory;
@@ -20,11 +17,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class StatRecorder {
 
     private final Core plugin;
-    private final RedisWrapper redisWrapper;
+    private final SharedState shared;
     private final String serverName;
 
     private final Runtime runtime = Runtime.getRuntime();
@@ -35,21 +33,25 @@ public class StatRecorder {
 
 
 
-    public StatRecorder(Core plugin, RedisWrapper wrapper, String server) {
+    public StatRecorder(Core plugin, SharedState shared, String server) {
         this.plugin = plugin;
-        this.redisWrapper = wrapper;
+        this.shared = shared;
         this.serverName = server.toLowerCase(Locale.ROOT);
     }
 
     public void start() {
         var config = plugin.getConfig();
-        if (!config.getBoolean("network.health.enabled", true)) return;
+        if (!shared.isEnabled() || !config.getBoolean("network.health.enabled", true)) return;
         int sampleTicks = ConfigValues.integer(config, "network.health.sample_interval_ticks", 100, 20, 12_000);
         int maxSamples = ConfigValues.integer(config, "network.health.max_samples", 17_280, 1, 1_000_000);
+        int offlineAfter = ConfigValues.integer(config, "network.travel.offline_after_seconds", 10, 1, 3600);
+        int ttl = Math.max(60, Math.max((sampleTicks + 19) / 20, offlineAfter) * 3);
         boolean includeWorlds = config.getBoolean("network.health.include_worlds", true);
+        AtomicBoolean publishing = new AtomicBoolean();
         new BukkitRunnable() {
             @Override
             public void run() {
+                if (publishing.get()) return;
 
                 final long ts = System.currentTimeMillis();
                 final String iso = Instant.ofEpochMilli(ts).toString();
@@ -74,27 +76,14 @@ public class StatRecorder {
                     data.put(key + "_players", Integer.toString(world.getPlayers().size()));
                 }
 
+                publishing.set(true);
                 Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-                    enrichWithJvmAndServerData(data);
-
-                    redisWrapper.withJedis(jedis -> {
-                        String keyPrefix = "server:" + serverName + ":health";
-                        String streamKey = keyPrefix + ":stream";
-                        String latestKey = keyPrefix + ":latest";
-
-                        Pipeline p = jedis.pipelined();
-
-                        p.hmset(latestKey, data);
-
-                        p.xadd(
-                                streamKey,
-                                XAddParams.xAddParams().maxLen(maxSamples).approximateTrimming(),
-                                data
-                        );
-
-                        p.sync();
-                        return null;
-                    });
+                    try {
+                        enrichWithJvmAndServerData(data);
+                        shared.recordHealth(serverName, data, maxSamples, ttl);
+                    } finally {
+                        publishing.set(false);
+                    }
                 });
             }
         }.runTaskTimer(plugin, 0L, sampleTicks);

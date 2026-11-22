@@ -3,7 +3,6 @@ package org.albi.core.modules.CustomKit.commands;
 import org.albi.core.gui.Messages;
 
 import org.albi.core.Core;
-import org.albi.core.data.ExtendedPlayer;
 import org.albi.core.data.StatManagement;
 import org.albi.core.modules.CustomKit.GUIs.CopyKitSelectSlotGUI;
 import org.albi.core.modules.CustomKit.helpers.CustomKit;
@@ -12,6 +11,8 @@ import org.bukkit.World;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+
+import java.util.Locale;
 
 public class CopyKitCommand extends BaseCommand {
 
@@ -30,7 +31,7 @@ public class CopyKitCommand extends BaseCommand {
             Messages.send(player, "messages.copy-kit-command.usage-copykit-code");
             return true;
         }
-        String code = args[0].toUpperCase();
+        String code = args[0].toUpperCase(Locale.ROOT);
 
         // lobby‑world check (same as /customkit)
         World lobby = Bukkit.getWorld(plugin.getConfig().getString("lobby_world","world"));
@@ -39,26 +40,21 @@ public class CopyKitCommand extends BaseCommand {
             return true;
         }
 
-        /* ----------------------------------------------------------------
-         *  Run the Redis access asynchronously so we don't block main
-         * -------------------------------------------------------------- */
+        var shared = StatManagement.getSharedState();
+        if (!shared.isEnabled()) {
+            Messages.send(player, "messages.copy-kit-command.storage-unavailable");
+            return true;
+        }
+
         plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
-
-
-            CustomKit imported = StatManagement.getRedis().withJedis(jedis -> {
-                String json = jedis.get("sharedkits:getkit:" + code);
-                if (json == null) return null;
-
-
-                return CustomKit.fromJson(json);
-            });
-
-            /* --------------------------------------------
-             *  Now switch back to main thread for Bukkit
-             * ------------------------------------------ */
+            String json = shared.readKit(code);
+            CustomKit imported = json == null ? null : CustomKit.fromJson(json);
+            boolean available = shared.isKitBackendAvailable(code);
             plugin.getServer().getScheduler().runTask(plugin, () -> {
+                if (!player.isOnline()) return;
                 if (imported == null) {
-                    Messages.send(player, "messages.copy-kit-command.no-kit-found-with-that-code");
+                    Messages.send(player, available ? "messages.copy-kit-command.no-kit-found-with-that-code"
+                            : "messages.copy-kit-command.storage-unavailable");
                     return;
                 }
                 new CopyKitSelectSlotGUI(plugin, imported).open(player);

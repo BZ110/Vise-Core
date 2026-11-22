@@ -21,18 +21,29 @@ Scale a single instance with schematic slots or Polar world copies, or run a fle
 | Built-in HTML telemetry export with movement, health, and ping charts | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Redis chat bridge and regional travel menu | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Redis matchmaking with ranked and casual queues, ordered regional pools, and automatic duel transfers | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Built-in worldwide pool priorities and latency-based host selection | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Cross-server `/spectate` with host approval and return to the source lobby | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Built-in ping-aware knockback and ghost-arrow recovery | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Lava Rising survival events | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Challonge tournament brackets | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| PvPTiers, MCTiers, and Subtiers in one profile | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| PvPTiers, MCTiers, and Subtiers in one profile with independent switches | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Reloadable YAML for messages, GUI layouts, and state-specific hotbar commands | ✅ | ❌ | ❌ | ❌ | ❌ | Messages |
+| Configurable world rules, lobby protection, combat, and restart warnings | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Configurable Elo placements, divisions, and widening queue windows | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| XenoWorldReset destination picker | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| MySQL leaderboards with a Redis index and cached outage fallback | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Standalone ranked queues after Redis loss | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Experimental MySQL key-value fallback for kit sharing and travel discovery | ✅² | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Disk recovery for player data and ranked matches when both databases are unreachable | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Peer-assisted database recovery through both Redis and MySQL | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **Completely Free** | **✅** | **❌** | **✅** | **✅** | **✅** | **✅** |
 
-✅ denotes a documented feature of the base plugin. On feature rows, ❌ denotes a capability unlisted in the cited materials. The pricing row covers the base download. ¹ The PolarPaper integration has a version constraint described in the [arena generation guide](#polarpaper-arena-generation-support).
+✅ denotes a documented feature of the base plugin. On feature rows, ❌ denotes a capability unlisted in the cited materials. The pricing row covers the base download. ¹ See the [PolarPaper version notice](#polarpaper-arena-generation-support). ² Experimental and not recommended. See [Redis and outage options](#redis-and-outage-options).
 
 - **StrikePractice** is a paid practice suite with bot fights, replay playback, per-kit knockback configuration, and built-in events. The author's separate stats site can display saved fight data. [Product listing and pricing](https://builtbybit.com/resources/strikepractice-practice-pvp-plugin.74743/) · [v4.0.0 release notes](https://builtbybit.com/resources/strikepractice-practice-pvp-plugin.74743/updates) · [Stats site](https://github.com/toppev/strikepractice-stats)
 - **Versus** focuses on casual 1v1 duels for semi-vanilla servers. It documents arena setup, waiting when arenas are full, public and private matches, and in-game configuration editing. [SpigotMC listing](https://www.spigotmc.org/resources/versus-1-16-1-21-%E2%9A%94%EF%B8%8F-duels-simplified.118883/) · [Source and commands](https://github.com/robomonkey-mc/Versus) · [Downloads](https://www.spigotmc.org/resources/versus-1-16-1-21-%E2%9A%94%EF%B8%8F-duels-simplified.118883/history)
 - **UltimateDuels** documents multi-round 1v1 and party play, party queues, per-player kit variants, FFA worlds, built-in scoreboards, and WorldEdit or FAWE schematic restoration. [Modrinth listing](https://modrinth.com/plugin/ultimateduels)
-- **Duels by Realized** offers item and money wagers, sign-based queues, kit ratings, inventory inspection after matches, and an extension system. Its automatic arena-reset extension is listed separately from the base download. [SpigotMC listing](https://www.spigotmc.org/resources/duels.20171/) · [Author's command reference](https://github.com/Realizedd/Duels/wiki/Commands)
+- **Duels by Realized** offers item and money wagers, sign-based queues, kit ratings, inventory inspection after matches, and an extension system. Its automatic arena-reset extension is listed separately from the base download. [Source](https://github.com/Realizedd/Duels) · [SpigotMC listing](https://www.spigotmc.org/resources/duels.20171/) · [Author's command reference](https://github.com/Realizedd/Duels/wiki/Commands)
 - **EpicDuels** by nuroso000 offers kit queues, team duels, in-game party brackets, rematches, and live spectating. It creates and removes an isolated world copy for each duel. The base plugin is free to download and can optionally sync statistics through Supabase or Firebase. [Modrinth listing](https://modrinth.com/plugin/epicduels) · [Author's wiki](https://github.com/nuroso000/EpicDuels/wiki)
 
 ## Contents
@@ -54,6 +65,7 @@ Scale a single instance with schematic slots or Polar world copies, or run a fle
 - [Configuration, data, and upgrades](#configuration-data-and-upgrades)
   - [Translating messages with lang.yml](#translating-messages-with-langyml)
   - [Building menus with gui.yml](#building-menus-with-guiyml)
+  - [Help Me Please storage failsafes](#help-me-please)
 - [Codebase map](#codebase-map)
 - [PlaceholderAPI reference](#placeholderapi-reference)
 - [Command and permission reference](#command-and-permission-reference)
@@ -73,16 +85,18 @@ Scale a single instance with schematic slots or Polar world copies, or run a fle
 
 Run **Paper 1.21.3 with Java 21** and install **WorldEdit or FastAsyncWorldEdit** for Duels. Put the lobby and arena world on that instance. Start with the schematic backend, which is the default and works on the documented Paper version. A schematic arena can reuse physical slots in one loaded world as matches finish. [Schematic arena setup](#schematic-arenas)
 
-Plan for **one MySQL database and one Redis endpoint**. Both can run on the same machine as Paper if your host allows it, or you can use reachable endpoints supplied by your host. MySQL stores profiles, stats, and ranked history. Core disables itself at startup if it cannot initialize MySQL. Redis backs leaderboard indexes, kit-share codes, and profile snapshots. During a Redis outage, standalone duels still run and MySQL serves saved profiles, leaderboards, and match history. [Storage and connection code](src/main/java/org/albi/core/data/StatManagement.java)
+Plan for **one MySQL database**. A single Paper server can run duels, ranked queues, local spectating, parties, and FFA without Redis. MySQL normally stores profiles, stats, and ranked history and serves leaderboards. Local recovery keeps gameplay available during an outage. Redis is **strongly recommended when expanding to multiple servers** and powers the fast leaderboard indexes and shared network features. [Help Me Please failsafes](#help-me-please)
 
 If you add Core to an existing survival server, test the join flow on a copy first. Core resets player state, clears inventory, and sends players to its configured lobby on join. That behavior fits a practice server and matters when the same Paper instance also hosts an SMP. [Join listener](src/main/java/org/albi/core/events/OnJoinListener.java) · [Player reset code](src/main/java/org/albi/core/Core.java)
 
 ### Start with one map and a few slots
 
-Merge these settings into `plugins/Core/config.yml` alongside your existing MySQL and Redis settings. Set `lobby_world` to the actual lobby world name.
+Merge these settings into `plugins/Core/config.yml` alongside your MySQL connection settings. Set `lobby_world` to the actual lobby world name.
 
 ```yaml
 lobby_world: world
+redis:
+  enabled: false
 network:
   global_chat: false
   matchmaking:
@@ -107,7 +121,7 @@ duels:
 
 1. Download `ViseCore-*.jar` from GitHub Releases and put it in Paper's `plugins/` directory. To build from source, use `./gradlew build` on macOS or Linux or `gradlew.bat build` on Windows. The JAR is written to `build/libs/`. [Latest release](../../releases/latest) · [Build workflow](../../actions/workflows/build.yml)
 2. Install FastAsyncWorldEdit or WorldEdit if you plan to use Duels or modules that share its arenas and kits.
-3. Start Paper once to generate `plugins/Core/config.yml`. Create a MySQL database and configure its connection alongside Redis. The default endpoints point at localhost. Paper may disable Core on the first run until MySQL is reachable and the configured user can create the tables. Restart Paper after configuring both services.
+3. Start Paper once to generate `plugins/Core/config.yml`. Create a MySQL database and configure its connection. If MySQL is unreachable, startup uses local recovery until the connection returns and the configured user can create tables. For Redis features, set `redis.enabled: true` and configure its endpoint. Restart Paper after editing the configuration.
 4. Set `lobby_world` to the name of your lobby. Stand at the arrival point and run `/setspawn`. If you use multiple instances, give each one its own `region` and `id_number` combination.
 5. Grant the command and feature permissions players need. Create a test kit and arena before opening matchmaking. Set up FFA worlds and event arenas independently of the duel map list.
 
@@ -178,7 +192,7 @@ With `network.matchmaking.enabled`, `/queue`, `/quickqueue`, and `/rankedqueue` 
 #### Set up the network
 
 1. Put participating backends on a BungeeCord-compatible proxy network, with the destination server IDs registered on each participating proxy. Set `bungee-plugin-message-channel = true` in Velocity. Install the same Vise Core version and enable Duels on each participating backend. [PaperMC proxy messaging](https://docs.papermc.io/paper/dev/plugin-messaging/) · [Velocity configuration](https://docs.papermc.io/velocity/configuration/)
-2. Point every participant at the same Redis primary and MySQL database. The Redis connection needs permission to run Lua scripts alongside the existing data commands. Enable `network.matchmaking.enabled` and use the same `namespace`. Each backend needs a unique proxy registration. Set `server_id` to match it exactly, or leave it blank if the proxy already uses the lowercase `region-id_number` name. Leave `pool` and `pools` at their defaults to use the built-in geography. Redis 7 is used in CI. [Default configuration](src/main/resources/config.yml)
+2. Set `redis.enabled: true` on every participant and point them at the same Redis primary and MySQL database. The Redis connection needs permission to run Lua scripts alongside the existing data commands. Enable `network.matchmaking.enabled` and use the same `namespace`. Each backend needs a unique proxy registration. Set `server_id` to match it exactly, or leave it blank if the proxy already uses the lowercase `region-id_number` name. Leave `pool` and `pools` at their defaults to use the built-in geography. Redis 7 is used in CI. [Default configuration](src/main/resources/config.yml)
 3. Configure the lobby spawn on each backend. Install public kits using the same names and rules on each hosting backend. Set up its local schematic slots or compatible Polar origins and ranked arena lists. Set `host_matches: false` on queue-only backends. A queue-only backend with local arenas can still host local matches during an outage.
 
 | `network.matchmaking` key | Purpose |
@@ -215,6 +229,18 @@ Upgrades pick up the catalog automatically, including servers with the original 
 When Redis is unavailable, each Paper instance can match players already connected there. Fresh local tickets can match right away. Recently published tickets wait for their possible network claims to expire, up to 31 seconds after the last publication attempt finishes. That prevents an old transfer and a new local duel from claiming the same player. Local fallback uses the same kit and ranked rating rules and a local arena. Global queues resume automatically when Redis responds.
 
 Unfinished network handoffs expire after 25 seconds. If a transfer fails or an opponent never arrives, players who already moved can queue again from the destination lobby. Queued players who stayed in place can resume the search. Duels already started continue on their host. The handoff uses short-lived keys under `vise:mm:v1:{<namespace>}:` and needs no MySQL schema change. [Matchmaking code](src/main/java/org/albi/core/modules/Duels/queue/global) · [Redis state transitions](src/main/resources/matchmaking/exchange.lua)
+
+```mermaid
+flowchart TD
+    Queue["Players join the same kit queue"] --> Store{"Can the queue server reach MySQL and Redis?"}
+    Store -->|Yes| Regions["Search priority pools and widen ping and Elo limits"]
+    Regions --> Host["Claim both tickets and reserve an arena on the chosen host"]
+    Host --> Save{"Are both players eligible and their profiles saved?"}
+    Save -->|Yes| Transfer["Transfer both fighters and start when they arrive"]
+    Save -->|No| Retry["Release the arena and resolve the pending assignment"]
+    Store -->|No| Fence["Wait for any published network claims to expire"]
+    Fence --> Local["Match eligible players on this Paper server"]
+```
 
 The same namespace also shares short-lived routes for watchable duels. A spectator transfer names a specific duel and can be used once. Core clears spectator state on exit or disconnect. If a return transfer cannot complete, the player can use the current server's lobby. [Spectating code](src/main/java/org/albi/core/modules/Duels/spectating)
 
@@ -349,7 +375,7 @@ The `setbuild`, `setnaturalregen`, `sethealthindics`, and `setlosehunger` subcom
 - **Equipment and item editing.** Edit armor, offhand, hotbar, and inventory slots. Choose items from staff-curated categories. Item actions include changing names, enchantments, and stack sizes, removing items, and editing items inside shulker boxes and a kit's ender chest.
 - **Direct Kit Room.** Edit the inventory directly and explicitly save it back to the kit. The room provides a clear-inventory action and a trash slot for unwanted items.
 - **Kit settings.** Change build, hunger, regeneration, and health-indicator rules where offered by the menu. The kit editor also supports potion effects, a Mending repair override, a damage increase setting, and automatic TNT ignition.
-- **Sharing.** Use **Share Kit** to generate a Redis-backed code. Codes are valid for 30 days from the latest share. Another player can run `/copykit <code>` and pick an empty slot for a copy.
+- **Sharing.** Use **Share Kit** to generate a code through Redis or the experimental MySQL shared state. Codes are valid for 30 days from the latest share. Another player can run `/copykit <code>` and pick an empty slot for a copy. [Redis and outage options](#redis-and-outage-options)
 - **Category administration.** Hold a display item and run `/createcustomkitcategory <name> <guiSlot>`. Use `/setitemincustomkitcategory <name> <guiSlot>` to place the held item inside the category. Use `/changecategorylogo <name>` to replace the display icon, `/categorylist` to inspect categories, and `/deletecustomkitcategory <name>` to remove one.
 
 ## Groups and events
@@ -620,9 +646,11 @@ Existing installations can add individual settings to `plugins/Core/config.yml`.
 | `c_worlds`, `ffa_worlds` | Names of RTP-style gameplay worlds and public FFA worlds. |
 | `modules` | Feature switches. Review the dependencies in [module setup](#modules-and-requirements). |
 | `mysql` | Host, port, credentials, pool sizing, connect and socket timeouts, and the maximum wait for a connection. A blank `ssl_mode` uses the legacy `ssl` flag. For TCP TLS verification, use a supported Connector/J mode such as `VERIFY_IDENTITY` with a trusted server certificate. |
-| `redis` | Host, port, optional password, pool size, idle connection target, socket and connection-borrow timeouts, and TLS. With TLS enabled, `ca_file` can point to a custom CA. A blank value tries `certs/ca.crt` first, then the JVM trust store. |
+| `redis` | Enable Redis, opt in to experimental MySQL failover, and set host, port, optional password, pool size, idle connection target, socket and connection-borrow timeouts, and TLS. With TLS enabled, `ca_file` can point to a custom CA. A blank value tries `certs/ca.crt` first, then the JVM trust store. |
+| `storage.experimental_sql_shared_state` | **Experimental and not recommended.** Enables kit sharing and current server heartbeats in `vise_shared_keys` when Redis is disabled or the optional failover is active. |
 | `storage.flush_interval_seconds` | Frequency of periodic profile and stats flushes. The bundled default is 600 seconds. |
 | `storage.shutdown_timeout_seconds` | Maximum wait for pending writes and the final MySQL flush before storage closes. The default is 15 seconds. |
+| `storage.recovery_namespace` | Shared name for Redis recovery requests. Leave blank to use `mysql.database`, or give every server in this deployment the same unique value. |
 | `network` | Redis chat bridge, global matchmaking and spectating, travel discovery and health sampling, `/store` and `/discord` links, and direct travel destinations. |
 | `announcements`, `autorestart` | Lobby tips and the startup restart schedule. |
 | `use_polar_worlds`, `polar_preload` | Toggle the PolarPaper backend and set its preload target. |
@@ -793,13 +821,85 @@ Set credentials in the environment of the Paper process. A defined variable take
 | `VISE_CHALLONGE_USERNAME` | `tournaments.challonge_username` |
 | `VISE_CHALLONGE_API_KEY` | `tournaments.challonge_api_key` |
 
+### Redis and outage options
+
+Redis is optional on one Paper instance and strongly recommended for any multi-server deployment. New configs start with `redis.enabled: false`. Older configs that omit the key retain Redis access and reconnect behavior. Restart Paper after changing these settings. [Bundled configuration](src/main/resources/config.yml)
+
+| Deployment | Configuration | Behavior |
+| --- | --- | --- |
+| Standalone | `redis.enabled: false` | Local queues, duels, spectating, and gameplay use Paper. MySQL stores player data, ranked history, and leaderboard scores. Manually configured travel destinations still work. |
+| Multi-server, recommended | `redis.enabled: true` | Redis powers global queues, cross-server spectating and chat, Discord link codes, kit sharing, and discovery. During an outage, Core reconnects in the background. Durable data and leaderboards use MySQL, local play continues, and global queues apply their normal lease rules before matching locally. |
+| MySQL shared state only | `redis.enabled: false` and `storage.experimental_sql_shared_state: true` | Enables shared kit codes, `/health`, and automatic travel discovery between instances using the same MySQL database. Use only if you do not have Redis. |
+| MySQL failover | `redis.enabled: true`, `redis.fallback_to_mysql: true`, and `storage.experimental_sql_shared_state: true` | Kit sharing and current heartbeats switch to MySQL when Redis is unavailable. Redis resumes those writes automatically when it reconnects. |
+
+> **EXPERIMENTAL. Not recommended as a Redis substitute.** If Redis is unavailable, a smaller server with modest traffic can use this for occasional kit sharing and server discovery. The `vise_shared_keys` table stores expiring key-value records and adds work to the same MySQL service that saves profiles. Redis is strongly recommended when expanding to multiple servers.
+
+Redis and MySQL share codes are kept separate. Codes created through MySQL begin with `S` and remain redeemable through their 30-day lifetime while the MySQL shared state setting stays enabled, even after Redis reconnects. Existing Redis codes can be redeemed again when Redis returns. Redis remains required for cross-server matchmaking, spectating, chat, Discord code redemption, and health history streams. [Shared state code](src/main/java/org/albi/core/data/SharedState.java) · [Matchmaking outage behavior](#redis-outages-and-interrupted-transfers)
+
+### Help Me Please
+
+**Help Me Please** lets a Paper server that loses one database ask for help through the other. Each instance checks its own connections. A peer with working access claims the request, so recovery also works when a single Paper server loses connectivity while the databases themselves are healthy.
+
+| What failed | Where writes go | What stays available |
+| --- | --- | --- |
+| MySQL and Redis are unreachable | The affected server loads local profile snapshots and keeps new profile, stat, and match writes in `plugins/Core/recovery/outbox/`. | Local gameplay and queues continue. Core pauses transfers that require a saved profile. A player with no available snapshot starts with a temporary local profile. |
+| Redis is healthy and all servers lose MySQL | Each server writes its local outbox and sends persistent recovery requests to Redis. | Local gameplay continues. The first instance to regain MySQL can replay pending requests. |
+| Redis is healthy and only some servers lose MySQL | Affected servers publish their urgent dirty profile, stat, and match saves into the Redis outbox. A peer can commit them to MySQL and acknowledge each write. | Players on affected servers can play locally. Healthy peers can continue hosting network matches. |
+| MySQL is healthy and all servers lose Redis | MySQL remains authoritative. Local queues wait out any outstanding network claims. The optional experimental MySQL shared state provides kit codes and current heartbeats. | Local play, saved profiles, ranked history, and MySQL or cached leaderboards stay available. |
+| MySQL is healthy and only some servers lose Redis | Affected servers ask via `vise_redis_relay` in MySQL. A healthy peer claims a short lease and republishes the latest server heartbeat or an authoritative profile, stats, or match cache key to Redis. | Healthy peers can see the relayed heartbeats. Affected servers still use local queues and the optional experimental kit-sharing fallback while disconnected. |
+
+```mermaid
+flowchart TD
+    Check["Check this server's database connections"] --> SQL{"Can it reach MySQL?"}
+    SQL -->|Yes| RedisA{"Can it reach Redis?"}
+    SQL -->|No| RedisB{"Can it reach Redis?"}
+    RedisA -->|Yes| Normal["Save to MySQL and use Redis for network features"]
+    RedisA -->|No| SqlMode["Save to MySQL and run local matches"]
+    SqlMode --> Relay["Ask through MySQL to publish supported Redis keys"]
+    SqlMode --> Fallback["Use experimental kit codes and heartbeats if enabled"]
+    RedisB -->|Yes| RedisMode["Keep dirty writes on disk and ask through Redis"]
+    RedisB -->|No| Local["Load local snapshots and journal writes on disk"]
+    Local --> Restore["Replay pending writes after MySQL returns"]
+    RedisMode --> Restore
+```
+
+#### How the handoffs work
+
+- **MySQL writes requested through Redis.** The outbox entries have no expiration. A peer commits the SQL write and its receipt together so another peer can retry safely. Core removes acknowledged requests and replays local files after recovery. Put Redis on persistent storage and configure AOF and an eviction policy that preserves recovery keys if you need Redis to survive a process restart. Keep the local outbox through outages and restarts.
+- **Redis publication requested through MySQL.** The SQL table carries a fixed set of request types. A peer with both connections claims one, publishes it, and clears the exact request it handled. Heartbeats only move forward in time. Profile, stats, and match cache requests are rebuilt from MySQL when a peer processes them. Redis still handles live chat delivery, matchmaking leases, spectator transfers, Discord linking codes, and health streams directly.
+- **Conflicting profiles.** Replay checks the saved version the change was based on before replacing a player record. If another server has already changed the record, or if a temporary profile was created for a player who already has saved data, Core retains the pending file and leaves the saved record intact. Keep the `recovery/` directory and reconcile those histories before removing any retained writes.
+
+```mermaid
+flowchart LR
+    subgraph Save["Source lost MySQL"]
+        Disk["Persist dirty write to the local outbox"] --> AskRedis["Send the recovery request through Redis"]
+        AskRedis --> CheckBase{"Can a peer apply it to the saved version?"}
+        CheckBase -->|Yes| Commit["Commit write and receipt in MySQL"]
+        Commit --> Ack["Acknowledge through Redis and clear queued files"]
+        CheckBase -->|Conflict or no peer| Keep["Retain pending data for replay or reconciliation"]
+    end
+    subgraph Publish["Source lost Redis"]
+        AskSql["Insert typed publication request in MySQL"] --> Claim{"Can a peer with Redis claim it?"}
+        Claim -->|Yes| Put["Publish latest heartbeat or refresh a cache key"]
+        Put --> Finish["Remove the acknowledged SQL request"]
+        Claim -->|No| Wait["Retry until the request expires"]
+    end
+```
+
+#### During an outage
+
+The console logs a recovery warning when the connection state changes and repeats it about every 30 seconds until the service returns. When MySQL is unreachable, dirty data is flushed to the recovery outbox on the shorter recovery cycle, alongside disconnect and shutdown saves. Check available disk space, keep servers on the same recovery namespace, and grant the configured MySQL user permission to create and use the recovery tables. Use a separate Redis service or database and recovery namespace for unrelated deployments. After restoring a service, check that pending-write warnings clear before moving affected players between servers. [Recovery code](src/main/java/org/albi/core/data/StatManagement.java)
+
 ### What gets stored
 
 | Where | Data |
 | --- | --- |
 | `plugins/Core/data.dat` | Local plugin data, including spawn points, menu destinations, arenas, public kit definitions, categories, and event setup. Core writes the file through a temporary file when saving on shutdown. If the file cannot be read during startup, Core disables itself so an operator can recover the file. |
 | MySQL | `player_stats` stores player profiles, statistics, and the last known player name. `ranked_matches` stores match history and telemetry. The optional Discord module stores completed account links in `player_discord_links`. |
-| Redis | Cached profiles, stats and match records, sorted-set leaderboards, kit-sharing codes, Discord link codes, chat messages in transit, matchmaking tickets and handoffs, and server heartbeats and health streams. |
+| MySQL shared state (experimental) | `vise_shared_keys` stores temporary kit codes, their payloads, and the latest server heartbeats. Expired rows are cleaned up in the background. |
+| MySQL recovery | `vise_recovery_receipts` records completed recovery writes. `vise_redis_relay` temporarily holds typed Redis publication requests. |
+| Redis | Cached profiles, stats and match records, sorted-set leaderboards, kit-sharing codes, Discord link codes, chat messages in transit, matchmaking tickets and handoffs, server heartbeats and health streams, and the shared recovery outbox. |
+| `plugins/Core/recovery/` | Local profile snapshots and pending writes. Keep this directory with server backups. |
 | Memory | Online profile state and active gameplay state such as queues, parties, pending teleport requests, and arena reservations. A Paper restart clears active sessions. |
 | `plugins/Core/reports/` | HTML files produced by explicit report export commands. |
 
@@ -818,14 +918,14 @@ The online player wrapper brings together active state, the saved profile, and s
 | `vise:mm:v1:{<namespace>}:*` | Global queue tickets, per-player claims, host availability, pending match handoffs, and spectator routes and requests. |
 | `server:<id>:health:latest`, `server:<id>:health:stream` | Current server heartbeat and rolling health history. |
 
-On startup, Core opens SQL and ensures the tables exist before registering commands and modules. On upgrade, `ALTER` on `player_stats` lets Core add a column for leaderboard names. On schemas without that column, Core can still display scores using names known to Redis or Paper, with UUIDs for players it cannot identify. A failed SQL initialization disables the plugin. The Redis client checks for a PING response and retries failed connections. During a Redis outage, MySQL serves saved profiles, leaderboards, and match records. Travel discovery, code redemption, and cross-server chat depend on Redis recovery. [Storage and connection code](src/main/java/org/albi/core/data/StatManagement.java) · [Player profile model](src/main/java/org/albi/core/data/MainPlayer.java)
+Core attempts to open MySQL and prepare the tables during startup, then retries in the background if setup fails. On upgrade, `ALTER` on `player_stats` lets Core add a column for leaderboard names. On schemas without that column, Core can still display scores using names known to Redis or Paper, with UUIDs for players it cannot identify. With Redis enabled, the client checks for a PING response and retries failed connections. [Storage and connection code](src/main/java/org/albi/core/data/StatManagement.java) · [Player profile model](src/main/java/org/albi/core/data/MainPlayer.java)
 
 ### Upgrading and troubleshooting
 
 1. Back up `plugins/Core/`, the arena worlds, MySQL, and any Redis data you rely on. Stop Paper before swapping JARs.
 2. Keep the existing `plugins/Core/` directory and merge new keys from the shipped configuration. In particular, recheck `network` and `duels.bots`, and set your own store link, Discord invite, transfer hosts, and hosted report URL where needed.
-3. Check startup logs for storage and skipped-module messages. Verify MySQL table permissions, both service endpoints, the configured world names, and FAWE or WorldEdit if Duels should be active.
-4. Join the lobby and test one full match from queue or challenge through arena reuse. For FFA, test the exact configured world name and a saved entry spot. For network features, check `/health <server>` on both instances and confirm they use the expected Redis database and distinct instance IDs.
+3. Check startup logs for storage and skipped-module messages. Verify MySQL table permissions, the Redis endpoint if enabled, the configured world names, and FAWE or WorldEdit if Duels should be active.
+4. Join the lobby and test one full match from queue or challenge through arena reuse. For FFA, test the exact configured world name and a saved entry spot. For network features, check `/health <server>` on both instances and confirm they use the expected shared backend and distinct instance IDs.
 
 The repository includes the Gradle Wrapper, a pinned GitHub Actions workflow, build-time plugin version metadata, and shaded runtime dependencies for the JAR. Paper and integration plugins run alongside it. [Build script](build.gradle.kts) · [Main configuration](src/main/resources/config.yml)
 

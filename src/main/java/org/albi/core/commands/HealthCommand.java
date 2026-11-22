@@ -3,15 +3,14 @@ package org.albi.core.commands;
 import org.albi.core.gui.Messages;
 
 import org.albi.core.Core;
-import org.albi.core.data.ExtendedPlayer;
 import org.albi.core.data.StatManagement;
+import org.albi.core.util.ConfigValues;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.command.*;
 import org.bukkit.entity.Player;
-import org.bukkit.scheduler.BukkitRunnable;
 
-import java.util.Map;
+import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 
 public class HealthCommand extends BaseCommand {
@@ -32,11 +31,13 @@ public class HealthCommand extends BaseCommand {
             return true;
         }
 
-        String target = args[0].toLowerCase();
-        String redisKey = "server:" + target + ":health:latest";
+        String target = args[0].toLowerCase(Locale.ROOT);
+        var shared = StatManagement.getSharedState();
+        var redis = StatManagement.getRedis();
+        long offlineThreshold = ConfigValues.seconds(plugin.getConfig(), "network.travel.offline_after_seconds", 10, 1, 3600);
 
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-            Map<String, String> data = StatManagement.getRedis().withJedis(j -> j.hgetAll(redisKey));
+            var data = shared.readHealth(target);
 
             if (data == null || data.isEmpty()) {
                 Bukkit.getScheduler().runTask(plugin, () ->
@@ -53,8 +54,8 @@ public class HealthCommand extends BaseCommand {
                 ChatColor g = ChatColor.GRAY, a = ChatColor.AQUA, b = ChatColor.BOLD;
                 ChatColor green = ChatColor.GREEN, gold = ChatColor.GOLD, red = ChatColor.RED;
 
-                plugin.getMessageAPI().sendMessage(player, Messages.text(player, "messages.health-command.server-health", b, a, target.toUpperCase()));
-                plugin.getMessageAPI().sendMessage(player, Messages.text(player, "messages.health-command.status", gold, (diff < 10_000 ? green + "Online" : red + "Offline")));
+                plugin.getMessageAPI().sendMessage(player, Messages.text(player, "messages.health-command.server-health", b, a, target.toUpperCase(Locale.ROOT)));
+                plugin.getMessageAPI().sendMessage(player, Messages.text(player, "messages.health-command.status", gold, (diff < offlineThreshold ? green + "Online" : red + "Offline")));
                 plugin.getMessageAPI().sendMessage(player, Messages.text(player, "messages.health-command.last-ping-s-ago", gold, g, ts, diff / 1000));
 
                 plugin.getMessageAPI().sendMessage(player, "");
@@ -80,9 +81,11 @@ public class HealthCommand extends BaseCommand {
                 plugin.getMessageAPI().sendMessage(player, Messages.text(player, "messages.health-command.arch", green, g, data.getOrDefault("system_arch", "?")));
                 plugin.getMessageAPI().sendMessage(player, Messages.text(player, "messages.health-command.cores", green, g, data.getOrDefault("system_cores", "?")));
 
-                plugin.getMessageAPI().sendMessage(player, "");
-                plugin.getMessageAPI().sendMessage(player, Messages.text(player, "messages.health-command.redis-latency", b, a));
-                plugin.getMessageAPI().sendMessage(player, Messages.text(player, "messages.health-command.ping-ms", green, g, data.getOrDefault("redis_latency_ms", "?")));
+                if (redis.isHealthy()) {
+                    plugin.getMessageAPI().sendMessage(player, "");
+                    plugin.getMessageAPI().sendMessage(player, Messages.text(player, "messages.health-command.redis-latency", b, a));
+                    plugin.getMessageAPI().sendMessage(player, Messages.text(player, "messages.health-command.ping-ms", green, g, data.getOrDefault("redis_latency_ms", "?")));
+                }
             });
         });
 

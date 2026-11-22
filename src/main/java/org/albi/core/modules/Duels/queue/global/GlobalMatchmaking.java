@@ -72,6 +72,12 @@ public final class GlobalMatchmaking {
     private boolean closed;
 
     public static GlobalMatchmaking create(Core plugin) {
+        if (!StatManagement.getRedis().isEnabled()) {
+            if (plugin.getConfig().getBoolean("network.matchmaking.enabled")) {
+                plugin.getLogger().info("[Matchmaking] Redis is disabled. Using standalone queues and local spectating.");
+            }
+            return null;
+        }
         MatchmakingSettings settings = MatchmakingSettings.load(plugin);
         if (settings == null) return null;
         return new GlobalMatchmaking(plugin, settings);
@@ -206,6 +212,7 @@ public final class GlobalMatchmaking {
 
     private Exchange exchange(StatManagement.RedisWrapper connection, MatchmakingPolicy.Host heartbeat,
                               List<Entry> entries, List<Change> batch, Map<Change, SaveBeforeTransfer> saves) {
+        if (!StatManagement.isSqlReady()) return new Exchange(false, System.nanoTime(), null);
         boolean[] mayHavePublished = {false};
         List<Change> ready = new ArrayList<>();
         for (Change action : batch) {
@@ -240,8 +247,11 @@ public final class GlobalMatchmaking {
         boolean available = response.assignments != null;
         if (available != redisAvailable) {
             redisAvailable = available;
-            plugin.getLogger().info(available ? "[Matchmaking] Redis recovered. Network queues resumed."
-                    : "[Matchmaking] Redis unavailable. Local queues will resume as network assignments expire.");
+            if (available) plugin.getLogger().info("[Matchmaking] Shared storage recovered. Network queues resumed.");
+            else {
+                String backend = StatManagement.isSqlReady() ? "Redis" : "MySQL";
+                plugin.getLogger().info("[Matchmaking] " + backend + " unavailable. Local queues will resume as network assignments expire.");
+            }
         }
         if (!available) {
             for (Change change : attempted) {

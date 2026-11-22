@@ -228,13 +228,15 @@ public class OnChatListener implements Listener {
         // ────────────────────────────────────────────────────────────
         // Redis logging / Cross-Server Broadcasting
         // ────────────────────────────────────────────────────────────
-        if (mp != null && mp.isBroadcastChats() && plugin.getConfig().getBoolean("network.global_chat", true)) {
+        if (mp != null && mp.isBroadcastChats() && plugin.getConfig().getBoolean("network.global_chat", true)
+                && StatManagement.getRedis().isEnabled()) {
+            var redis = StatManagement.getRedis();
             String finalMessage = ChatColor.stripColor(ChatColor.translateAlternateColorCodes('&', event.getMessage()));
             finalMessage = finalMessage.replaceAll("(?i)[§&][0-9A-FK-ORX]|&#[0-9A-Fa-f]{6}", "");
 
             final String redisMessage = finalMessage;
             Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-                StatManagement.getRedis().withJedis(jedis -> {
+                redis.withJedis(jedis -> {
                     JsonObject payload = new JsonObject();
                     payload.addProperty("server", plugin.getServerName().toLowerCase(java.util.Locale.ROOT));
                     payload.addProperty("player", player.getName());

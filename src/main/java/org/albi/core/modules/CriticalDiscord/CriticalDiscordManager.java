@@ -188,11 +188,15 @@ public final class CriticalDiscordManager extends Module {
                 String code = String.format("%06d", ThreadLocalRandom.current().nextInt(0, 1_000_000));
                 String codeKey = "link-code:" + code;
 
-                mod.getRedis().withJedis(j -> {
+                Boolean stored = mod.getRedis().withJedis(j -> {
                     j.setex(codeKey, 300, uuid.toString());
                     j.setex(waitKey, 300, code);
-                    return null;
+                    return true;
                 });
+                if (!Boolean.TRUE.equals(stored)) {
+                    sendSync(p, "§cAccount linking is temporarily unavailable.");
+                    return;
+                }
 
                 sendSync(p,
                         "§7Copy this code, then follow the instructions on the Discord within five minutes",

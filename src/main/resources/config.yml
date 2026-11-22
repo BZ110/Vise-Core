@@ -88,7 +88,8 @@ world_rules:
   #   survival: {enabled: false}
   #   practice: {inherit: false, difficulty: NORMAL, gamerules: {naturalRegeneration: false}}
 
-# Set up MySQL and Redis before starting. Environment variables override YAML.
+# Set up MySQL before starting. Redis is optional and strongly recommended for multiple servers.
+# Environment variables override connection settings in YAML.
 mysql:
   host: "127.0.0.1"
   port: 3306
@@ -103,6 +104,8 @@ mysql:
   connection_timeout_ms: 5000 # Maximum wait for a pooled MySQL connection.
 
 redis:
+  enabled: false # Set true on every participating server to use Redis features.
+  fallback_to_mysql: false # EXPERIMENTAL. Only during outages. Requires storage.experimental_sql_shared_state.
   host: "127.0.0.1"
   port: 6379
   password: ""
@@ -116,6 +119,10 @@ redis:
 storage:
   flush_interval_seconds: 600
   shutdown_timeout_seconds: 15 # Maximum wait for queued writes and the final MySQL flush.
+  recovery_namespace: "" # All peers sharing a database must use the same value. Blank uses mysql.database.
+  # EXPERIMENTAL. Not recommended as a Redis substitute. Workable for smaller servers without Redis.
+  # Stores kit share codes and current server heartbeats in vise_shared_keys.
+  experimental_sql_shared_state: false
 
 modules:
   Duels: true

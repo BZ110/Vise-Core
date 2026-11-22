@@ -21,6 +21,7 @@ public class GlobalChatRedisListener {
     }
 
     public void start() {
+        var redis = StatManagement.getRedis();
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             pubSub = new JedisPubSub() {
                 @Override
@@ -93,7 +94,7 @@ public class GlobalChatRedisListener {
             };
 
             while (plugin.isEnabled()) {
-                StatManagement.getRedis().withJedis(jedis -> {
+                redis.withJedis(jedis -> {
                     if (jedis == null)
                         return null;
                     try {

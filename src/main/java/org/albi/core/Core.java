@@ -122,12 +122,12 @@ public final class Core extends JavaPlugin {
 
         autoRestartService = new org.albi.core.util.AutoRestartService(this);
         autoRestartService.start();
-        if (getConfig().getBoolean("network.global_chat", true)) {
+        if (StatManagement.getRedis().isEnabled() && getConfig().getBoolean("network.global_chat", true)) {
             globalChatRedisListener = new org.albi.core.events.GlobalChatRedisListener(this);
             globalChatRedisListener.start();
         }
         new AnnouncementService(this).start();
-        new StatRecorder(this, StatManagement.getRedis(), getServerName()).start();
+        new StatRecorder(this, StatManagement.getSharedState(), getServerName()).start();
 
         int flushSeconds = Math.max(1, getConfig().getInt("storage.flush_interval_seconds", 600));
         long flushTicks = flushSeconds * 20L;

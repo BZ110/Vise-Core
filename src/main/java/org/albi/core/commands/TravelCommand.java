@@ -17,7 +17,6 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.SkullMeta;
-import redis.clients.jedis.params.ScanParams;
 
 import java.io.IOException;
 import java.net.URI;
@@ -26,6 +25,9 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 
 public class TravelCommand extends BaseCommand {
     private static final int INSTANCE_SLOTS = 8;
@@ -33,7 +35,7 @@ public class TravelCommand extends BaseCommand {
 
     private final Core plugin;
     private final List<Region> regions;
-    // Redis snapshots are written by the async refresh and read by inventory handlers.
+    // Instance snapshots are written by the async refresh and read by inventory handlers.
     private volatile List<Instance> instances = List.of();
 
     public TravelCommand(Core plugin) {
@@ -41,7 +43,19 @@ public class TravelCommand extends BaseCommand {
         regions = loadRegions();
         offlineThresholdMillis = ConfigValues.seconds(plugin.getConfig(), "network.travel.offline_after_seconds", 10, 1, 3600);
         int refreshTicks = ConfigValues.integer(plugin.getConfig(), "network.travel.refresh_ticks", 100, 20, 12_000);
-        Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, this::refreshInstances, 0L, refreshTicks);
+        var shared = StatManagement.getSharedState();
+        if (shared.isEnabled()) {
+            var refreshing = new AtomicBoolean();
+            Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, () -> {
+                if (!refreshing.compareAndSet(false, true)) return;
+                try {
+                    instances = shared.healthSnapshots().stream().map(this::readInstance).filter(Objects::nonNull)
+                            .distinct().sorted(Comparator.comparing(Instance::name)).toList();
+                } finally {
+                    refreshing.set(false);
+                }
+            }, 0L, refreshTicks);
+        }
     }
 
     @Override
@@ -76,10 +90,7 @@ public class TravelCommand extends BaseCommand {
                     : List.of("§7Online: §f" + instance.players(), current ? "§eYou are here." : "§eClick to travel.");
             var button = new SGButton(icon(material, "§b" + instance.name(), lore, null));
             if (instance.online() && !current) {
-                button.withListener(event -> {
-                    player.closeInventory();
-                    sendPlayerToServer(player, instance.name());
-                });
+                button.withListener(event -> transferAfterSave(player, ready -> ProxyTransfer.connect(plugin, ready, instance.name())));
             }
             GuiService.entry(menu, instance.name(), (i / INSTANCE_SLOTS) * 9 + (i % INSTANCE_SLOTS), button);
         }
@@ -113,11 +124,10 @@ public class TravelCommand extends BaseCommand {
             Material material = region.texture() == null ? Material.COMPASS : Material.PLAYER_HEAD;
             SGButton button = new SGButton(icon(material, "§b" + region.name(), lore, region.texture()));
             if (!current) {
-                button.withListener(event -> {
-                    player.closeInventory();
-                    Messages.send(player, "messages.travel-command.transferring-to", region.name());
-                    player.transfer(region.host(), region.port());
-                });
+                button.withListener(event -> transferAfterSave(player, ready -> {
+                    Messages.send(ready, "messages.travel-command.transferring-to", region.name());
+                    ready.transfer(region.host(), region.port());
+                }));
             }
             GuiService.entry(menu, region.id(), i, button);
         }
@@ -167,27 +177,22 @@ public class TravelCommand extends BaseCommand {
         return item;
     }
 
-    private void sendPlayerToServer(Player player, String serverName) {
-        ProxyTransfer.connect(plugin, player, serverName);
-    }
-
-    private void refreshInstances() {
-        var active = StatManagement.getRedis().withJedis(redis -> {
-            List<Instance> snapshot = new ArrayList<>();
-            ScanParams scan = new ScanParams().match("server:*:health:latest");
-            String cursor = ScanParams.SCAN_POINTER_START;
-            do {
-                var page = redis.scan(cursor, scan);
-                for (String key : page.getResult()) {
-                    Instance instance = readInstance(redis.hgetAll(key));
-                    if (instance != null) snapshot.add(instance);
-                }
-                cursor = page.getCursor();
-            } while (!ScanParams.SCAN_POINTER_START.equals(cursor));
-
-            return snapshot.stream().distinct().sorted(Comparator.comparing(Instance::name)).toList();
+    private void transferAfterSave(Player player, Consumer<Player> transfer) {
+        var profile = plugin.getExtendedPlayer(player);
+        if (!profile.isReady() || !StatManagement.isSqlReady()) {
+            Messages.send(player, "messages.travel-command.profile-save-unavailable");
+            return;
+        }
+        player.closeInventory();
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            boolean saved = StatManagement.flushForTransfer(profile.getStat(), profile.getMainPlayer());
+            if (!plugin.isEnabled()) return;
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                if (!player.isOnline()) return;
+                if (saved) transfer.accept(player);
+                else Messages.send(player, "messages.travel-command.profile-save-unavailable");
+            });
         });
-        instances = active == null ? List.of() : active;
     }
 
     private Instance readInstance(Map<String, String> data) {
