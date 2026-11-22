@@ -18,7 +18,7 @@ lobby:
     reset_player: true
     hide_join_message: true
     hide_quit_message: true
-    warm_tier_profiles: true
+    warm_tier_profiles: true # Preload enabled tier providers when a player joins.
   protection:
     block_placement: true
     block_breaking: true
@@ -52,6 +52,14 @@ lobby:
     radius: 2.0
     horizontal_velocity: 1.0
     vertical_velocity: 1.25
+
+# Third-party tier lookups for /profile. Disabled providers receive no requests.
+tier_profiles:
+  enabled: true # Set false to disable all third-party tier lookups.
+  providers:
+    mctiers: true
+    pvptiers: true
+    subtiers: true
 
 world_rules:
   enabled: true

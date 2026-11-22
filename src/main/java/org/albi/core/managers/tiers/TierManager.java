@@ -1,81 +1,111 @@
 package org.albi.core.managers.tiers;
 
 import org.albi.core.Core;
+import org.bukkit.configuration.ConfigurationSection;
 
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
+import java.util.function.Supplier;
+import java.util.logging.Logger;
 
 public class TierManager {
 
-    private final Core plugin;
-    private final HttpClient httpClient;
-    private final Map<UUID, Map<Class<? extends SuperProfile>, SuperProfile>> profileCache = new ConcurrentHashMap<>();
-    private final Map<UUID, Long> lastFetch = new ConcurrentHashMap<>();
-    private final Map<UUID, CompletableFuture<Map<Class<? extends SuperProfile>, SuperProfile>>> inFlight = new ConcurrentHashMap<>();
-    
-    private static final long CACHE_DURATION = 6 * 60 * 60 * 1000L; // 6 Hours
+    private enum Provider {
+        PVPTIERS("pvptiers", "https://pvptiers.com/api/v1/profile/", PvPTiersProfile::new),
+        MCTIERS("mctiers", "https://mctiers.com/api/v2/profile/", MCTiersProfile::new),
+        SUBTIERS("subtiers", "https://subtiers.net/api/v1/profile/", SubtiersProfile::new);
 
-    private static final String MCTIERS_API = "https://mctiers.com/api/v2/profile/";
-    private static final String PVPTIERS_API = "https://pvptiers.com/api/v1/profile/";
-    private static final String SUBTIERS_API = "https://subtiers.net/api/v1/profile/";
+        private final String key;
+        private final String endpoint;
+        private final Supplier<SuperProfile> createProfile;
+
+        Provider(String key, String endpoint, Supplier<SuperProfile> createProfile) {
+            this.key = key;
+            this.endpoint = endpoint;
+            this.createProfile = createProfile;
+        }
+    }
+
+    private record CachedProfiles(long fetchedAt, Map<Class<? extends SuperProfile>, SuperProfile> profiles) {}
+
+    private static final long CACHE_DURATION = Duration.ofHours(6).toMillis();
+
+    private final Logger logger;
+    private final List<Provider> providers;
+    private final Function<HttpRequest, CompletableFuture<HttpResponse<String>>> send;
+    private final Map<UUID, CachedProfiles> profileCache = new ConcurrentHashMap<>();
+    private final Map<UUID, CompletableFuture<Map<Class<? extends SuperProfile>, SuperProfile>>> inFlight = new ConcurrentHashMap<>();
 
     public TierManager(Core plugin) {
-        this.plugin = plugin;
-        this.httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(5))
-                .build();
+        this(plugin.getConfig(), plugin.getLogger(), httpTransport());
+    }
+
+    TierManager(ConfigurationSection config, Logger logger,
+                Function<HttpRequest, CompletableFuture<HttpResponse<String>>> send) {
+        this.logger = logger;
+        this.send = send;
+        providers = config.getBoolean("tier_profiles.enabled", true)
+                ? Arrays.stream(Provider.values())
+                        .filter(provider -> config.getBoolean("tier_profiles.providers." + provider.key, true))
+                        .toList()
+                : List.of();
     }
 
     public CompletableFuture<Map<Class<? extends SuperProfile>, SuperProfile>> fetchAll(UUID uuid, boolean force) {
-        long now = System.currentTimeMillis();
-        
-        // Return from cache if valid and not forced
-        if (!force && profileCache.containsKey(uuid) && now - lastFetch.getOrDefault(uuid, 0L) < CACHE_DURATION) {
-            return CompletableFuture.completedFuture(profileCache.get(uuid));
+        if (providers.isEmpty()) return CompletableFuture.completedFuture(Map.of());
+
+        CachedProfiles cached = profileCache.get(uuid);
+        if (!force && cached != null && System.currentTimeMillis() - cached.fetchedAt() < CACHE_DURATION) {
+            return CompletableFuture.completedFuture(cached.profiles());
         }
 
-        // Return current in-flight request if any
-        if (inFlight.containsKey(uuid)) {
-            return inFlight.get(uuid);
-        }
-
-        CompletableFuture<SuperProfile> pvp = fetch(uuid, PVPTIERS_API, new PvPTiersProfile());
-        CompletableFuture<SuperProfile> mc = fetch(uuid, MCTIERS_API, new MCTiersProfile());
-        CompletableFuture<SuperProfile> sub = fetch(uuid, SUBTIERS_API, new SubtiersProfile());
-
-        CompletableFuture<Map<Class<? extends SuperProfile>, SuperProfile>> task = CompletableFuture.allOf(pvp, mc, sub).thenApply(v -> {
-            Map<Class<? extends SuperProfile>, SuperProfile> results = new HashMap<>();
-            results.put(PvPTiersProfile.class, pvp.join());
-            results.put(MCTiersProfile.class, mc.join());
-            results.put(SubtiersProfile.class, sub.join());
-            
-            profileCache.put(uuid, results);
-            lastFetch.put(uuid, now);
-            inFlight.remove(uuid); // Task finished
-            return results;
-        });
-
-        inFlight.put(uuid, task);
+        var task = inFlight.computeIfAbsent(uuid, this::fetchEnabled);
+        // Register after publishing the task so even an already-completed response is removed.
+        task.whenComplete((profiles, error) -> inFlight.remove(uuid, task));
         return task;
     }
 
-    private CompletableFuture<SuperProfile> fetch(UUID uuid, String baseUrl, SuperProfile profile) {
+    private CompletableFuture<Map<Class<? extends SuperProfile>, SuperProfile>> fetchEnabled(UUID uuid) {
+        long now = System.currentTimeMillis();
+        var requests = providers.stream().map(provider -> fetch(uuid, provider)).toList();
+        return CompletableFuture.allOf(requests.toArray(CompletableFuture<?>[]::new)).thenApply(ignored -> {
+            Map<Class<? extends SuperProfile>, SuperProfile> results = new HashMap<>();
+            for (var request : requests) {
+                SuperProfile profile = request.join();
+                results.put(profile.getClass(), profile);
+            }
+            var profiles = Map.copyOf(results);
+            profileCache.put(uuid, new CachedProfiles(now, profiles));
+            return profiles;
+        });
+    }
+
+    private static Function<HttpRequest, CompletableFuture<HttpResponse<String>>> httpTransport() {
+        var client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
+        return request -> client.sendAsync(request, HttpResponse.BodyHandlers.ofString());
+    }
+
+    private CompletableFuture<SuperProfile> fetch(UUID uuid, Provider provider) {
+        SuperProfile profile = provider.createProfile.get();
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(baseUrl + uuid.toString()))
-                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)") // Standard UA to avoid blocks
+                .uri(URI.create(provider.endpoint + uuid))
+                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
                 .timeout(Duration.ofSeconds(4))
                 .GET()
                 .build();
 
-        return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+        return send.apply(request)
                 .thenApply(response -> {
                     if (response.statusCode() == 200) {
                         profile.parseJson(response.body());
@@ -87,7 +117,7 @@ public class TierManager {
                     return profile;
                 })
                 .exceptionally(ex -> {
-                    plugin.getLogger().warning("Failed to fetch tier data from " + baseUrl + ": " + ex.getMessage());
+                    logger.warning("Failed to fetch tier data from " + provider.endpoint + ": " + ex.getMessage());
                     profile.status = Status.API_ISSUE;
                     return profile;
                 });

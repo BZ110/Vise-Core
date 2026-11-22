@@ -521,6 +521,19 @@ The travel refresh uses Redis `SCAN` and rebuilds its menu snapshot every 100 ti
 
 `/profile [player]` shows account status, level, XP progress, total playtime, a social summary, and a link to detailed stats. Duels can award profile XP, and time spent on a server is tracked separately from time in a ruleset. The profile can also show ranks by game mode, region, and peak rank where returned by **PvPTiers**, **MCTiers**, and **Subtiers**. These providers are queried by player UUID and can independently return unavailable results.
 
+Each tier provider has its own switch in `plugins/Core/config.yml`. The example below disables MCTiers and PvPTiers while keeping Subtiers. Set `tier_profiles.enabled: false` to turn off all three. Restart Paper to apply the changes. A disabled provider receives no UUID lookups and its button is hidden from `/profile`. Local profiles, stats, and ranked Elo remain available.
+
+```yaml
+tier_profiles:
+  enabled: true
+  providers:
+    mctiers: false
+    pvptiers: false
+    subtiers: true
+```
+
+All three integrations are enabled by default, including when upgrading an older config. Set `lobby.join.warm_tier_profiles: false` to look up enabled providers only when someone opens `/profile`.
+
 `/stats [player]` opens paged statistics for applicable kit and team-size combinations. The UI displays stored results such as wins, kills, deaths, streak, time, and other activity information when present. `/leaderboard` gives a separate view by stat, kit, and team size. It also accepts `/leaderboard <field> <game>` for a text result. `/rankedlb` shows competitive Elo standings.
 
 Both leaderboard commands use Redis indexes of the 100 highest scores and can read the full leaderboard data from MySQL when an index is missing or Redis is unavailable. Core rebuilds the indexes from MySQL as boards are opened, so saved scores dropped by older Redis trimming reappear. If both services are unavailable, the instance serves its last successful result for that board when one is cached.
@@ -601,6 +614,7 @@ Existing installations can add individual settings to `plugins/Core/config.yml`.
 | `region`, `id_number` | Parts of the instance ID. For example, `EU` and `1` produce `EU-1`, with lowercase used in Redis keys. |
 | `lobby_world`, `lobby_max_height` | Lobby selection and vertical return-to-spawn threshold. |
 | `lobby.join`, `lobby.protection` | Join teleport and reset, join and quit broadcasts, external tier lookups on join, block and item restrictions, lobby PvP, player heads, and the height guard. |
+| `tier_profiles` | Master switch and individual switches for MCTiers, PvPTiers, and Subtiers lookups and profile buttons. |
 | `lobby.hotbar`, `lobby.movement`, `lobby.elytra`, `lobby.interaction`, `lobby.wind_charges` | Managed shortcuts, item cooldown, Speed and Jump Boost levels, elytra gear, click-to-duel, shulker editor, allowed lobby items, physical triggers, and wind charge behavior. |
 | `world_rules` | Lobby and other world profiles, per-world exceptions, gamerules, difficulty, and whether to apply settings to worlds loaded after startup. |
 | `c_worlds`, `ffa_worlds` | Names of RTP-style gameplay worlds and public FFA worlds. |

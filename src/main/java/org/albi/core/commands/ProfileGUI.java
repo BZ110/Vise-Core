@@ -20,7 +20,7 @@ import org.bukkit.inventory.meta.SkullMeta;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
+import java.util.Locale;
 
 public class ProfileGUI {
 
@@ -47,17 +47,9 @@ public class ProfileGUI {
                 // Slot 8: General Stats
                 GuiService.control(menu, "slot-8", 8, new SGButton(getGeneralStats(targetMp)));
 
-                // Slot 9: PVPTIERS
-                GuiService.control(menu, "pvptiers", 9, new SGButton(
-                        getTierItem(tiers.get(PvPTiersProfile.class), "PVPTIERS", Material.NETHERITE_SWORD)));
-
-                // Slot 10: MCTIERS
-                GuiService.control(menu, "mctiers", 10, new SGButton(
-                        getTierItem(tiers.get(MCTiersProfile.class), "MCTIERS", Material.DIAMOND_CHESTPLATE)));
-
-                // Slot 11: SUBTIERS
-                GuiService.control(menu, "subtiers", 11,
-                        new SGButton(getTierItem(tiers.get(SubtiersProfile.class), "SUBTIERS", Material.GOLDEN_APPLE)));
+                addTierButton(menu, "pvptiers", 9, tiers.get(PvPTiersProfile.class), Material.NETHERITE_SWORD);
+                addTierButton(menu, "mctiers", 10, tiers.get(MCTiersProfile.class), Material.DIAMOND_CHESTPLATE);
+                addTierButton(menu, "subtiers", 11, tiers.get(SubtiersProfile.class), Material.GOLDEN_APPLE);
 
                 // Slot 12: View Stats Button
                 GuiService.control(menu, "view-stats", 12, new SGButton(icon(Material.BOOK, GuiService.text("profile-gui.view-stats"), List.of(
@@ -106,11 +98,17 @@ public class ProfileGUI {
                 GuiService.text("profile-gui.basic-overview-of-the-account")));
     }
 
+    private void addTierButton(SGMenu menu, String id, int slot, SuperProfile profile, Material material) {
+        if (profile == null) return;
+        var icon = getTierItem(profile, id.toUpperCase(Locale.ROOT), material);
+        GuiService.control(menu, id, slot, new SGButton(icon));
+    }
+
     private ItemStack getTierItem(SuperProfile profile, String name, Material material) {
         List<String> lore = new ArrayList<>();
         String displayName;
 
-        if (profile != null && profile.status == Status.READY) {
+        if (profile.status == Status.READY) {
             displayName = "§l§f" + name + " " + profile.getOverallRankName();
             lore.add(GuiService.text("profile-gui.region", profile.region));
             lore.add(GuiService.text("profile-gui.points", profile.points));
@@ -133,10 +131,10 @@ public class ProfileGUI {
             if (!found) {
                 lore.add(GuiService.text("profile-gui.no-active-rankings-found"));
             }
-        } else if (profile != null && profile.status == Status.NOT_EXISTING) {
+        } else if (profile.status == Status.NOT_EXISTING) {
             displayName = "§l§f" + name + " §7(§8Not Ranked§7)";
             lore.add(GuiService.text("profile-gui.this-player-is-not-ranked-on", name));
-        } else if (profile != null && profile.status == Status.API_ISSUE) {
+        } else if (profile.status == Status.API_ISSUE) {
             displayName = "§l§f" + name + " §7(§cAPI Error§7)";
             lore.add(GuiService.text("profile-gui.could-not-reach-the-api", name));
         } else {
