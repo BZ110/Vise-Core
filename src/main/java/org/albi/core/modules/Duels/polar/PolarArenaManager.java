@@ -30,6 +30,7 @@ public final class PolarArenaManager {
     private final Map<String, Set<PolarArenaReservation>> inUse = new HashMap<>();
     private final Map<String, Integer> nextInstanceIds = new HashMap<>();
     private final Set<String> warmQueued = new HashSet<>();
+    private final Set<PolarArenaReservation> unusedQueueCopies = new HashSet<>();
 
     // NEW: cache the origin .polar bytes in memory
     private final Map<String, byte[]> cachedOriginBytes = new HashMap<>();
@@ -170,6 +171,7 @@ public final class PolarArenaManager {
                     backend.save(world, originPath(arena));
 
                     refreshOriginCache(arena); // NEW: keep RAM cache synced
+                    unusedQueueCopies.removeIf(copy -> key(copy.getArena()).equals(key(arena)));
                     recycleAvailable(arena); // old preloaded instances are now stale
                     warmArena(arena); // create fresh ones from updated cache
                     ok = true;
@@ -195,11 +197,17 @@ public final class PolarArenaManager {
         String key = key(arena);
         PolarArenaReservation reservation = available.get(key).removeFirst();
         inUse.get(key).add(reservation);
+        unusedQueueCopies.add(reservation);
         warmArena(arena);
         return reservation;
     }
 
     public void returnUnusedArena(PolarArenaReservation reservation) {
+        if (!unusedQueueCopies.remove(reservation)) {
+            // The origin may have been republished while this copy was reserved.
+            if (plugin.isEnabled()) releaseArena(reservation, true);
+            return;
+        }
         String key = key(reservation.getArena());
         var used = inUse.get(key);
         if (used != null && used.remove(reservation)) {
@@ -286,6 +294,7 @@ public final class PolarArenaManager {
     public void releaseArena(PolarArenaReservation reservation, boolean createReplacement) {
         if (reservation == null)
             return;
+        unusedQueueCopies.remove(reservation);
         String key = key(reservation.getArena());
         Set<PolarArenaReservation> used = inUse.get(key);
         if (used != null)
