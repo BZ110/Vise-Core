@@ -754,4 +754,4 @@ Each group lists its registered commands, aliases, and permission nodes. Additio
 
 ## Credits
 
-Originally developed by **CriticalKing** for Vise Network, with contributions from [sxlectdev](https://github.com/sxlectdev).
+Originally developed by **Critical <3 (CriticalKing)** for Vise Network.
