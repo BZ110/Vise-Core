@@ -7,6 +7,7 @@ import org.albi.core.Core;
 import org.albi.core.data.MainPlayer;
 import org.albi.core.gui.GuiService;
 import org.albi.core.managers.cosmetics.DeathEffect;
+import org.albi.core.managers.cosmetics.DeathEffectManager;
 import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
@@ -36,11 +37,12 @@ public class DeathEffectsGUI {
     public void open(Player player, int requestedPage) {
         MainPlayer profile = plugin.getExtendedPlayer(player).getMainPlayer();
         if (profile == null) return;
-        int lastPage = Math.max(0, (EFFECTS.size() - 1) / EFFECT_SLOTS.length);
+        var effects = EFFECTS.stream().filter(effect -> DeathEffectManager.isEnabled(plugin, effect)).toList();
+        int lastPage = Math.max(0, (effects.size() - 1) / EFFECT_SLOTS.length);
         int page = Math.clamp(requestedPage, 0, lastPage);
         var menu = plugin.getMenus().create(MENU_ID, 6, page + 1, lastPage + 1);
         int from = page * EFFECT_SLOTS.length;
-        for (int index = from; index < Math.min(from + EFFECT_SLOTS.length, EFFECTS.size()); index++) {
+        for (int index = from; index < Math.min(from + EFFECT_SLOTS.length, effects.size()); index++) {
             var effect = EFFECTS.get(index);
             var item = effectIcon(player, profile, effect);
             GuiService.entry(menu, effect.name(), EFFECT_SLOTS[index - from], new SGButton(item).withListener(event -> select(player, effect, page)));
@@ -72,11 +74,11 @@ public class DeathEffectsGUI {
         } else if (unlocked) {
             lore.addAll(List.of(GuiService.text("death-effects-gui.click-to-select"), GuiService.text("death-effects-gui.click-to-equip-this-kill-effect")));
         } else {
-            lore.addAll(List.of(GuiService.text("death-effects-gui.locked"), GuiService.text("death-effects-gui.required-level", effect.getRequiredLevel()),
+            lore.addAll(List.of(GuiService.text("death-effects-gui.locked"), GuiService.text("death-effects-gui.required-level", DeathEffectManager.requiredLevel(plugin, effect)),
                     GuiService.text("death-effects-gui.your-level", profile.level()), "", GuiService.text("death-effects-gui.unlock-by-reaching-the-required-level")));
         }
         lore.add("");
-        lore.add(GuiService.text("death-effects-gui.level-req", effect.getRequiredLevel()));
+        lore.add(GuiService.text("death-effects-gui.level-req", DeathEffectManager.requiredLevel(plugin, effect)));
 
         String color = selected ? "§a§l" : unlocked ? "§b§l" : "§c§l";
         ItemStack icon = item(unlocked ? effect.getIcon() : Material.BARRIER, color + effect.getDisplayName(), lore);
@@ -104,7 +106,7 @@ public class DeathEffectsGUI {
     }
 
     private boolean isUnlocked(Player player, MainPlayer profile, DeathEffect effect) {
-        return effect == DeathEffect.NONE || profile.level() >= effect.getRequiredLevel()
+        return effect == DeathEffect.NONE || profile.level() >= DeathEffectManager.requiredLevel(plugin, effect)
                 || player.isOp() || player.hasPermission("core.deatheffect.*")
                 || player.hasPermission("core.deatheffect." + effect.name().toLowerCase(Locale.ROOT));
     }
@@ -112,8 +114,9 @@ public class DeathEffectsGUI {
     private void select(Player player, DeathEffect effect, int page) {
         MainPlayer profile = plugin.getExtendedPlayer(player).getMainPlayer();
         if (profile == null) return;
+        if (!DeathEffectManager.isEnabled(plugin, effect)) return;
         if (!isUnlocked(player, profile, effect)) {
-            Messages.send(player, "messages.death-effects-gui.you-haven-t-unlocked-yet-reach-level-to", effect.getDisplayName(), effect.getRequiredLevel());
+            Messages.send(player, "messages.death-effects-gui.you-haven-t-unlocked-yet-reach-level-to", effect.getDisplayName(), DeathEffectManager.requiredLevel(plugin, effect));
             player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 1f);
             return;
         }

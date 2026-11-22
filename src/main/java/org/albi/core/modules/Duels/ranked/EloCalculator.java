@@ -9,12 +9,15 @@ public class EloCalculator {
      * Calculate the new Elo for a player.
      */
     public static int calculate(int elo, int opponentElo, boolean win, boolean placement) {
-        double expected = 1.0 / (1.0 + Math.pow(10, (opponentElo - elo) / 400.0));
-        double actual = win ? 1.0 : 0.0;
-        int k = placement ? PLACEMENT_K : DEFAULT_K;
+        return calculate(elo, opponentElo, win, placement, RankedRules.current());
+    }
 
-        int newElo = (int) Math.round(elo + k * (actual - expected));
-        return Math.max(0, newElo);
+    static int calculate(int elo, int opponentElo, boolean win, boolean placement, RankedRules rules) {
+        double expected = 1.0 / (1.0 + Math.pow(10, (opponentElo - (double) elo) / rules.divisor()));
+        double actual = win ? 1.0 : 0.0;
+        int k = placement ? rules.placementK() : rules.regularK();
+
+        return (int) Math.clamp(Math.round(elo + k * (actual - expected)), 0, Integer.MAX_VALUE);
     }
 
     public static Stakes calculateStakes(int elo, int opponentElo, boolean placement) {

@@ -284,9 +284,9 @@ The effective ready target is `max(max(1, polar_preload), active reservations + 
 
 `/rankedqueue` opens solo, single-round matchmaking by standard kit. The menu shows the player's Elo, placement or tier, and the number of players waiting for each kit. The queue widens its Elo search range as players wait. Leaving a party and ending any active fight or spectating session makes a player eligible to queue. Use `/rankedqueue leave` to cancel.
 
-- Each kit has its own rating, win and loss counts, and placements. Core also tracks an overall rating. Ratings start at **1,000 Elo**. The first **five matches** count as placements by default. The Elo adjustment uses a factor of 64 during placements and 32 after.
-- The initial search window is ±50 Elo. It grows by 25 for every three seconds waiting. A pair is eligible if the gap fits either player's current window. Wins against higher-rated opponents are worth more, and the match countdown previews the stakes.
-- Tiers run from Bronze through Silver, Gold, Platinum, Diamond, Master, Grandmaster, and Champion. Each tier has five 100-point divisions. Players see placement progress until they earn a displayed tier.
+- Each kit has its own rating, win and loss counts, and placements. Core also tracks an overall rating. Defaults start ratings at **1,000 Elo**, count the first **five matches** as placements, and use adjustment factors of 64 during placements and 32 afterward. Set the starting rating and formula under `ranked`.
+- The default search window starts at ±50 Elo and grows by 25 every three seconds. Set the starting window, increment, interval, and optional cap under `ranked.matchmaking`. A pair is eligible if the gap fits either player's current window. Wins against higher-rated opponents are worth more, and the match countdown previews the stakes.
+- Tiers run from Bronze through Silver, Gold, Platinum, Diamond, Master, Grandmaster, and Champion. Defaults use five 100-point divisions per tier. Set division size and count under `ranked.tiers`. Players see placement progress until they earn a displayed tier.
 - If local matchmaking cannot prepare an arena, eligible players keep their queue position and elapsed wait. Core starts the duel once the arena is ready and both players are eligible.
 - `/rankedlb` opens the top 27 by overall ranked Elo. The kit picker and match calculations use the selected kit's ladder. For an arena pool specific to a kit, use `/rankedadmin add <kit> <arena>`, `remove <kit> <arena>`, and `list <kit>`. If the pool is empty, the queue draws from the shared arena list. Staff can access the pool commands with both `core.rankedadmin` and `core.admin.ranked`.
 
@@ -504,7 +504,7 @@ Each instance has a unique `region` and `id_number`. Configure proxy entries wit
 
 ### Heartbeats, health streams, and diagnosis
 
-`StatRecorder` takes a snapshot every **100 ticks**, about five seconds at 20 TPS. It gathers Paper state on the tick thread and pipelines a Redis hash update and stream append from an asynchronous task. Each instance writes to `server:<id>:health:latest` and `server:<id>:health:stream`. The stream targets roughly **17,280 entries**, about one day of samples at the nominal cadence. Slower tick rates change the wall-clock interval.
+`StatRecorder` takes a snapshot every **100 ticks** by default, about five seconds at 20 TPS. It gathers Paper state on the tick thread and pipelines a Redis hash update and stream append from an asynchronous task. Each instance writes to `server:<id>:health:latest` and `server:<id>:health:stream`. The stream defaults to roughly **17,280 entries**, about one day of samples at the nominal cadence. Use `network.health` to change the cadence, retention, world details, or publishing. Set `network.travel.offline_after_seconds` above your expected heartbeat interval. Slower tick rates change the wall-clock interval.
 
 The latest hash includes the timestamp, player count and cap, TPS over several windows, loaded chunks and players per world, JVM memory, uptime, threads, garbage collection, system architecture, and server version. `/health <server>` prints a subset in-game. For fleet monitoring, get the latest hash or sample the stream directly using your normal Redis connection settings.
 
@@ -585,38 +585,97 @@ Gameplay listeners reset player state at key transitions, use world-local death 
 
 ### Announcements and restart controls
 
-`announcements.enabled` toggles rotating lobby tips. Set the content in `announcements.messages` and the spacing in `announcements.interval_seconds`. The interval has a 30-second floor. Tips go to the configured lobby world.
+`announcements.enabled` toggles rotating tips. Set the content in `announcements.messages` and the spacing in `announcements.interval_seconds`, which has a 30-second floor. The default audience is the lobby. `announcements.worlds` targets named worlds or `"*"` for every world. `shuffle: false` rotates through the list in order. Separate settings control whether active duels or Lava Rising participants receive tips.
 
-`autorestart.enabled` starts a countdown on server startup using `autorestart.interval_hours`. The bundled default is off. Staff can use `/autorestart time` or `status` to see the countdown, `set <duration>` to schedule a shutdown, `cancel` to clear it, or `now` for a ten-second countdown. Durations can use units such as `30m` or `10s`. Core warns players at built-in countdown milestones and shuts Paper down when time expires. A server panel, service manager, or other supervisor must launch Paper again to complete the restart.
+`autorestart.enabled` starts a countdown on server startup using `autorestart.interval_hours`. The bundled default is off. Staff can use `/autorestart time` or `status` to see the countdown, `set <duration>` to schedule a shutdown, `cancel` to clear it, or `now` for the delay in `autorestart.now_delay_seconds`. Durations can use units such as `30m` or `10s`. Use `autorestart.warning_seconds` to choose the warning milestones. A server panel, service manager, or other supervisor launches Paper again after Core shuts it down.
 
 ## Configuration, data, and upgrades
 
 ### Main configuration reference
+
+Existing installations can add individual settings to `plugins/Core/config.yml`. Omitted settings use the bundled defaults. Restart Paper to apply `config.yml` changes. `/coreconfig reload` applies `gui.yml` and `lang.yml` edits. [Bundled main configuration](src/main/resources/config.yml)
 
 | Setting | What to edit |
 | --- | --- |
 | `name`, `ip` | Display values used by messages and PlaceholderAPI. Set `ip` to the address you want to display. |
 | `region`, `id_number` | Parts of the instance ID. For example, `EU` and `1` produce `EU-1`, with lowercase used in Redis keys. |
 | `lobby_world`, `lobby_max_height` | Lobby selection and vertical return-to-spawn threshold. |
+| `lobby.join`, `lobby.protection` | Join teleport and reset, join and quit broadcasts, external tier lookups on join, block and item restrictions, lobby PvP, player heads, and the height guard. |
+| `lobby.hotbar`, `lobby.movement`, `lobby.elytra`, `lobby.interaction`, `lobby.wind_charges` | Managed shortcuts, item cooldown, Speed and Jump Boost levels, elytra gear, click-to-duel, shulker editor, allowed lobby items, physical triggers, and wind charge behavior. |
+| `world_rules` | Lobby and other world profiles, per-world exceptions, gamerules, difficulty, and whether to apply settings to worlds loaded after startup. |
 | `c_worlds`, `ffa_worlds` | Names of RTP-style gameplay worlds and public FFA worlds. |
 | `modules` | Feature switches. Review the dependencies in [module setup](#modules-and-requirements). |
-| `mysql` | Host, port, database, user, password, and connection pool size. A blank `ssl_mode` uses the legacy `ssl` flag. For TCP TLS verification, set a supported Connector/J mode such as `VERIFY_IDENTITY` with a trusted server certificate. |
-| `redis` | Host, port, optional password, and TLS. With TLS enabled, `ca_file` can point to a custom CA, relative to `plugins/Core/` or absolute. A blank value tries `certs/ca.crt` first, then the JVM trust store. |
+| `mysql` | Host, port, credentials, pool sizing, connect and socket timeouts, and the maximum wait for a connection. A blank `ssl_mode` uses the legacy `ssl` flag. For TCP TLS verification, use a supported Connector/J mode such as `VERIFY_IDENTITY` with a trusted server certificate. |
+| `redis` | Host, port, optional password, pool size, idle connection target, socket and connection-borrow timeouts, and TLS. With TLS enabled, `ca_file` can point to a custom CA. A blank value tries `certs/ca.crt` first, then the JVM trust store. |
 | `storage.flush_interval_seconds` | Frequency of periodic profile and stats flushes. The bundled default is 600 seconds. |
 | `storage.shutdown_timeout_seconds` | Maximum wait for pending writes and the final MySQL flush before storage closes. The default is 15 seconds. |
-| `network` | Redis chat bridge and global matchmaking, links for `/store` and `/discord`, and direct travel destinations. |
+| `network` | Redis chat bridge, global matchmaking and spectating, travel discovery and health sampling, `/store` and `/discord` links, and direct travel destinations. |
 | `announcements`, `autorestart` | Lobby tips and the startup restart schedule. |
 | `use_polar_worlds`, `polar_preload` | Toggle the PolarPaper backend and set its preload target. |
-| `duels` | TNT fuse, default round target, selectable round targets, and the `bots` settings. |
-| `ranked` | Placement count, match retention, webhook, and hosted report link template. |
+| `duels` | TNT fuse, selectable rounds, countdowns, queue timings, schematic paste spacing, Polar background operations, spectator privacy checks, direct challenge telemetry, and NPC settings. |
+| `ranked` | Starting Elo, rating factors, placements, tier divisions, widening Elo windows, ranked queue and arena wait timings, telemetry sampling, history retention, webhook, and report link. |
+| `party` | Default size, shuffle and auto-balance defaults, public reopen cooldown, and FFA countdown and scatter phases. |
+| `teleports` | `/tpa` and `/tpahere` expiration and the list of XenoWorldReset targets shown in `/rtp`. |
+| `combat`, `cosmetics` | Consumable cooldowns, creeper egg behavior, per-kit damage boosts, extra blocked kit items, and kill effect availability, unlock levels, and sound. |
 | `lava_rising`, `tournaments` | Lava Rising world, timing, starting items and webhook, plus Challonge credentials for tournaments. |
-| `33_percent_boost` | Public kit IDs that use the fixed 33% hit-damage modifier. |
+| `33_percent_boost` | Legacy list of public kit IDs using `combat.legacy_damage_boost_percent`, which defaults to 33. |
 | `mending_rngs` | Legacy kit list. For an effective Mending repair override, set `mending_rng` on the kit metadata. |
 | `guis.duel.kitselector.rows` | Logical page size for saved kit positions in direct duel and party challenge pickers. Use `gui.yml` to set the displayed row count and layout. |
 | `cooldowns` | Seconds between uses for commands that check a cooldown. Use the registered command name as the key, such as `duel`, `travel`, or `automatecombat`. |
 | `permissions` | Permission nodes used by internal lobby and game-mode checks. Bukkit also checks the registered command permissions in `plugin.yml`. |
-| `chat`, `bad_words` | Public chat formatting and moderation terms. Player messages are in `lang.yml`. |
+| `chat`, `chat_options`, `bad_words` | Public chat formatting, the color permission, mention highlighting and sounds, and moderation terms. Player messages are in `lang.yml`. |
 | `max_entities`, `lava_rising.auto_interval_ticks` | Legacy config entries. The current listeners use the creeper-egg behavior and the player-count-based Lava Rising countdown described above. |
+
+### Per-world policies
+
+`world_rules.lobby` applies to the configured lobby and `world_rules.other` applies to the remaining worlds at startup. Use `world_rules.worlds.<world>` for exact world names. Set `enabled: false` on `world_rules` to leave all rules to Paper. The same option on one named world skips that world. A named profile can set `inherit: false` to apply just its own difficulty and gamerules. For a single inherited value, `inherit` leaves the world's current setting in place. Set `apply_on_world_load: true` if the policy should also apply to worlds loaded later.
+
+```yaml
+world_rules:
+  worlds:
+    survival:
+      enabled: false
+    practice:
+      inherit: false
+      difficulty: NORMAL
+      gamerules:
+        doDaylightCycle: false
+        randomTickSpeed: 0
+```
+
+For a server that keeps its own inventory and spawn on join, turn off `lobby.join.reset_player`, `lobby.join.teleport`, and `lobby.hotbar.enabled`. Use `lobby.elytra.enabled: false` when the lobby should also leave equipment alone.
+
+### Hotbar controls
+
+`gui.yml` has distinct nine-slot layouts under `menus.lobby.hotbar`, `hotbar-queued`, `hotbar-party`, and `hotbar-tournament`. Built-in controls follow their IDs when moved, renamed, or restyled. Common item settings such as `material`, lore, `permission`, `glow`, and model data work here too. `custom-buttons` adds shortcuts. A `commands` list replaces the built-in action or supplies a custom action. Core runs each command as the clicking player, with their existing permission checks.
+
+```yaml
+menus:
+  lobby:
+    hotbar:
+      buttons:
+        ranked-queue:
+          slot: 2
+          material: EMERALD
+          name: "&bRanked Matches"
+      custom-buttons:
+        rules:
+          slot: 6
+          material: BOOK
+          name: "&eServer Rules"
+          commands: [rules]
+```
+
+Set `enabled: false` on a hotbar layout to leave the hotbar alone when that layout is selected. Each layout can override its item cooldown with `cooldown-seconds`. Built-in shortcuts use the lobby cooldown by default, and party shortcuts default to zero. Keep each layout within its nine available slots.
+
+### Changing gameplay and destinations
+
+- `duels.countdown` controls the initial and inter-round timers, ready-up, and the post-match return delay. Ranked matches use `ranked.countdown_seconds`. Tournament matches have a separate countdown. `party.ffa` controls its pregame and scatter phases.
+- `ranked.queue.chat_ticks: 0` silences the repeating queue chat. The action bar keeps its own update interval. `ranked.matchmaking.max_elo_range: 0` allows the window to continue widening. Set the same rating and matchmaking settings across a Redis-connected fleet.
+- `combat.food_cooldowns` assigns a delay in seconds to each consumable material. `combat.kit_damage_boosts` maps kit IDs to percentage overrides. `0` overrides a legacy or kit metadata boost. `combat.additional_blocked_kit_items` adds to the built-in kit restrictions.
+- `/rtp` sends players to the XenoWorldReset destination in each entry's `target` field under `teleports.rtp.destinations`. Use the entry ID under `menus.travel.rtp.buttons` in `gui.yml` to move or style the button. An empty list closes off the destination picker.
+- `duels.bots.defaults` sets the starting practice bot name, invulnerability, reaction, aim, movement, range, strafe, and shield settings. The in-game bot menu can still adjust settings per session.
+- `cosmetics.kill_effects.unlock_levels` changes requirements by lowercase effect ID, such as `electric_storm`. `disabled_effects` hides individual effects and prevents their playback. Player preferences continue to control visibility where effects are enabled.
 
 ### Translating messages with lang.yml
 

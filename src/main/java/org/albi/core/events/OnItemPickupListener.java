@@ -20,8 +20,7 @@ public class OnItemPickupListener implements Listener {
     public void onItemPickup(PlayerPickupItemEvent event) {
         Player player = event.getPlayer();
 
-        if (plugin.getConfig().getString("lobby_world")
-                .equals(player.getWorld().getName())) {
+        if (plugin.getLobbySettings().protection().itemPickup() && plugin.isLobby(player)) {
 
             if (!player.hasPermission(Objects.requireNonNull(plugin.getConfig().getString("permissions.bypass")))
                     && !plugin.getExtendedPlayer(player).isBypassRegion()) {

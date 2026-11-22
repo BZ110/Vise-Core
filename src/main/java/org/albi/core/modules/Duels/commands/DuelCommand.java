@@ -48,7 +48,7 @@ public class DuelCommand extends BaseCommand {
 
         /* ensure a fresh DuelPreference object exists */
         ep.prefsFor(target.getUniqueId()).setRounds(
-                plugin.getConfig().getInt("duels.default_rounds"));   // sensible start
+                plugin.getDuelSettings().defaultRounds());   // sensible start
 
         /* open picker GUI */
         new DuelMainCommandGUIs(plugin).openKitGUI(player, target);

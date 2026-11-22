@@ -35,7 +35,7 @@ public final class QueueDuelHost {
             duel.setRanked(ranked).usePreparedPersonalKits()
                     .prepare(new Player[] { firstPlayer }, new Player[] { secondPlayer }, arena, first, second, 1);
             try {
-                return duel.startPrepared(10, personal);
+                return duel.startPrepared(duel.configuredCountdownSeconds(), personal);
             } catch (RuntimeException failure) {
                 duel.abortQueueStart();
                 throw failure;

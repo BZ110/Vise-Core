@@ -5,7 +5,7 @@ import java.io.Serializable;
 public class RankedStats implements Serializable {
     private static final long serialVersionUID = 1L;
 
-    private int elo = 1000; // Starting Elo
+    private int elo = RankedRules.current().startingElo();
     private int wins = 0;
     private int losses = 0;
     private int placementMatches = 0;

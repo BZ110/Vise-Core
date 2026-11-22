@@ -5,7 +5,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 
-import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 public final class AutoRestartService {
@@ -13,39 +13,18 @@ public final class AutoRestartService {
     private final Core plugin;
     private int remainingSeconds;
     private BukkitTask task;
-    private final Set<Integer> warningThresholds = new HashSet<>();
+    private final Set<Integer> warningThresholds;
 
     public AutoRestartService(Core plugin) {
         this.plugin = plugin;
-        setupThresholds();
-    }
-
-    private void setupThresholds() {
-        // 1 hour, 30m, 15m, 10m, 5m
-        warningThresholds.add(3600);
-        warningThresholds.add(1800);
-        warningThresholds.add(900);
-        warningThresholds.add(600);
-        warningThresholds.add(300);
-        
-        // 1m, 30s, 15s, 10s
-        warningThresholds.add(60);
-        warningThresholds.add(30);
-        warningThresholds.add(15);
-        warningThresholds.add(10);
-        
-        // 5, 4, 3, 2, 1
-        warningThresholds.add(5);
-        warningThresholds.add(4);
-        warningThresholds.add(3);
-        warningThresholds.add(2);
-        warningThresholds.add(1);
+        warningThresholds = Set.copyOf(ConfigValues.integers(plugin.getConfig(), "autorestart.warning_seconds",
+                List.of(3600, 1800, 900, 600, 300, 60, 30, 15, 10, 5, 4, 3, 2, 1), 1, 604_800));
     }
 
     public void start() {
         if (!plugin.getConfig().getBoolean("autorestart.enabled", true)) return;
 
-        int intervalHours = plugin.getConfig().getInt("autorestart.interval_hours", 24);
+        int intervalHours = ConfigValues.integer(plugin.getConfig(), "autorestart.interval_hours", 24, 1, 8760);
         this.remainingSeconds = intervalHours * 3600;
 
         resume();

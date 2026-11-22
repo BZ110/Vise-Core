@@ -1,5 +1,7 @@
 package org.albi.core.modules.Duels.queue;
 
+import org.albi.core.util.ConfigValues;
+
 import org.albi.core.gui.Messages;
 
 import org.albi.core.gui.GuiService;
@@ -54,13 +56,15 @@ public class DuelQueueModule implements Listener {
         this.plugin = plugin;
         Bukkit.getPluginManager().registerEvents(this, plugin);
 
+        int searchTicks = ConfigValues.integer(plugin.getConfig(), "duels.queue.search_ticks", 2, 1, 200);
+        int statusTicks = ConfigValues.integer(plugin.getConfig(), "duels.queue.status_ticks", 20, 1, 1200);
         new BukkitRunnable() {
             @Override public void run() { matchQueues(); }
-        }.runTaskTimer(plugin, 2L, 2L);
+        }.runTaskTimer(plugin, searchTicks, searchTicks);
 
         new BukkitRunnable() {
             @Override public void run() { sendQueuedActionBars(); }
-        }.runTaskTimer(plugin, 20L, 20L);
+        }.runTaskTimer(plugin, statusTicks, statusTicks);
 
         Objects.requireNonNull(plugin.getCommand("queue")).setExecutor(new QueueCommand());
         if (plugin.getCommand("quickqueue") != null) {
@@ -422,9 +426,10 @@ public class DuelQueueModule implements Listener {
     private void startPendingQueuedDuel(Player p1, Player p2, Kit kitA, Kit kitB, boolean isPk) {
         if (p1 == null || p2 == null || kitA == null || kitB == null) return;
 
+        int introDelay = ConfigValues.integer(plugin.getConfig(), "duels.queue.match_intro_ticks", 60, 0, 400);
         for (Player player : List.of(p1, p2)) {
-            player.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 80, 4, false, false, false));
-            player.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 80, 4, false, false, false));
+            if (introDelay > 0) player.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, introDelay + 20, 4, false, false, false));
+            if (introDelay > 0) player.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, introDelay + 20, 4, false, false, false));
             player.sendTitle(Messages.text(player, "messages.duel-queue-module.match-found"), Messages.text(player, "messages.duel-queue-module.teleporting"), 0, 50, 10);
             Messages.send(player, "messages.duel-queue-module.match-found-against", (player == p1 ? p2.getName() : p1.getName()));
             player.playSound(player, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1.0f, 1.0f);
@@ -439,9 +444,9 @@ public class DuelQueueModule implements Listener {
                 Arena arena = randomArena();
                 DuelInstance duel = new DuelInstance(plugin);
                 duel.prepare(new Player[]{p1}, new Player[]{p2}, arena, kitA, kitB, 1);
-                duel.initialize(10, isPk);
+                duel.initialize(duel.configuredCountdownSeconds(), isPk);
             }
-        }.runTaskLater(plugin, 60L);
+        }.runTaskLater(plugin, introDelay);
     }
 
     private int getQueued(Kit k) {

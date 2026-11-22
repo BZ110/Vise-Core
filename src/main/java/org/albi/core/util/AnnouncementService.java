@@ -14,6 +14,7 @@ import java.util.concurrent.ThreadLocalRandom;
 public final class AnnouncementService {
 
     private final Core plugin;
+    private int nextMessage;
 
     public AnnouncementService(Core plugin) {
         this.plugin = plugin;
@@ -33,16 +34,22 @@ public final class AnnouncementService {
     private void sendOne() {
         List<String> messages = plugin.getConfig().getStringList("announcements.messages");
         if (messages == null || messages.isEmpty()) return;
-        String raw = messages.get(ThreadLocalRandom.current().nextInt(messages.size()));
-        String msg = plugin.getMessageAPI().toColor(raw);
-        String lobbyWorld = plugin.getConfig().getString("lobby_world", "world");
+        var config = plugin.getConfig();
+        int index = config.getBoolean("announcements.shuffle", true) ? ThreadLocalRandom.current().nextInt(messages.size())
+                : Math.floorMod(nextMessage++, messages.size());
+        String msg = plugin.getMessageAPI().toColor(messages.get(index));
+        List<String> worlds = config.getStringList("announcements.worlds");
+        boolean excludeDuels = config.getBoolean("announcements.exclude_duels", true);
+        boolean excludeLava = config.getBoolean("announcements.exclude_lava_rising", true);
 
         for (Player player : Bukkit.getOnlinePlayers()) {
-            if (!player.getWorld().getName().equalsIgnoreCase(lobbyWorld)) continue;
+            boolean targetWorld = worlds.isEmpty() ? plugin.isLobby(player) : worlds.stream()
+                    .anyMatch(world -> world.equals("*") || world.equalsIgnoreCase(player.getWorld().getName()));
+            if (!targetWorld) continue;
             ExtendedPlayer ep = plugin.getExtendedPlayer(player);
             if (ep == null) continue;
-            if (ep.getPlayerDuelInstance() != null) continue;
-            if (ep.isLavaRisingEvent()) continue;
+            if (excludeDuels && ep.getPlayerDuelInstance() != null) continue;
+            if (excludeLava && ep.isLavaRisingEvent()) continue;
             Messages.send(player, "messages.announcement-service.send-one");
             Messages.send(player, "messages.announcement-service.divider");
             player.sendMessage(msg);

@@ -19,21 +19,24 @@ import java.util.UUID;
 
 public final class FoodCooldownListener implements Listener {
 
-    private final Map<UUID, Long> nextEat = new HashMap<>();
-    private final int cooldownSeconds = 10;
+    private final Core plugin;
+    private final Map<UUID, Map<Material, Long>> nextEat = new HashMap<>();
 
     public FoodCooldownListener(Core plugin) {
-
+        this.plugin = plugin;
     }
 
     @EventHandler(ignoreCancelled = true)
     public void onEat(PlayerItemConsumeEvent e) {
         ItemStack item = e.getItem();
-        if (item == null || item.getType() != Material.RAW_GOLD) return;
+        if (item == null) return;
+        long cooldown = plugin.getCombatSettings().foodCooldowns().getOrDefault(item.getType(), 0L);
+        if (cooldown == 0) return;
 
         Player player = e.getPlayer();
+        var times = nextEat.computeIfAbsent(player.getUniqueId(), ignored -> new java.util.EnumMap<>(Material.class));
         long now = System.currentTimeMillis();
-        long allowedAt = nextEat.getOrDefault(player.getUniqueId(), 0L);
+        long allowedAt = times.getOrDefault(item.getType(), 0L);
 
         if (now < allowedAt) {
             long remain = (allowedAt - now + 999) / 1000;
@@ -42,7 +45,7 @@ public final class FoodCooldownListener implements Listener {
             return;
         }
 
-        nextEat.put(player.getUniqueId(), now + cooldownSeconds * 1000L);
+        times.put(item.getType(), now + cooldown);
     }
 
     @EventHandler

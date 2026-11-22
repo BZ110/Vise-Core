@@ -21,8 +21,7 @@ public class OnBlockBreakListener implements Listener {
         Player player = event.getPlayer();
 
         // Check if we're in the lobby.
-        if(plugin.getConfig().getString("lobby_world")
-                .equals(player.getWorld().getName())) {
+        if (plugin.getLobbySettings().protection().blockBreak() && plugin.isLobby(player)) {
 
             // If they don't have the permission, don't allow anything
             if (!player.hasPermission(Objects.requireNonNull(plugin.getConfig().getString("permissions.bypass")))) {

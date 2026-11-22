@@ -1,5 +1,7 @@
 package org.albi.core.modules.Duels;
 
+import org.albi.core.util.ConfigValues;
+
 
 import com.sk89q.worldedit.EditSession;
 import com.sk89q.worldedit.WorldEdit;
@@ -39,7 +41,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * @version 1.0
  */
 public class SchematicManager {
-    private static final long RETRY_DELAY = TimeUnit.SECONDS.toNanos(2);
+    private final long retryDelay;
+    private final int pasteSpacing;
 
     private final JavaPlugin plugin; // Reference to your main plugin class
     private final boolean fastAsyncWorldEdit;
@@ -55,6 +58,8 @@ public class SchematicManager {
     // Basic constructor, pass in your JavaPlugin class. (The variable "this" inside your main class)
     public SchematicManager(JavaPlugin plugin) {
         this.plugin = plugin;
+        this.retryDelay = TimeUnit.SECONDS.toNanos(ConfigValues.integer(plugin.getConfig(), "duels.schematic.retry_seconds", 2, 1, 120));
+        this.pasteSpacing = ConfigValues.integer(plugin.getConfig(), "duels.schematic.paste_spacing_ticks", 5, 1, 1200);
         fastAsyncWorldEdit = plugin.getServer().getPluginManager().isPluginEnabled("FastAsyncWorldEdit");
         plugin.getLogger().info("[SchematicManager] Loaded.");
     }
@@ -111,7 +116,7 @@ public class SchematicManager {
             }
             if (!success) {
                 // Let matchmaking try another arena while this file is being repaired.
-                failedPastes.put(task.file.toPath().toAbsolutePath().normalize(), System.nanoTime() + RETRY_DELAY);
+                failedPastes.put(task.file.toPath().toAbsolutePath().normalize(), System.nanoTime() + retryDelay);
                 plugin.getLogger().warning("Failed to paste schematic: " + task.file.getName());
             }
             // Optionally add a short delay before processing the next task.
@@ -121,7 +126,7 @@ public class SchematicManager {
                 isPasting.set(false);
                 plugin.getLogger().info("Finished pasting queued schematic.");
                 processNext();
-            }, 5L);
+            }, pasteSpacing);
         };
         // The Bukkit WorldEdit adapter accesses live blocks on the tick thread.
         if (fastAsyncWorldEdit) Bukkit.getScheduler().runTaskAsynchronously(plugin, paste);

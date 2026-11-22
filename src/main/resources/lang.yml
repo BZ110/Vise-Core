@@ -248,6 +248,8 @@ ui_config_reload_failed: "&cCould not reload the interface files. Check the serv
 
 # Player-facing feedback grouped by feature.
 messages:
+  rtp-command:
+    no-destinations: "&cThere are no random teleport destinations configured."
   lava-lobby-watcher:
     joined: "&e{1} &7has joined. (&e{2}/{3}&7)"
     starting: "\n\n  LAVA RISING EVENT IS STARTING!\n      "
@@ -267,6 +269,8 @@ messages:
     disabled-all-armor-trims: "&aDisabled all armor trims."
     you-haven-t-unlocked-yet-reach-level-to: "&cYou haven't unlocked &e{1}&c yet! Reach &elevel {2}&c to unlock it."
   auto-restart-command:
+    restart-initiated: "&c&lRESTART INITIATED &7Restarting in {1} seconds..."
+    now-help: "&7/autorestart now &8- &fRestart in {1} seconds"
     auto-restart-commands: "&d&lAutoRestart Commands"
     autorestart-cancel-cancel-any-scheduled-restart: "&7/autorestart cancel &8- &fCancel any scheduled restart"
     autorestart-now-restart-in-10-seconds: "&7/autorestart now &8- &fRestart in 10 seconds"

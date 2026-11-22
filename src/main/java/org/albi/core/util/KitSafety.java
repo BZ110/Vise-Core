@@ -3,6 +3,7 @@ package org.albi.core.util;
 import org.albi.core.modules.Duels.helpers.Kit;
 import org.albi.core.serializable.SerializableItem;
 import org.bukkit.ChatColor;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -20,10 +21,18 @@ public final class KitSafety {
             Material.COMMAND_BLOCK_MINECART
     );
 
+    private static volatile Set<Material> configuredBlocked = Set.copyOf(BLOCKED_MATERIALS);
+
     private KitSafety() {}
 
+    public static void configure(ConfigurationSection config) {
+        var extra = EnumSet.copyOf(BLOCKED_MATERIALS);
+        extra.addAll(ConfigValues.materials(config, "combat.additional_blocked_kit_items", Set.of()));
+        configuredBlocked = Set.copyOf(extra);
+    }
+
     public static boolean isBlocked(ItemStack item) {
-        return item != null && BLOCKED_MATERIALS.contains(item.getType());
+        return item != null && configuredBlocked.contains(item.getType());
     }
 
     public static ItemStack sanitize(ItemStack item) {

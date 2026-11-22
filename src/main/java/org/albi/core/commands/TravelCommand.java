@@ -26,12 +26,10 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 public class TravelCommand extends BaseCommand {
     private static final int INSTANCE_SLOTS = 8;
-    private static final long REFRESH_TICKS = 100L;
-    private static final long OFFLINE_THRESHOLD_MS = TimeUnit.SECONDS.toMillis(10);
+    private final long offlineThresholdMillis;
 
     private final Core plugin;
     private final List<Region> regions;
@@ -41,7 +39,9 @@ public class TravelCommand extends BaseCommand {
     public TravelCommand(Core plugin) {
         this.plugin = plugin;
         regions = loadRegions();
-        Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, this::refreshInstances, 0L, REFRESH_TICKS);
+        offlineThresholdMillis = ConfigValues.seconds(plugin.getConfig(), "network.travel.offline_after_seconds", 10, 1, 3600);
+        int refreshTicks = ConfigValues.integer(plugin.getConfig(), "network.travel.refresh_ticks", 100, 20, 12_000);
+        Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, this::refreshInstances, 0L, refreshTicks);
     }
 
     @Override
@@ -196,7 +196,7 @@ public class TravelCommand extends BaseCommand {
         try {
             long timestamp = Long.parseLong(data.getOrDefault("timestamp_ms", "0"));
             int players = Integer.parseInt(data.getOrDefault("players_online", "0"));
-            return new Instance(name, players, System.currentTimeMillis() - timestamp < OFFLINE_THRESHOLD_MS);
+            return new Instance(name, players, System.currentTimeMillis() - timestamp < offlineThresholdMillis);
         } catch (NumberFormatException e) {
             return null; // A stale or malformed heartbeat should not hide other instances.
         }

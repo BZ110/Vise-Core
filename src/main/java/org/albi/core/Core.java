@@ -3,11 +3,14 @@ package org.albi.core;
 import com.samjakob.spigui.SpiGUI;
 import org.albi.core.data.*;
 import org.albi.core.gui.GuiService;
+import org.albi.core.gui.LobbyHotbar;
 import org.albi.core.gui.InterfaceFiles;
 import org.albi.core.gui.Messages;
 import org.albi.core.managers.ChatFilter;
 import org.albi.core.modules.CustomKit.GUIs.CustomKitGUIMain;
 import org.albi.core.modules.Duels.DuelManager;
+import org.albi.core.modules.Duels.DuelSettings;
+import org.albi.core.modules.Duels.ranked.RankedRules;
 import org.albi.core.modules.Duels.helpers.Kit;
 import org.albi.core.modules.ModuleManager;
 import org.albi.core.managers.CommandManager;
@@ -15,11 +18,12 @@ import org.albi.core.managers.EventManager;
 import org.albi.core.managers.PlaceholderManager;
 import org.albi.core.modules.Party.PartyManager;
 import org.albi.core.serializable.SerializableLocation;
-import org.albi.core.serializable.SerializableSpawnInventory;
 import org.albi.core.util.AnnouncementService;
+import org.albi.core.util.CombatSettings;
 import org.albi.core.util.FeatherBackground;
 import org.albi.core.modules.Duels.AutomatedCombat.Manager;
 import org.albi.core.util.KitSafety;
+import org.albi.core.util.LobbySettings;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -28,7 +32,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.inventory.meta.components.UseCooldownComponent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
@@ -51,6 +54,10 @@ public final class Core extends JavaPlugin {
     private static Data data = new Data();
     private SpiGUI spiGUI;
     private GuiService menus;
+    private LobbyHotbar lobbyHotbar;
+    private LobbySettings lobbySettings;
+    private DuelSettings duelSettings;
+    private CombatSettings combatSettings;
     private CustomKitGUIMain guiKit;
     public static final Map<UUID, TeleportRequest> teleportRequests = new HashMap<>();
     private PartyManager partyManager;
@@ -65,6 +72,11 @@ public final class Core extends JavaPlugin {
     @Override
     public void onEnable() {
         saveDefaultConfig();
+        lobbySettings = LobbySettings.from(getConfig());
+        duelSettings = DuelSettings.from(getConfig());
+        combatSettings = CombatSettings.from(getConfig());
+        KitSafety.configure(getConfig());
+        RankedRules.configure(getConfig());
         loadInterfaceFiles(true);
         if (!loadLocalData()) {
             getServer().getPluginManager().disablePlugin(this);
@@ -93,6 +105,7 @@ public final class Core extends JavaPlugin {
 
         spiGUI = new SpiGUI(this);
         menus = new GuiService(this, interfaceFiles, spiGUI);
+        lobbyHotbar = new LobbyHotbar(this, menus);
         Messages.use(messageAPI);
         guiKit = new CustomKitGUIMain(this);
         chatFilter = new ChatFilter(this);
@@ -297,161 +310,96 @@ public final class Core extends JavaPlugin {
 
         if (mp != null) {
             if (player.hasPermission("core.lobby.speed") && mp.lobbySpeed()) {
-                player.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, Integer.MAX_VALUE, 1, false, false, false));
+                applyLobbyEffect(player, PotionEffectType.SPEED, lobbySettings.equipment().speedLevel());
             }
             if (player.hasPermission("core.lobby.jumpboost") && mp.lobbyJumpBoost()) {
-                player.addPotionEffect(new PotionEffect(PotionEffectType.JUMP_BOOST, Integer.MAX_VALUE, 1, false, false, false));
+                applyLobbyEffect(player, PotionEffectType.JUMP_BOOST, lobbySettings.equipment().jumpBoostLevel());
             }
         }
 
         return teleport;
     }
 
-    public void giveAppropriateLobbyItems(Player player) {
-        if (player == null)
-            return;
-        String lobbyWorld = getConfig().getString("lobby_world");
-        if (lobbyWorld == null || !player.getWorld().getName().equalsIgnoreCase(lobbyWorld))
-            return;
+    public CombatSettings getCombatSettings() {
+        return combatSettings;
+    }
 
+    public DuelSettings getDuelSettings() {
+        return duelSettings;
+    }
+
+    public LobbySettings getLobbySettings() {
+        return lobbySettings;
+    }
+
+    public LobbyHotbar getLobbyHotbar() {
+        return lobbyHotbar;
+    }
+
+    public boolean isLobby(Player player) {
+        return player != null && player.getWorld().getName().equalsIgnoreCase(getConfig().getString("lobby_world", "world"));
+    }
+
+    public void giveAppropriateLobbyItems(Player player) {
+        if (!isLobby(player)) return;
         if (partyManager != null && partyManager.isInParty(player)) {
             partyManager.giveLobbyPartyItems(player, partyManager.isLeader(player));
             return;
         }
-
-        // Get SQL-level data (probably for elytra settings)
-        ExtendedPlayer ep = getExtendedPlayer(player);
-        MainPlayer mp = ep.getMainPlayer();
-
-        if (player.hasPermission("core.elytra") && mp != null) {
-            if (mp.elytra()) { // Knew it
-                ItemStack elytra = new ItemStack(Material.ELYTRA);
-                ItemMeta elytraMeta = elytra.getItemMeta();
-                elytraMeta.setUnbreakable(true);
-                if (player.hasPermission("core.elytra.enchanted")) {
-                    elytraMeta.addEnchant(Enchantment.UNBREAKING, 1, true);
-                    elytraMeta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
-                }
-                elytraMeta.setLore(Collections.singletonList("§r§7" + player.getName() + "'s Elytra"));
-                elytra.setItemMeta(elytraMeta);
-                player.getInventory().setChestplate(elytra);
-            }
-        }
-
         applyLobbyShortcutItems(player);
     }
 
     public void applyLobbyShortcutItems(Player player) {
-        if (player == null)
-            return;
-        String lobbyWorld = getConfig().getString("lobby_world");
-        if (lobbyWorld == null || !player.getWorld().getName().equalsIgnoreCase(lobbyWorld))
-            return;
-        if (partyManager != null && partyManager.isInParty(player))
-            return;
-
-        player.getInventory().clear();
-        player.getInventory().setArmorContents(null);
-        player.getInventory().setItemInOffHand(null);
-
-        if (org.albi.core.modules.Tournaments.TournamentManager.getInstance() != null
-                && org.albi.core.modules.Tournaments.TournamentManager.getInstance().isInTournament(player)) {
-            player.getInventory().setItem(0, lobbyShortcut(Material.ENDER_EYE, "§eSpectate Match",
-                    "§7Randomly spectate an ongoing tournament match.", "§fRight click to spectate."));
-            player.getInventory().setItem(8, lobbyShortcut(Material.BARRIER, "§cLeave Tournament",
-                    "§7Drop out of the tournament.", "§fRight click to use /tournament leave."));
-            player.updateInventory();
+        if (!isLobby(player) || (partyManager != null && partyManager.isInParty(player))) return;
+        var tournaments = org.albi.core.modules.Tournaments.TournamentManager.getInstance();
+        if (tournaments != null && tournaments.isInTournament(player)) {
+            lobbyHotbar.render(player, LobbyHotbar.Layout.TOURNAMENT, false);
             return;
         }
 
-        player.getInventory().setItem(0, lobbyShortcut(Material.NETHER_STAR, "§bInstance Selector",
-                "§7Swap between server instances.",
-                "§fRight click to open /travel."));
-
-        if (ModuleManager.getModule(DuelManager.class) != null) {
-            player.getInventory().setItem(1, lobbyShortcut(Material.BOOK, "§eKit Editor",
-                    "§7Open duel, FFA, or custom kit editing.",
-                    "§fRight click to open /kiteditor."));
-            player.getInventory().setItem(3, lobbyShortcut(Material.IRON_SWORD, "§aUnranked Queue",
-                    "§7Enter queue and find a fight fast.",
-                    "§fRight click to open the queue menu."));
-            player.getInventory().setItem(5, lobbyShortcut(Material.DIAMOND_SWORD, "§cRanked Queue",
-                    "§7Compete for rank and climb the ladder.",
-                    "§fRight click to open the ranked menu."));
-        }
-        if (partyManager != null) {
-            player.getInventory().setItem(4, lobbyShortcut(Material.GOAT_HORN, "§6Create Party",
-                    "§7Build a squad and start playing together.",
-                    "§fRight click to manage your party."));
-        }
-
-        // Social & Stats
-        player.getInventory().setItem(7, lobbyShortcut(Material.PAPER, "§fStatistics",
-                "§7View your numbers, wins, and progress.",
-                "§fRight click to open /stats."));
-
-        // Dynamic Slot 8 (Settings or Leave Queue)
-        boolean inCasual = org.albi.core.modules.Duels.DuelManager.getDuelQueueModule() != null
-                && org.albi.core.modules.Duels.DuelManager.getDuelQueueModule().isInQueue(player);
-        boolean inRanked = org.albi.core.modules.Duels.DuelManager.getRankedQueueModule() != null
-                && org.albi.core.modules.Duels.DuelManager.getRankedQueueModule().isInQueue(player);
-
-        if (inCasual || inRanked) {
-            player.getInventory().clear();
-            player.getInventory().setItem(8, lobbyShortcut(Material.BARRIER, "§cLeave Queue",
-                    "§7Back out of your current matchmaking.",
-                    "§fRight click to leave the queue."));
-        } else {
-            player.getInventory().setItem(8, lobbyShortcut(Material.COMPARATOR, "§aSettings",
-                    "§7Personal preferences and toggles.",
-                    "§fRight click to open /settings."));
-        }
-
-        player.updateInventory();
-
-        MainPlayer mp = getExtendedPlayer(player).getMainPlayer();
-        if (player.hasPermission("core.elytra") && mp != null) {
-            if (mp.elytra()) { // Knew it
-                ItemStack elytra = new ItemStack(Material.ELYTRA);
-                ItemMeta elytraMeta = elytra.getItemMeta();
-                elytraMeta.setUnbreakable(true);
-                if (player.hasPermission("core.elytra.enchanted")) {
-                    elytraMeta.addEnchant(Enchantment.UNBREAKING, 1, true);
-                    elytraMeta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
-                }
-                elytraMeta.setLore(Collections.singletonList("§r§7" + player.getName() + "'s Elytra"));
-                elytra.setItemMeta(elytraMeta);
-                player.getInventory().setChestplate(elytra);
-
-                ItemStack held = player.getInventory().getItem(player.getInventory().getHeldItemSlot());
-                boolean isSpawnItem = false;
-                if (held != null && held.getType() != Material.AIR && held.hasItemMeta()
-                        && held.getItemMeta().hasDisplayName()) {
-                    isSpawnItem = true;
-                }
-
-                if (!isSpawnItem) {
-                    ItemStack windCharges = new ItemStack(Material.WIND_CHARGE);
-                    windCharges.setAmount(64);
-                    player.getInventory().setItemInOffHand(windCharges);
-                }
-            }
-        }
-
+        var casual = DuelManager.getDuelQueueModule();
+        var ranked = DuelManager.getRankedQueueModule();
+        boolean queued = (casual != null && casual.isInQueue(player)) || (ranked != null && ranked.isInQueue(player));
+        lobbyHotbar.render(player, queued ? LobbyHotbar.Layout.QUEUED : LobbyHotbar.Layout.LOBBY, false);
+        equipLobbyElytra(player);
+        updateLobbyWindCharges(player, player.getInventory().getItemInMainHand());
     }
 
-    private ItemStack lobbyShortcut(Material material, String name, String... loreLines) {
-        ItemStack item = new ItemStack(material);
-        ItemMeta meta = item.getItemMeta();
-        if (meta != null) {
-            meta.setDisplayName(name);
-            meta.setLore(Arrays.asList(loreLines));
-            UseCooldownComponent cooldown = meta.getUseCooldown();
-            cooldown.setCooldownSeconds(1); // 1 second
-            meta.setUseCooldown(cooldown);
-            item.setItemMeta(meta);
+    public void applyLobbyEffect(Player player, PotionEffectType type, int level) {
+        if (level > 0) player.addPotionEffect(new PotionEffect(type, Integer.MAX_VALUE, level - 1, false, false, false));
+    }
+
+    private boolean usesLobbyElytra(Player player) {
+        if (!lobbySettings.equipment().elytra() || !player.hasPermission("core.elytra")) return false;
+        MainPlayer profile = getExtendedPlayer(player).getMainPlayer();
+        return profile != null && profile.elytra();
+    }
+
+    public void equipLobbyElytra(Player player) {
+        if (!isLobby(player) || !usesLobbyElytra(player)) return;
+        ItemStack elytra = new ItemStack(Material.ELYTRA);
+        ItemMeta meta = elytra.getItemMeta();
+        meta.setUnbreakable(lobbySettings.equipment().elytraUnbreakable());
+        int level = lobbySettings.equipment().elytraUnbreakingLevel();
+        if (player.hasPermission("core.elytra.enchanted") && level > 0) {
+            meta.addEnchant(Enchantment.UNBREAKING, level, true);
+            meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
         }
-        return item;
+        meta.setLore(List.of(GuiService.text("lobby-hotbar.elytra-owner", player.getName())));
+        elytra.setItemMeta(meta);
+        player.getInventory().setChestplate(elytra);
+    }
+
+    public void updateLobbyWindCharges(Player player, ItemStack held) {
+        if (lobbySettings.equipment().windCharges() == 0 || !usesLobbyElytra(player)) return;
+        boolean hasShortcut = held != null && !held.getType().isAir() && held.hasItemMeta()
+                && held.getItemMeta().hasDisplayName();
+        boolean hasCharge = player.getInventory().getItemInOffHand().getType() == Material.WIND_CHARGE;
+        if (hasShortcut && hasCharge) {
+            player.getInventory().setItemInOffHand(null);
+        } else if (!hasShortcut && !hasCharge) {
+            player.getInventory().setItemInOffHand(new ItemStack(Material.WIND_CHARGE, lobbySettings.equipment().windCharges()));
+        }
     }
 
     public SpiGUI getGUI() {

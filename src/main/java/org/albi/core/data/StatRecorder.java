@@ -1,5 +1,7 @@
 package org.albi.core.data;
 
+import org.albi.core.util.ConfigValues;
+
 import org.albi.core.Core;
 import org.albi.core.data.StatManagement.RedisWrapper;
 import org.bukkit.Bukkit;
@@ -31,7 +33,7 @@ public class StatRecorder {
     private final ThreadMXBean threadBean = ManagementFactory.getThreadMXBean();
     private final List<GarbageCollectorMXBean> gcBeans = ManagementFactory.getGarbageCollectorMXBeans();
 
-    private static final int MAX_SAMPLES = 17_280;
+
 
     public StatRecorder(Core plugin, RedisWrapper wrapper, String server) {
         this.plugin = plugin;
@@ -40,6 +42,11 @@ public class StatRecorder {
     }
 
     public void start() {
+        var config = plugin.getConfig();
+        if (!config.getBoolean("network.health.enabled", true)) return;
+        int sampleTicks = ConfigValues.integer(config, "network.health.sample_interval_ticks", 100, 20, 12_000);
+        int maxSamples = ConfigValues.integer(config, "network.health.max_samples", 17_280, 1, 1_000_000);
+        boolean includeWorlds = config.getBoolean("network.health.include_worlds", true);
         new BukkitRunnable() {
             @Override
             public void run() {
@@ -61,7 +68,7 @@ public class StatRecorder {
                 data.put("tps_5m", Double.toString(tps[1]));
                 data.put("tps_15m", Double.toString(tps[2]));
 
-                for (World world : Bukkit.getWorlds()) {
+                for (World world : includeWorlds ? Bukkit.getWorlds() : List.<World>of()) {
                     String key = "world_" + normalizeSegment(world.getName());
                     data.put(key + "_chunks", Integer.toString(world.getLoadedChunks().length));
                     data.put(key + "_players", Integer.toString(world.getPlayers().size()));
@@ -81,7 +88,7 @@ public class StatRecorder {
 
                         p.xadd(
                                 streamKey,
-                                XAddParams.xAddParams().maxLen(MAX_SAMPLES).approximateTrimming(),
+                                XAddParams.xAddParams().maxLen(maxSamples).approximateTrimming(),
                                 data
                         );
 
@@ -90,7 +97,7 @@ public class StatRecorder {
                     });
                 });
             }
-        }.runTaskTimer(plugin, 0L, 100L);
+        }.runTaskTimer(plugin, 0L, sampleTicks);
     }
 
     private void enrichWithJvmAndServerData(Map<String, String> data) {

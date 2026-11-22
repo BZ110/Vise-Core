@@ -1,5 +1,7 @@
 package org.albi.core.modules.Duels.queue;
 
+import org.albi.core.util.ConfigValues;
+
 import org.albi.core.gui.Messages;
 
 import org.albi.core.gui.GuiService;
@@ -38,7 +40,7 @@ public class RankedQueueModule implements Listener, CommandExecutor {
     private record PendingMatch(Player first, Player second, String kit,
                                 QueueDuelHost.Reservation reservation, long expires) {}
 
-    private static final long ARENA_WAIT_NANOS = Duration.ofSeconds(30).toNanos();
+    private final long arenaWaitNanos;
     private final Core plugin;
     private final QueueDuelHost host;
     private final Map<UUID, PendingMatch> pending = new HashMap<>();
@@ -49,6 +51,10 @@ public class RankedQueueModule implements Listener, CommandExecutor {
     public RankedQueueModule(Core plugin) {
         this.plugin = plugin;
         this.host = new QueueDuelHost(plugin);
+        this.arenaWaitNanos = Duration.ofSeconds(ConfigValues.integer(plugin.getConfig(), "ranked.queue.arena_wait_seconds", 30, 1, 120)).toNanos();
+        int searchTicks = ConfigValues.integer(plugin.getConfig(), "ranked.queue.search_ticks", 20, 1, 200);
+        int statusTicks = ConfigValues.integer(plugin.getConfig(), "ranked.queue.status_ticks", 20, 1, 1200);
+        int chatTicks = ConfigValues.integer(plugin.getConfig(), "ranked.queue.chat_ticks", 40, 0, 2400);
         Bukkit.getPluginManager().registerEvents(this, plugin);
         plugin.getCommand("rankedqueue").setExecutor(this);
 
@@ -57,21 +63,16 @@ public class RankedQueueModule implements Listener, CommandExecutor {
             public void run() {
                 matchQueues();
             }
-        }.runTaskTimer(plugin, 20L, 20L); // Check every second
+        }.runTaskTimer(plugin, searchTicks, searchTicks);
 
         new BukkitRunnable() {
             @Override
             public void run() {
                 sendQueuedActionBars();
             }
-        }.runTaskTimer(plugin, 20L, 20L);
+        }.runTaskTimer(plugin, statusTicks, statusTicks);
 
-        new BukkitRunnable() {
-            @Override
-            public void run() {
-                sendQueuedMessages();
-            }
-        }.runTaskTimer(plugin, 40L, 40L); // 2 seconds
+        if (chatTicks > 0) Bukkit.getScheduler().runTaskTimer(plugin, this::sendQueuedMessages, chatTicks, chatTicks);
     }
 
     @Override
@@ -288,7 +289,7 @@ public class RankedQueueModule implements Listener, CommandExecutor {
     private void reserveMatch(Player first, Player second, String kit) {
         var reservation = host.reserveRanked(kit);
         if (reservation == null) return;
-        var match = new PendingMatch(first, second, kit, reservation, System.nanoTime() + ARENA_WAIT_NANOS);
+        var match = new PendingMatch(first, second, kit, reservation, System.nanoTime() + arenaWaitNanos);
         pending.put(first.getUniqueId(), match);
         pending.put(second.getUniqueId(), match);
     }

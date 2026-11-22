@@ -1,8 +1,6 @@
 package org.albi.core.events;
 
 import org.albi.core.Core;
-import org.albi.core.serializable.SerializableLocation;
-import org.albi.core.serializable.SerializableSpawnInventory;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -24,10 +22,10 @@ public class OnHeightTeleportListener implements Listener {
         if (event.getFrom().getY() == event.getTo().getY()) return;
 
 
-        String lobbyWorld = plugin.getConfig().getString("lobby_world");
-        int maxHeight = plugin.getConfig().getInt("lobby_max_height");
+        int maxHeight = plugin.getConfig().getInt("lobby_max_height", 150);
 
-        if (player.getWorld().getName().equals(lobbyWorld) && player.getLocation().getY() > maxHeight) {
+        if (plugin.getLobbySettings().protection().heightLimit() && plugin.isLobby(player)
+                && player.getLocation().getY() > maxHeight) {
             plugin.teleportToLobby(player);
         }
     }

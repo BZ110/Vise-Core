@@ -1,5 +1,7 @@
 package org.albi.core.modules.Duels.queue.global;
 
+import org.albi.core.modules.Duels.ranked.RankedRules;
+
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -163,7 +165,7 @@ final class MatchmakingPolicy {
     }
 
     static int eloRange(int seconds) {
-        return 50 + (Math.max(0, seconds) / 3) * 25;
+        return RankedRules.current().searchRange(seconds);
     }
 
     private static int seconds(Ticket ticket, long now) {

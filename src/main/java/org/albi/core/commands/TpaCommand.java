@@ -1,5 +1,7 @@
 package org.albi.core.commands;
 
+import org.albi.core.util.ConfigValues;
+
 import org.albi.core.gui.Messages;
 
 import org.albi.core.Core;
@@ -21,7 +23,7 @@ public class TpaCommand extends BaseCommand {
         Player target = Bukkit.getPlayer(args[0]);
         if (target == null || target == p) return error(p, "messages.teleport-request.invalid-player");
 
-        plugin.teleportRequests.put(target.getUniqueId(), new TeleportRequest(p.getUniqueId(), 30_000, TeleportRequest.Type.TPA));
+        plugin.teleportRequests.put(target.getUniqueId(), new TeleportRequest(p.getUniqueId(), ConfigValues.seconds(plugin.getConfig(), "teleports.requests.expiry_seconds", 30, 1, 3600), TeleportRequest.Type.TPA));
         Messages.send(p, "messages.tpa-command.sent-a-teleport-request-to", target.getName());
         Messages.send(target, "messages.tpa-command.wants-to-teleport-to-you-type-tpaccept", p.getName(), p.getName());
 

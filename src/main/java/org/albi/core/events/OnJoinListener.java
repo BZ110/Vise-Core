@@ -4,20 +4,14 @@ import org.albi.core.gui.Messages;
 
 import org.albi.core.Core;
 import org.albi.core.data.ExtendedPlayer;
-import org.albi.core.data.MainPlayer;
 import org.albi.core.modules.Duels.DuelManager;
 import org.bukkit.Bukkit;
-import org.bukkit.Material;
-import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
-import org.bukkit.inventory.ItemFlag;
-import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
 
-import java.util.Collections;
+import java.util.concurrent.CompletableFuture;
 
 public class OnJoinListener implements Listener {
 
@@ -30,15 +24,16 @@ public class OnJoinListener implements Listener {
     public void onPlayerJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
 
-        event.setJoinMessage(null);
+        var settings = plugin.getLobbySettings().join();
+        if (settings.hideJoinMessage()) event.setJoinMessage(null);
 
         plugin.getCache().removeExtendedPlayer(player);
         ExtendedPlayer ep = plugin.getExtendedPlayer(player);
-        plugin.resetPlayer(player);
-        var lobbyArrival = plugin.teleportToLobbyAsync(player);
+        if (settings.resetPlayer()) plugin.resetPlayer(player);
+        var lobbyArrival = settings.teleport() ? plugin.teleportToLobbyAsync(player)
+                : CompletableFuture.completedFuture(plugin.isLobby(player));
 
-        /* Fetch Tier data in background to warm cache */
-        plugin.getTierManager().fetchAll(player.getUniqueId(), true);
+        if (settings.warmTierProfiles()) plugin.getTierManager().fetchAll(player.getUniqueId(), true);
 
         ep.whenReady().whenComplete((ignored, error) -> {
             if (!plugin.isEnabled()) return;
@@ -50,20 +45,7 @@ public class OnJoinListener implements Listener {
                 }
                 Messages.send(player, "messages.on-join-listener.your-profile-is-now-ready");
 
-                MainPlayer mp = ep.getMainPlayer();
-
-                if (player.hasPermission("core.elytra") && mp.elytra()) {
-                    ItemStack elytra = new ItemStack(Material.ELYTRA);
-                    ItemMeta elytraMeta = elytra.getItemMeta();
-                    if (player.hasPermission("core.elytra.enchanted")) {
-                        elytraMeta.addEnchant(Enchantment.UNBREAKING, 1, true);
-                        elytraMeta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
-                    }
-                    elytraMeta.setUnbreakable(true);
-                    elytraMeta.setLore(Collections.singletonList("§r§7" + player.getName() + "'s Elytra"));
-                    elytra.setItemMeta(elytraMeta);
-                    player.getInventory().setChestplate(elytra);
-                }
+                plugin.equipLobbyElytra(player);
             });
         });
         lobbyArrival.thenCombine(ep.whenReady(), (arrived, ignored) -> arrived).thenAccept(arrived -> {

@@ -3,7 +3,6 @@ package org.albi.core.modules.Duels.events;
 import org.albi.core.Core;
 import org.albi.core.data.ExtendedPlayer;
 import org.bukkit.Sound;
-import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -65,10 +64,7 @@ public final class OnDamage implements Listener {
         /* ───────────────────────────── */
         /* Lobby protection */
         /* ───────────────────────────── */
-        World lobbyWorld = victim.getServer()
-                .getWorld(plugin.getConfig().getString("lobby_world"));
-
-        if (victim.getWorld() == lobbyWorld) {
+        if (plugin.getLobbySettings().protection().pvp() && plugin.isLobby(victim)) {
             e.setCancelled(true);
             return;
         }
@@ -129,8 +125,9 @@ public final class OnDamage implements Listener {
         if (configBoost.stream()
                 .anyMatch(n -> n.equalsIgnoreCase(kitName))) {
 
-            percentBoost = 33;
+            percentBoost = plugin.getCombatSettings().legacyBoostPercent();
         }
+        percentBoost = plugin.getCombatSettings().damageBoost(kitName, percentBoost);
 
         /* 3️⃣ Apply multiplier */
         if (percentBoost > 0) {

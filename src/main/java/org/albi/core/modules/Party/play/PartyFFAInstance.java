@@ -1,5 +1,7 @@
 package org.albi.core.modules.Party.play;
 
+import org.albi.core.util.ConfigValues;
+
 import org.albi.core.gui.Messages;
 
 import org.albi.core.Core;
@@ -128,7 +130,7 @@ public final class PartyFFAInstance extends DuelInstance {
         }
 
         new BukkitRunnable() {
-            int ticksLeft = 10 * 20;
+            int ticksLeft = ConfigValues.integer(plugin.getConfig(), "party.ffa.countdown_seconds", 10, 0, 120) * 20;
             boolean skipped = false;
             boolean firstToggleSoundPlayed = false;
             java.util.Set<UUID> readyToggles = new java.util.HashSet<>();
@@ -221,7 +223,7 @@ public final class PartyFFAInstance extends DuelInstance {
         }
 
         new BukkitRunnable() {
-            int ticksLeft = 10 * 20;
+            int ticksLeft = ConfigValues.integer(plugin.getConfig(), "party.ffa.scatter_seconds", 10, 0, 120) * 20;
             boolean skipped = false;
             boolean firstToggleSoundPlayed = false;
             java.util.Set<UUID> readyToggles = new java.util.HashSet<>();

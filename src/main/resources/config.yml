@@ -12,6 +12,74 @@ max_entities: 30
 c_worlds: []
 ffa_worlds: []
 
+lobby:
+  join:
+    teleport: true
+    reset_player: true
+    hide_join_message: true
+    hide_quit_message: true
+    warm_tier_profiles: true
+  protection:
+    block_placement: true
+    block_breaking: true
+    item_drops: true
+    item_pickup: true
+    interactions: true
+    block_player_heads_outside_lobby: true
+    height_limit: true # Uses lobby_max_height.
+    pvp: true # Applies when the Duels module is active.
+  hotbar:
+    enabled: true # Use gui.yml to style, move, or replace shortcuts for each lobby state.
+    cooldown_seconds: 1.0
+  movement:
+    speed_level: 2 # 0 disables this lobby effect.
+    jump_boost_level: 2
+  elytra:
+    enabled: true
+    unbreakable: true
+    unbreaking_level: 1
+    wind_charges: 64 # 0 disables auto-equip.
+  interaction:
+    right_click_duel: true
+    right_click_duel_cooldown_ms: 250
+    sneak_tab_toggle: true
+    shulker_editor: true
+    physical_triggers: false
+    allowed_items: [FISHING_ROD, WIND_CHARGE]
+  wind_charges:
+    protect_blocks: true
+    boost: true
+    radius: 2.0
+    horizontal_velocity: 1.0
+    vertical_velocity: 1.25
+
+world_rules:
+  enabled: true
+  apply_on_world_load: false # Apply to worlds loaded later as well as those present at server startup.
+  lobby:
+    enabled: true
+    inherit_defaults: true
+    difficulty: inherit
+    gamerules:
+      doWeatherCycle: false
+      doMobSpawning: false
+      announceAdvancements: false
+  other:
+    enabled: true
+    inherit_defaults: true
+    difficulty: HARD
+    gamerules:
+      keepInventory: true
+      doImmediateRespawn: true
+      doDaylightCycle: false
+      doWeatherCycle: false
+      doMobSpawning: false
+      announceAdvancements: false
+  worlds: {}
+  # Examples under worlds:
+  #   survival: {enabled: false}
+  #   practice: {inherit: false, difficulty: NORMAL, gamerules: {naturalRegeneration: false}}
+
 # Set up MySQL and Redis before starting. Environment variables override YAML.
 mysql:
   host: "127.0.0.1"
@@ -22,6 +90,9 @@ mysql:
   ssl: false
   ssl_mode: "" # Optional Connector/J mode. Blank uses the legacy ssl flag.
   pool_size: 20
+  connect_timeout_ms: 5000
+  socket_timeout_ms: 8000
+  connection_timeout_ms: 5000 # Maximum wait for a pooled MySQL connection.
 
 redis:
   host: "127.0.0.1"
@@ -29,6 +100,10 @@ redis:
   password: ""
   ssl: false
   ca_file: "" # With TLS, blank uses certs/ca.crt if present or the JVM trust store.
+  pool_size: 16
+  min_idle: 2
+  timeout_ms: 8000
+  borrow_timeout_seconds: 10
 
 storage:
   flush_interval_seconds: 600
@@ -84,7 +159,16 @@ network:
     # An explicit priority replaces that pool's built-in order. An empty list keeps it local.
     # Add a measured estimate to latency_ms without replacing the default priority tiers.
     pools: {}
+  spectating:
+    enabled: true # Redis-backed cross-server spectating with global matchmaking.
+  health:
+    enabled: true
+    sample_interval_ticks: 100
+    max_samples: 17280
+    include_worlds: true
   travel:
+    refresh_ticks: 100
+    offline_after_seconds: 10
     # Same-region instance transfers use the proxy. Add destinations here for direct transfers.
     regions: {}
     # Example entry under regions (use the identifier from the target server's region setting):
@@ -98,10 +182,16 @@ network:
 autorestart:
   enabled: false
   interval_hours: 24
+  now_delay_seconds: 10
+  warning_seconds: [3600, 1800, 900, 600, 300, 60, 30, 15, 10, 5, 4, 3, 2, 1]
 
 announcements:
   enabled: true
   interval_seconds: 180
+  worlds: [] # Empty targets the lobby. "*" targets every world.
+  shuffle: true # False rotates through the list in order.
+  exclude_duels: true
+  exclude_lava_rising: true
   messages:
     - "&7Use &f/quickqueue &7to join an active queue."
     - "&7Use &f/friends &7to manage your friends list."
@@ -111,10 +201,55 @@ announcements:
 use_polar_worlds: false
 polar_preload: 2
 
+teleports:
+  requests:
+    expiry_seconds: 30 # /tpa and /tpahere.
+  rtp:
+    # Targets are XenoWorldReset destination names. List only the destinations you want.
+    # Style the inventory using each entry's ID under menus.travel.rtp.buttons in gui.yml.
+    destinations:
+      - {id: plains-rtp, target: Plains}
+      - {id: snowy-rtp, target: Snowy}
+      - {id: desert-rtp, target: Desert}
+      - {id: badlands-rtp, target: Badlands}
+      - {id: mushroom-rtp, target: Mushroom}
+
+combat:
+  food_cooldowns:
+    RAW_GOLD: 10 # Seconds per item type and player. Set the entry to 0 to disable it.
+  creeper_eggs:
+    enabled: true # When false, Core leaves spawn eggs to normal server rules.
+    consume: true
+    fuse_ticks: 20
+  legacy_damage_boost_percent: 33 # Applies to the existing 33_percent_boost list.
+  kit_damage_boosts: []
+  # Example: [{kit: "smp.pot", percent: 20}]. Use 0 to override other boosts for the kit.
+  additional_blocked_kit_items: [] # Built-in blocked items are always enforced.
+
 duels:
   tnt_seconds: 3
   default_rounds: 1
   rounds: [1, 2, 3, 4, 5, 10, 15, 18, 20]
+  countdown:
+    start_seconds: 10
+    between_rounds_seconds: 5
+    ready_up: true
+    between_rounds_ready_window_seconds: 3
+    return_delay_ticks: 60
+  queue:
+    search_ticks: 2
+    status_ticks: 20
+    match_intro_ticks: 60
+  schematic:
+    paste_spacing_ticks: 5
+    retry_seconds: 2
+  polar:
+    operation_interval_ticks: 250
+  spectating:
+    privacy_check_ticks: 20
+  telemetry:
+    enabled: true # Allow opt-in recording for direct challenges.
+    max_round_target: 3
 
   # Experimental. The practice NPC uses Paper server internals and can break
   # after an update. Test it on a staging server before enabling it.
@@ -124,12 +259,71 @@ duels:
     allowed_kits: ["beast", "pot"]
     default_rounds: 1
     debug_logging: false
+    defaults:
+      name: "PvP Bot"
+      invulnerability: true
+      sprint_hit_percent: 60
+      w_tap_percent: 30
+      strafe_percent: 45
+      frequent_range: 3.0
+      reaction_ticks: 2
+      attack_delay_ticks: 10
+      move_speed: 0.31
+      retreat_speed: 0.26
+      close_retreat_speed: 0.16
+      max_chase_distance: 80.0
+      shield_use_percent: 40
+      shield_break_enabled: true
+      shield_break_cooldown_ticks: 100
+      desync_teleport_distance: 3.5
+      aim_speed_degrees: 18.0
+      reach_distance: 3.1
 
 ranked:
   webhook_url: "" # VISE_RANKED_WEBHOOK_URL
   report_url_template: "" # Optional URL with a {match_id} placeholder
   placement_matches: 5
+  starting_elo: 1000 # Applies when creating new ranked stats.
+  countdown_seconds: 10
+  rating:
+    regular_k: 32
+    placement_k: 64
+    expected_score_divisor: 400
+  tiers:
+    points_per_division: 100
+    divisions_per_tier: 5
+  matchmaking:
+    initial_elo_range: 50
+    elo_range_increment: 25
+    relax_every_seconds: 3
+    max_elo_range: 0 # 0 preserves the uncapped Elo window.
+  queue:
+    search_ticks: 20
+    status_ticks: 20
+    chat_ticks: 40 # 0 hides repeating ranked queue chat.
+    arena_wait_seconds: 30
+  telemetry:
+    enabled: true
+    snapshot_interval_ticks: 20
+    ping_interval_ticks: 100
   history_expiry_days: 7
+
+party:
+  default_size: 4
+  default_shuffle: false
+  default_auto_balance: true
+  open_cooldown_seconds: 60
+  ffa:
+    countdown_seconds: 10
+    scatter_seconds: 10
+
+cosmetics:
+  kill_effects:
+    enabled: true
+    disabled_effects: []
+    unlock_levels: {} # Keys are lowercase effect IDs, such as electric_storm.
+    play_sound: true
+    volume: 1.5
 
 lava_rising:
   lava_rising_world: lavaevent
@@ -155,6 +349,7 @@ lava_rising:
     - COOKED_BEEF:8
 
 tournaments:
+  countdown_seconds: 5
   challonge_username: "" # VISE_CHALLONGE_USERNAME
   challonge_api_key: "" # VISE_CHALLONGE_API_KEY
 
@@ -194,6 +389,14 @@ guis:
 # Chat line format.
 # Supports PlaceholderAPI and colour codes in *placeholders only*.
 chat: "{player}: {chat}"
+chat_options:
+  colors_permission: core.chat.color
+  mentions:
+    enabled: true
+    highlight: "&e{player}&r"
+    sound: BLOCK_NOTE_BLOCK_PLING # Use NONE to silence mention sounds.
+    volume: 1.0
+    pitch: 2.0
 
 
 # Player-facing messages and inventory menus are in lang.yml and gui.yml.

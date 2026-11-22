@@ -5,6 +5,8 @@ import org.albi.core.gui.GuiService;
 import org.albi.core.modules.Duels.DuelManager;
 import org.albi.core.modules.Duels.helpers.Arena;
 import org.albi.core.modules.Duels.helpers.Kit;
+import org.albi.core.util.ConfigValues;
+import org.bukkit.configuration.ConfigurationSection;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -34,6 +36,7 @@ public class BotSettings {
     private double aimSpeedDegrees = 18.0D;
     private double reachDistance = 3.10D;
     private boolean debugLogging;
+    private String displayName = "PvP Bot";
     private BotPreset preset = null;
 
     public BotSettings(List<String> allowedKitNames, int rounds, boolean debugLogging) {
@@ -78,6 +81,7 @@ public class BotSettings {
         clone.aimSpeedDegrees = this.aimSpeedDegrees;
         clone.reachDistance = this.reachDistance;
         clone.debugLogging = this.debugLogging;
+        clone.displayName = this.displayName;
         clone.preset = this.preset;
         return clone;
     }
@@ -127,6 +131,29 @@ public class BotSettings {
         reachDistance = 3.10D;
     }
 
+    void applyConfiguredDefaults(ConfigurationSection config) {
+        if (config == null) return;
+        String name = config.getString("name", displayName);
+        if (name.matches("[a-zA-Z0-9_ ][a-zA-Z0-9_ ]{0,15}") && !name.isBlank()) displayName = name;
+        invulnerability = config.getBoolean("invulnerability", invulnerability);
+        shieldBreakEnabled = config.getBoolean("shield_break_enabled", shieldBreakEnabled);
+        frequentSprintHitsPercent = ConfigValues.integer(config, "sprint_hit_percent", frequentSprintHitsPercent, 0, 100);
+        frequentWTapsPercent = ConfigValues.integer(config, "w_tap_percent", frequentWTapsPercent, 0, 100);
+        strafePercent = ConfigValues.integer(config, "strafe_percent", strafePercent, 0, 100);
+        shieldUsePercent = ConfigValues.integer(config, "shield_use_percent", shieldUsePercent, 0, 100);
+        reactionTicks = ConfigValues.integer(config, "reaction_ticks", reactionTicks, 0, 10);
+        attackDelayTicks = ConfigValues.integer(config, "attack_delay_ticks", attackDelayTicks, 4, 20);
+        shieldBreakCooldownTicks = ConfigValues.integer(config, "shield_break_cooldown_ticks", shieldBreakCooldownTicks, 20, 200);
+        frequentRange = ConfigValues.decimal(config, "frequent_range", frequentRange, 0.01, 6);
+        moveSpeed = ConfigValues.decimal(config, "move_speed", moveSpeed, 0.10, 0.60);
+        retreatSpeed = ConfigValues.decimal(config, "retreat_speed", retreatSpeed, 0.05, 0.50);
+        closeRetreatSpeed = ConfigValues.decimal(config, "close_retreat_speed", closeRetreatSpeed, 0.05, 0.45);
+        maxChaseDistance = ConfigValues.decimal(config, "max_chase_distance", maxChaseDistance, 0, 2000);
+        desyncTeleportDistance = ConfigValues.decimal(config, "desync_teleport_distance", desyncTeleportDistance, 0.75, 10);
+        aimSpeedDegrees = ConfigValues.decimal(config, "aim_speed_degrees", aimSpeedDegrees, 4, 40);
+        reachDistance = ConfigValues.decimal(config, "reach_distance", reachDistance, 0.01, 6);
+    }
+
     public void applyPreset(BotPreset preset) {
         if (preset == null)
             return;
@@ -173,8 +200,7 @@ public class BotSettings {
     }
 
     public String getBotNameFor(String playerName) {
-        String raw = "PvP Bot";
-        return raw.length() <= 16 ? raw : raw.substring(0, 16);
+        return displayName;
     }
 
     public Kit getKit() {

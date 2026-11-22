@@ -1,5 +1,7 @@
 package org.albi.core.commands;
 
+import org.albi.core.util.ConfigValues;
+
 import org.albi.core.gui.Messages;
 
 import org.albi.core.Core;
@@ -63,8 +65,10 @@ public final class AutoRestartCommand implements CommandExecutor {
                 break;
 
             case "now":
-                service.setRemainingSeconds(10);
-                plugin.getMessageAPI().sendMessage(sender, Messages.text(sender, "messages.auto-restart-command.restart-initiated-restarting-in-10-seconds"));
+                int delay = nowDelay();
+                service.setRemainingSeconds(delay);
+                Messages.send(sender, delay == 10 ? "messages.auto-restart-command.restart-initiated-restarting-in-10-seconds"
+                        : "messages.auto-restart-command.restart-initiated", delay);
                 break;
 
             default:
@@ -81,17 +85,23 @@ public final class AutoRestartCommand implements CommandExecutor {
         plugin.getMessageAPI().sendMessage(sender, Messages.text(sender, "messages.auto-restart-command.autorestart-time-see-time-until-restart"));
         plugin.getMessageAPI().sendMessage(sender, Messages.text(sender, "messages.auto-restart-command.autorestart-set-time-schedule-a-restart"));
         plugin.getMessageAPI().sendMessage(sender, Messages.text(sender, "messages.auto-restart-command.autorestart-cancel-cancel-any-scheduled-restart"));
-        plugin.getMessageAPI().sendMessage(sender, Messages.text(sender, "messages.auto-restart-command.autorestart-now-restart-in-10-seconds"));
+        int delay = nowDelay();
+        Messages.send(sender, delay == 10 ? "messages.auto-restart-command.autorestart-now-restart-in-10-seconds"
+                : "messages.auto-restart-command.now-help", delay);
         plugin.getMessageAPI().sendMessage(sender, Messages.text(sender, "messages.auto-restart-command.send-help"));
+    }
+
+    private int nowDelay() {
+        return ConfigValues.integer(plugin.getConfig(), "autorestart.now_delay_seconds", 10, 1, 600);
     }
 
     private int parseTime(String input) {
         try {
-            if (input.endsWith("h")) return Integer.parseInt(input.replace("h", "")) * 3600;
-            if (input.endsWith("m")) return Integer.parseInt(input.replace("m", "")) * 60;
+            if (input.endsWith("h")) return Math.multiplyExact(Integer.parseInt(input.substring(0, input.length() - 1)), 3600);
+            if (input.endsWith("m")) return Math.multiplyExact(Integer.parseInt(input.substring(0, input.length() - 1)), 60);
             if (input.endsWith("s")) return Integer.parseInt(input.replace("s", ""));
             return Integer.parseInt(input);
-        } catch (NumberFormatException e) {
+        } catch (NumberFormatException | ArithmeticException e) {
             return -1;
         }
     }

@@ -1,5 +1,7 @@
 package org.albi.core.modules.Duels.ranked;
 
+import org.albi.core.util.ConfigValues;
+
 import org.albi.core.Core;
 import org.albi.core.data.StatManagement;
 import org.albi.core.modules.Duels.AutomatedCombat.ReachCalculator;
@@ -45,6 +47,7 @@ public class MatchTracker implements Listener {
         playerToMatch.put(record.getPlayer1(), record);
         playerToMatch.put(record.getPlayer2(), record);
 
+        int sampleTicks = ConfigValues.integer(plugin.getConfig(), "ranked.telemetry.snapshot_interval_ticks", 20, 5, 1200);
         BukkitTask task = new BukkitRunnable() {
             @Override
             public void run() {
@@ -58,7 +61,7 @@ public class MatchTracker implements Listener {
                             getPing(p2));
                 }
             }
-        }.runTaskTimer(plugin, 20L, 20L);
+        }.runTaskTimer(plugin, sampleTicks, sampleTicks);
         trackerTasks.put(record, task);
     }
 
@@ -146,6 +149,7 @@ public class MatchTracker implements Listener {
     }
 
     private void startPingSampler() {
+        int sampleTicks = ConfigValues.integer(plugin.getConfig(), "ranked.telemetry.ping_interval_ticks", 100, 5, 2400);
         new BukkitRunnable() {
             @Override
             public void run() {
@@ -160,7 +164,7 @@ public class MatchTracker implements Listener {
                     }
                 }
             }
-        }.runTaskTimer(plugin, 100L, 100L);
+        }.runTaskTimer(plugin, sampleTicks, sampleTicks);
     }
 
     private int getPing(Player player) {

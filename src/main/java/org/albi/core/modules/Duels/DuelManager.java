@@ -11,7 +11,6 @@ import org.albi.core.modules.Duels.helpers.DuelStorage;
 import org.albi.core.modules.Duels.managers.CommandManager;
 import org.albi.core.modules.Duels.managers.EventManager;
 import org.albi.core.modules.Duels.ranked.RankedCommands;
-import org.albi.core.modules.Duels.ranked.RankedStats;
 import org.albi.core.modules.Duels.spectating.DuelSpectators;
 import org.bukkit.entity.Player;
 
@@ -65,10 +64,7 @@ public final class DuelManager extends Module {
         getPlugin().getLogger().info("[Duels] Loading Ranked Queue Module");
         rankedQueueModule = new RankedQueueModule(getPlugin());
         matchmaking = GlobalMatchmaking.create(getPlugin());
-        spectators = new DuelSpectators(getPlugin(), matchmaking);
-
-        // Load Ranked Settings
-        RankedStats.PLACEMENT_THRESHOLD = getPlugin().getConfig().getInt("ranked.placement_matches", 5);
+        spectators = new DuelSpectators(getPlugin(), getPlugin().getConfig().getBoolean("network.spectating.enabled", true) ? matchmaking : null);
 
         // Register Ranked Commands
         RankedCommands rankedCommands = new RankedCommands(getPlugin());

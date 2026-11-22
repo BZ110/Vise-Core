@@ -3,14 +3,27 @@ package org.albi.core.managers.cosmetics;
 import org.albi.core.Core;
 import org.albi.core.data.ExtendedPlayer;
 import org.albi.core.data.MainPlayer;
+import org.albi.core.util.ConfigValues;
 import org.bukkit.Location;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Locale;
 
 public class DeathEffectManager {
+
+    public static boolean isEnabled(Core plugin, DeathEffect effect) {
+        return effect == DeathEffect.NONE || (plugin.getConfig().getBoolean("cosmetics.kill_effects.enabled", true)
+                && plugin.getConfig().getStringList("cosmetics.kill_effects.disabled_effects").stream()
+                        .noneMatch(name -> name.equalsIgnoreCase(effect.name())));
+    }
+
+    public static int requiredLevel(Core plugin, DeathEffect effect) {
+        return ConfigValues.integer(plugin.getConfig(), "cosmetics.kill_effects.unlock_levels."
+                + effect.name().toLowerCase(Locale.ROOT), effect.getRequiredLevel(), 0, 10_000);
+    }
 
     /**
      * Called when a player (killer) gets a kill.
@@ -40,8 +53,8 @@ public class DeathEffectManager {
             return;
         }
 
-        // Check killer has the unlock
-        boolean unlocked = mp.level() >= effect.getRequiredLevel()
+        if (!isEnabled(plugin, effect)) return;
+        boolean unlocked = mp.level() >= requiredLevel(plugin, effect)
                 || killer.hasPermission("core.deatheffect.*")
                 || killer.hasPermission("core.deatheffect." + effect.name().toLowerCase())
                 || killer.isOp();
@@ -52,7 +65,7 @@ public class DeathEffectManager {
         List<Player> viewers = nearbyPlayers.stream()
                 .filter(p -> {
                     ExtendedPlayer epV = plugin.getExtendedPlayer(p);
-                    return epV != null && epV.getMainPlayer().showKillEffects();
+                    return epV != null && epV.getMainPlayer() != null && epV.getMainPlayer().showKillEffects();
                 })
                 .toList();
 
@@ -63,9 +76,10 @@ public class DeathEffectManager {
 
         // Play sound for visible players only
         Sound sound = effect.getSound();
-        if (sound != null) {
+        if (sound != null && plugin.getConfig().getBoolean("cosmetics.kill_effects.play_sound", true)) {
+            float volume = (float) ConfigValues.decimal(plugin.getConfig(), "cosmetics.kill_effects.volume", 1.5, 0, 4);
             for (Player p : viewers) {
-                p.playSound(victimLoc, sound, 1.5f, effect.getSoundPitch());
+                p.playSound(victimLoc, sound, volume, effect.getSoundPitch());
             }
         }
     }

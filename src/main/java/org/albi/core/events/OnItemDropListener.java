@@ -6,8 +6,6 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerDropItemEvent;
 
-import java.util.Objects;
-
 public class OnItemDropListener implements Listener {
 
     private final Core plugin;
@@ -20,8 +18,7 @@ public class OnItemDropListener implements Listener {
     public void onItemDrop(PlayerDropItemEvent event) {
         Player player = event.getPlayer();
 
-        if (plugin.getConfig().getString("lobby_world")
-                .equals(player.getWorld().getName())) {
+        if (plugin.getLobbySettings().protection().itemDrop() && plugin.isLobby(player)) {
 
             if (!plugin.getExtendedPlayer(player).isBypassRegion()) {
                 event.setCancelled(true);

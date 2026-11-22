@@ -25,7 +25,7 @@ public class OnLeaveListener implements Listener {
         ExtendedPlayer ep = plugin.getCache().getExtendedPlayer(event.getPlayer());
         if (ep == null) return;
 
-        event.setQuitMessage(null);
+        if (plugin.getLobbySettings().join().hideQuitMessage()) event.setQuitMessage(null);
 
         // Handle duels first if needed
         if (ep.getPlayerDuelInstance() != null) {

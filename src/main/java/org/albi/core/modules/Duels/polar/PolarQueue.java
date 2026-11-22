@@ -1,5 +1,7 @@
 package org.albi.core.modules.Duels.polar;
 
+import org.albi.core.util.ConfigValues;
+
 import org.albi.core.Core;
 import org.bukkit.Bukkit;
 
@@ -11,11 +13,13 @@ import java.util.function.Consumer;
 public final class PolarQueue {
 
     private final Core plugin;
+    private final int operationInterval;
     private final Queue<QueuedTask> queue = new ArrayDeque<>();
     private boolean running = false;
 
     public PolarQueue(Core plugin) {
         this.plugin = plugin;
+        this.operationInterval = ConfigValues.integer(plugin.getConfig(), "duels.polar.operation_interval_ticks", 250, 1, 24_000);
     }
 
     public synchronized void enqueue(String label, Consumer<Runnable> action) {
@@ -43,7 +47,7 @@ public final class PolarQueue {
             AtomicBoolean completed = new AtomicBoolean(false);
             Runnable done = () -> {
                 if (!completed.compareAndSet(false, true)) return;
-                Bukkit.getScheduler().runTaskLater(plugin, this::runNext, 250L);
+                Bukkit.getScheduler().runTaskLater(plugin, this::runNext, operationInterval);
             };
 
             try {

@@ -49,6 +49,7 @@ public final class Manager {
         FileConfiguration config = plugin.getConfig();
         BotSettings settings = new BotSettings(config.getStringList("duels.bots.allowed_kits"),
                 config.getInt("duels.bots.default_rounds", 1), config.getBoolean("duels.bots.debug_logging"));
+        settings.applyConfiguredDefaults(config.getConfigurationSection("duels.bots.defaults"));
         new BotMenu(plugin, this, callbacks).openMain(player, settings);
     }
 

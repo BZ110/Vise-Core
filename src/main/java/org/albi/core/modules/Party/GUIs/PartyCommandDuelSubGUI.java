@@ -106,7 +106,7 @@ public class PartyCommandDuelSubGUI {
                     .withListener(e -> {
                         DuelPreference pref = plugin.getExtendedPlayer(p).prefsFor(opp.getUniqueId());
                         pref.setArena(a);
-                        if (quick) pref.setRounds(plugin.getConfig().getInt("duels.default_rounds", 1));
+                        if (quick) pref.setRounds(plugin.getDuelSettings().defaultRounds());
                         setting(p, opp);
                     }));
         }
@@ -153,7 +153,7 @@ public class PartyCommandDuelSubGUI {
     }
 
     private void rounds(Player p, Player opp) {
-        List<Integer> list = plugin.getConfig().getIntegerList("duels.rounds");
+        List<Integer> list = plugin.getDuelSettings().rounds();
         SGMenu menu = plugin.getMenus().create("party.challenge-rounds", 1);
         for (int r : list) {
             menu.addButton(new SGButton(button(Material.PAPER, GuiService.text("party-command-duel-sub-gui.first-to", r),

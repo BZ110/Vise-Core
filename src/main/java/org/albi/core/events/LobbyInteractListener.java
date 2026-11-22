@@ -4,17 +4,12 @@ import org.albi.core.gui.Messages;
 
 import org.albi.core.Core;
 import org.albi.core.data.ExtendedPlayer;
-import org.albi.core.data.MainPlayer;
 import org.albi.core.modules.Duels.helpers.PlayerDuelInstance;
 import org.bukkit.*;
-import org.bukkit.block.Block;
-import org.bukkit.block.BlockState;
 import org.bukkit.block.ShulkerBox;
-import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.*;
 import org.bukkit.event.*;
 import org.bukkit.event.entity.EntityExplodeEvent;
-import org.bukkit.event.entity.ProjectileHitEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerItemHeldEvent;
@@ -27,9 +22,6 @@ import org.bukkit.event.block.Action;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.util.Vector;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
 
 
 public class LobbyInteractListener implements Listener {
@@ -47,7 +39,7 @@ public class LobbyInteractListener implements Listener {
         Player player = event.getPlayer();
 
         // ONLY when pressing shift, not releasing
-        if (!event.isSneaking()) return;
+        if (!plugin.getLobbySettings().interaction().sneakTabToggle() || !event.isSneaking()) return;
 
         ExtendedPlayer ep = plugin.getExtendedPlayer(player);
         if (ep == null || !ep.isReady()) return;
@@ -68,30 +60,7 @@ public class LobbyInteractListener implements Listener {
         Player player = event.getPlayer();
         if (!player.getWorld().getName().equalsIgnoreCase(lobbyWorld)) return;
 
-        ExtendedPlayer ep = plugin.getExtendedPlayer(player);
-        if (ep == null) return;
-
-        MainPlayer mp = ep.getMainPlayer();
-        if (mp != null && mp.elytra() && player.hasPermission("core.elytra")) {
-            ItemStack incoming = player.getInventory().getItem(event.getNewSlot());
-            boolean isSpawnItem = false;
-            
-            if (incoming != null && incoming.getType() != Material.AIR && incoming.hasItemMeta() && incoming.getItemMeta().hasDisplayName()) {
-                isSpawnItem = true;
-            }
-
-            if (isSpawnItem) {
-                if (player.getInventory().getItemInOffHand().getType() == Material.WIND_CHARGE) {
-                    player.getInventory().setItemInOffHand(null);
-                }
-            } else {
-                if (player.getInventory().getItemInOffHand().getType() != Material.WIND_CHARGE) {
-                    ItemStack windCharges = new ItemStack(Material.WIND_CHARGE);
-                    windCharges.setAmount(64);
-                    player.getInventory().setItemInOffHand(windCharges);
-                }
-            }
-        }
+        plugin.updateLobbyWindCharges(player, player.getInventory().getItem(event.getNewSlot()));
     }
 
     @EventHandler
@@ -115,7 +84,8 @@ public class LobbyInteractListener implements Listener {
 
         // Only restrict lobby
         if (!player.getWorld().getName().equalsIgnoreCase(lobbyWorld)) return;
-        if (ep.isBypassRegion()) return;
+        if (ep.isBypassRegion() || !plugin.getLobbySettings().protection().interactions()) return;
+        var settings = plugin.getLobbySettings().interaction();
 
         // Only look at the hand that triggered THIS event
         ItemStack item = event.getItem();
@@ -123,13 +93,14 @@ public class LobbyInteractListener implements Listener {
 
         // Optional: ignore physical triggers like pressure plates separately
         if (event.getAction() == Action.PHYSICAL) {
+            if (settings.physicalTriggers()) return;
             event.setUseInteractedBlock(Event.Result.DENY);
             event.setUseItemInHand(Event.Result.DENY);
             return;
         }
 
         // Shulker editor exception
-        if (type.name().endsWith("SHULKER_BOX")) {
+        if (settings.shulkerEditor() && type.name().endsWith("SHULKER_BOX")) {
             event.setCancelled(true);
 
             try {
@@ -180,7 +151,7 @@ public class LobbyInteractListener implements Listener {
         }
 
         // Allow rod / wind charge ITEM behavior, but block interaction with blocks
-        if (type == Material.FISHING_ROD || type == Material.WIND_CHARGE) {
+        if (settings.allowedItems().contains(type)) {
             event.setUseInteractedBlock(Event.Result.DENY);
             event.setUseItemInHand(Event.Result.ALLOW);
             return;
@@ -202,15 +173,18 @@ public class LobbyInteractListener implements Listener {
 
             Entity entity = event.getEntity();
 
-            event.blockList().clear();
-            event.setYield(0);
+            var settings = plugin.getLobbySettings().interaction();
+            if (settings.protectWindChargeBlocks()) {
+                event.blockList().clear();
+                event.setYield(0);
+            }
 
-            if (entity instanceof WindCharge windCharge) {
+            if (settings.boostWindCharge() && entity instanceof WindCharge windCharge) {
                 if (windCharge.getShooter() instanceof LivingEntity shooter) {
 
                     double distanceSquared = shooter.getLocation().distanceSquared(entity.getLocation());
 
-                    if (distanceSquared > 4) return;
+                    if (distanceSquared > settings.windRadius() * settings.windRadius()) return;
 
                     Vector direction = shooter.getLocation().toVector()
                             .subtract(entity.getLocation().toVector());
@@ -220,9 +194,9 @@ public class LobbyInteractListener implements Listener {
                     direction.setY(0);
                     direction.normalize();
 
-                    direction.multiply(1);
+                    direction.multiply(settings.windHorizontal());
 
-                    direction.setY(1.25);
+                    direction.setY(settings.windVertical());
 
                     shooter.setVelocity(direction);
                 }

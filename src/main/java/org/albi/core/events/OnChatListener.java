@@ -15,8 +15,12 @@ import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.albi.core.data.ExtendedPlayer;
 import org.albi.core.data.MainPlayer;
+import org.albi.core.gui.TextTemplates;
+import org.albi.core.util.ConfigValues;
+import org.bukkit.Sound;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -32,11 +36,34 @@ public class OnChatListener implements Listener {
     private static final Set<UUID> REDISPATCH_GUARD = ConcurrentHashMap.newKeySet();
 
     private final Core plugin;
-    private String chatFormatRaw;
+    private final String chatFormatRaw;
+    private final boolean mentions;
+    private final String mentionHighlight;
+    private final Sound mentionSound;
+    private final float mentionVolume;
+    private final float mentionPitch;
+    private final String colorPermission;
 
     public OnChatListener(Core plugin) {
         this.plugin = plugin;
-        this.chatFormatRaw = plugin.getConfig().getString("chat", "{player}: {chat}");
+        var config = plugin.getConfig();
+        this.chatFormatRaw = config.getString("chat", "{player}: {chat}");
+        this.mentions = config.getBoolean("chat_options.mentions.enabled", true);
+        this.mentionHighlight = ChatColor.translateAlternateColorCodes('&',
+                config.getString("chat_options.mentions.highlight", "&e{player}&r"));
+        this.mentionSound = readMentionSound(config.getString("chat_options.mentions.sound", "BLOCK_NOTE_BLOCK_PLING"));
+        this.mentionVolume = (float) ConfigValues.decimal(config, "chat_options.mentions.volume", 1, 0, 4);
+        this.mentionPitch = (float) ConfigValues.decimal(config, "chat_options.mentions.pitch", 2, 0.5, 2);
+        this.colorPermission = config.getString("chat_options.colors_permission", "core.chat.color");
+    }
+
+    private static Sound readMentionSound(String value) {
+        if (value.equalsIgnoreCase("none")) return null;
+        try {
+            return Sound.valueOf(value.strip().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException invalid) {
+            return Sound.BLOCK_NOTE_BLOCK_PLING;
+        }
     }
 
     private static String applyHexColours(String msg) {
@@ -52,6 +79,11 @@ public class OnChatListener implements Listener {
         }
         m.appendTail(sb);
         return sb.toString();
+    }
+
+    private boolean hasMentions(Player player) {
+        ExtendedPlayer profile = plugin.getExtendedPlayer(player);
+        return profile != null && profile.getMainPlayer() != null && profile.getMainPlayer().chatMentions();
     }
 
     @EventHandler
@@ -103,23 +135,19 @@ public class OnChatListener implements Listener {
         MainPlayer mp = plugin.getExtendedPlayer(player).getMainPlayer();
 
         // Color permissions
-        boolean canColour = player.hasPermission("core.chat.color");
+        boolean canColour = !colorPermission.isBlank() && player.hasPermission(colorPermission);
         if (canColour) {
             message = ChatColor.translateAlternateColorCodes('&', message);
         } else {
             message = COLOR_CODES.matcher(ChatColor.translateAlternateColorCodes('&', message)).replaceAll("");
         }
 
-        // Highlight chat mentions format
-        for (Player p : Bukkit.getOnlinePlayers()) {
-            if (p.equals(player))
-                continue;
-            ExtendedPlayer ep = plugin.getExtendedPlayer(p);
-            if (ep != null && ep.getMainPlayer().chatMentions()) {
-                if (message.toLowerCase().contains(p.getName().toLowerCase())) {
-                    message = message.replaceAll("(?i)\\b" + java.util.regex.Pattern.quote(p.getName()) + "\\b",
-                            ChatColor.YELLOW + p.getName() + ChatColor.RESET);
-                }
+        if (mentions) {
+            for (Player recipient : Bukkit.getOnlinePlayers()) {
+                if (recipient.equals(player) || !hasMentions(recipient)) continue;
+                String highlight = TextTemplates.format(mentionHighlight, java.util.Map.of("player", recipient.getName()));
+                message = message.replaceAll("(?i)\\b" + Pattern.quote(recipient.getName()) + "\\b",
+                        Matcher.quoteReplacement(highlight));
             }
         }
 
@@ -186,17 +214,13 @@ public class OnChatListener implements Listener {
         // ────────────────────────────────────────────────────────────
         // Chat Mentions
         // ────────────────────────────────────────────────────────────
-        for (Player recipient : event.getRecipients()) {
-            if (recipient.equals(player))
-                continue;
-            ExtendedPlayer recEp = plugin.getExtendedPlayer(recipient);
-
-            if (recEp != null && recEp.getMainPlayer().chatMentions()) {
-                if (message.toLowerCase().contains(recipient.getName().toLowerCase())) {
-                    Bukkit.getScheduler().runTask(plugin, () -> {
-                        recipient.playSound(recipient.getLocation(), org.bukkit.Sound.BLOCK_NOTE_BLOCK_PLING, 1.0f,
-                                2.0f);
-                    });
+        if (mentions && mentionSound != null && mentionVolume > 0) {
+            String lowered = message.toLowerCase(Locale.ROOT);
+            for (Player recipient : event.getRecipients()) {
+                if (!recipient.equals(player) && hasMentions(recipient)
+                        && lowered.contains(recipient.getName().toLowerCase(Locale.ROOT))) {
+                    Bukkit.getScheduler().runTask(plugin, () -> recipient.playSound(
+                            recipient.getLocation(), mentionSound, mentionVolume, mentionPitch));
                 }
             }
         }

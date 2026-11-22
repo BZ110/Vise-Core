@@ -1,5 +1,7 @@
 package org.albi.core.modules.Duels.spectating;
 
+import org.albi.core.util.ConfigValues;
+
 import org.albi.core.Core;
 import org.albi.core.data.ExtendedPlayer;
 import org.albi.core.modules.Duels.DuelInstance;
@@ -43,7 +45,8 @@ public final class DuelSpectators {
         this.plugin = plugin;
         network = matchmaking == null ? null
                 : new NetworkSpectating(plugin, this, matchmaking.namespace(), matchmaking.serverId());
-        Bukkit.getScheduler().runTaskTimer(plugin, this::checkPrivacy, 20L, 20L);
+        int interval = ConfigValues.integer(plugin.getConfig(), "duels.spectating.privacy_check_ticks", 20, 1, 100);
+        Bukkit.getScheduler().runTaskTimer(plugin, this::checkPrivacy, interval, interval);
     }
 
     public void spectate(Player viewer, String name) {

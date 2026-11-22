@@ -391,9 +391,9 @@ public final class StatManagement {
             hc.addDataSourceProperty("port", c.mysqlPort());
             hc.addDataSourceProperty("databaseName", c.mysqlDatabase());
             hc.addDataSourceProperty("sslMode", c.mysqlSslMode());
-            hc.addDataSourceProperty("connectTimeout", 5000);
-            hc.addDataSourceProperty("socketTimeout", 8000);
-            hc.setConnectionTimeout(5000);
+            hc.addDataSourceProperty("connectTimeout", ConfigValues.integer(plugin.getConfig(), "mysql.connect_timeout_ms", 5000, 250, 60_000));
+            hc.addDataSourceProperty("socketTimeout", ConfigValues.integer(plugin.getConfig(), "mysql.socket_timeout_ms", 8000, 250, 120_000));
+            hc.setConnectionTimeout(ConfigValues.integer(plugin.getConfig(), "mysql.connection_timeout_ms", 5000, 250, 60_000));
             hc.setUsername(c.mysqlUser());
             hc.setPassword(c.mysqlPass());
             hc.setMaximumPoolSize(c.mysqlPoolSize());
@@ -697,6 +697,7 @@ public final class StatManagement {
         private final String password;
         private volatile JedisPool pool;
         private final JedisPoolConfig cfg = new JedisPoolConfig();
+        private final int timeoutMillis;
 
         private volatile boolean healthy = false;
         private volatile int retryAttempts = 0;
@@ -710,12 +711,15 @@ public final class StatManagement {
             this.port = port;
             this.password = pwd;
 
-            cfg.setMaxTotal(16);
-            cfg.setMinIdle(2);
+            var config = plugin.getConfig();
+            int poolSize = ConfigValues.integer(config, "redis.pool_size", 16, 1, 128);
+            cfg.setMaxTotal(poolSize);
+            cfg.setMinIdle(Math.min(poolSize, ConfigValues.integer(config, "redis.min_idle", 2, 0, 128)));
+            timeoutMillis = ConfigValues.integer(config, "redis.timeout_ms", 8000, 250, 60_000);
             cfg.setTestOnBorrow(false);
             cfg.setTestOnReturn(false);
             cfg.setTestWhileIdle(true);
-            cfg.setMaxWait(Duration.ofSeconds(10));
+            cfg.setMaxWait(Duration.ofMillis(ConfigValues.seconds(config, "redis.borrow_timeout_seconds", 10, 1, 60)));
             cfg.setMinEvictableIdleTime(Duration.ofMinutes(5));
             cfg.setTimeBetweenEvictionRuns(Duration.ofMinutes(1));
             cfg.setNumTestsPerEvictionRun(3);
@@ -732,10 +736,10 @@ public final class StatManagement {
                     SSLContext sslContext = getSSLContext();
                     SSLParameters sslParameters = new SSLParameters();
                     sslParameters.setEndpointIdentificationAlgorithm("HTTPS");
-                    candidate = new JedisPool(cfg, host, port, 8000, password, true,
+                    candidate = new JedisPool(cfg, host, port, timeoutMillis, password, true,
                             sslContext.getSocketFactory(), sslParameters, null);
                 } else {
-                    candidate = new JedisPool(cfg, host, port, 8000, password);
+                    candidate = new JedisPool(cfg, host, port, timeoutMillis, password);
                 }
 
                 try (Jedis j = candidate.getResource()) {

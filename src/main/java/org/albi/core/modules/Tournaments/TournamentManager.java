@@ -225,7 +225,7 @@ public class TournamentManager extends Module {
                 });
 
         session.getActiveDuels().put(matchId, duel);
-        duel.initialize(5, false); // 5 sec countdown for tourney
+        duel.initialize(ConfigValues.integer(getPlugin().getConfig(), "tournaments.countdown_seconds", 5, 0, 120), false);
     }
 
     private void handleMatchFinish(TournamentSession session, long matchId, int winningTeam, List<UUID> team1, List<UUID> team2) {

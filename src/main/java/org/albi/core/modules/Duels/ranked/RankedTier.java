@@ -30,13 +30,13 @@ public enum RankedTier {
 
     /**
      * Get the tier and division based on Elo.
-     * Each division is 100 Elo. 5 divisions per tier.
-     * Total 500 Elo per tier.
+     * Division size and count come from the server's rating settings.
      */
     public static String getTierDisplay(int elo) {
         if (elo < 0) elo = 0;
-        int tierIndex = elo / 500;
-        int division = 5 - ((elo % 500) / 100);
+        RankedRules rules = RankedRules.current();
+        int tierIndex = elo / rules.pointsPerTier();
+        int division = rules.divisionsPerTier() - (elo % rules.pointsPerTier()) / rules.pointsPerDivision();
 
         if (tierIndex >= values().length) {
             return CHAMPION.color + "Champion 1";
@@ -47,9 +47,8 @@ public enum RankedTier {
     }
 
     public static RankedTier getTier(int elo) {
-        int tierIndex = elo / 500;
+        int tierIndex = Math.max(0, elo) / RankedRules.current().pointsPerTier();
         if (tierIndex >= values().length) return CHAMPION;
-        if (tierIndex < 0) return BRONZE;
         return values()[tierIndex];
     }
 }

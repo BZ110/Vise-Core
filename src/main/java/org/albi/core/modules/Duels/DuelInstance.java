@@ -256,8 +256,13 @@ public class DuelInstance implements Listener {
         return motherLocation != null;
     }
 
+    public int configuredCountdownSeconds() {
+        var settings = plugin.getDuelSettings().countdown();
+        return isRanked ? settings.rankedSeconds() : settings.startSeconds();
+    }
+
     public void initialize() {
-        initialize(10, false);
+        initialize(configuredCountdownSeconds(), false);
     }
 
     /**
@@ -449,7 +454,7 @@ public class DuelInstance implements Listener {
                 }
 
                 List<Player> curList = java.util.Arrays.asList(merge(teamOne, teamTwo));
-                for (Player p : curList) {
+                for (Player p : plugin.getDuelSettings().countdown().readyUp() ? curList : java.util.List.<Player>of()) {
                     boolean sneaks = p.isSneaking();
                     boolean was = lastSneak.getOrDefault(p.getUniqueId(), false);
                     if (sneaks && !was) {
@@ -591,7 +596,7 @@ public class DuelInstance implements Listener {
 
         /* ── inter-round countdown ───────────────────── */
         new BukkitRunnable() {
-            int ticks = 20 * 5; // 5 s
+            int ticks = plugin.getDuelSettings().countdown().betweenRoundsSeconds() * 20;
             boolean skipped = false;
             boolean firstToggleSoundPlayed = false;
             java.util.Set<UUID> readyToggles = new java.util.HashSet<>();
@@ -605,7 +610,7 @@ public class DuelInstance implements Listener {
 
                 Player[] currentPlayers = merge(teamOne, teamTwo);
                 List<Player> curList = java.util.Arrays.asList(currentPlayers);
-                for (Player p : curList) {
+                for (Player p : plugin.getDuelSettings().countdown().readyUp() ? curList : java.util.List.<Player>of()) {
                     boolean sneaks = p.isSneaking();
                     boolean was = lastSneak.getOrDefault(p.getUniqueId(), false);
                     if (sneaks && !was) {
@@ -627,9 +632,9 @@ public class DuelInstance implements Listener {
                     p.sendActionBar(Messages.text(p, "messages.match-hud.skip-countdown", readyToggles.size(), curList.size()));
                 }
 
-                // Only allow skip in the last 3 seconds (ticks <= 60) to give polar arena time
-                // to load
-                if (!skipped && readyToggles.size() >= curList.size() && !curList.isEmpty() && ticks <= 60) {
+                // Keep the early portion of the reset available for the next arena copy.
+                if (!skipped && readyToggles.size() >= curList.size() && !curList.isEmpty()
+                        && ticks <= plugin.getDuelSettings().countdown().betweenRoundsReadyWindowSeconds() * 20) {
                     skipped = true;
                     ticks = 0;
                     for (Player p : currentPlayers) {
@@ -809,7 +814,7 @@ public class DuelInstance implements Listener {
 
         /* delayed cleanup */
         new BukkitRunnable() {
-            int ticks = 60; // 3 s
+            int ticks = plugin.getDuelSettings().countdown().returnDelayTicks();
 
             public void run() {
                 if (canceled) {
@@ -1559,8 +1564,10 @@ public class DuelInstance implements Listener {
     }
 
     private void createAndStartMatchRecord() {
-        boolean validForTelemetry = teamOne.length == 1 && teamTwo.length == 1 && maxRounds <= 3;
-        if ((isRanked || telemetry) && validForTelemetry) {
+        int maxTelemetryRounds = ConfigValues.integer(plugin.getConfig(), "duels.telemetry.max_round_target", 3, 1, 100);
+        boolean validForTelemetry = teamOne.length == 1 && teamTwo.length == 1 && maxRounds <= maxTelemetryRounds;
+        boolean enabled = plugin.getConfig().getBoolean(isRanked ? "ranked.telemetry.enabled" : "duels.telemetry.enabled", true);
+        if (enabled && (isRanked || telemetry) && validForTelemetry) {
             matchRecord = new RankedMatchRecord(
                     teamOne[0].getUniqueId(),
                     teamTwo[0].getUniqueId(),

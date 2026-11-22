@@ -3,8 +3,6 @@ package org.albi.core.events;
 import org.albi.core.Core;
 import org.albi.core.serializable.SerializableSpawnInventory;
 import org.bukkit.ChatColor;
-import org.bukkit.Material;
-import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -15,6 +13,7 @@ import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -37,33 +36,27 @@ public class OnRightClickListener implements Listener {
             return;
 
         Player player = event.getPlayer();
-        World lobbyWorld = player.getServer().getWorld(plugin.getConfig().getString("lobby_world"));
-        if (lobbyWorld == null || player.getWorld() != lobbyWorld)
-            return;
+        if (!plugin.isLobby(player)) return;
 
         ItemStack hand = player.getInventory().getItemInMainHand();
-        Material handType = hand == null ? Material.AIR : hand.getType();
-        if (handType == Material.FISHING_ROD)
+        if (plugin.getLobbyHotbar().click(player, hand)) {
+            event.setCancelled(true);
             return;
-        if (handType == Material.WIND_CHARGE)
-            return;
-        if (player.getInventory().getItemInOffHand().getType() == Material.FISHING_ROD)
-            return;
-        if (player.getInventory().getItemInOffHand().getType() == Material.WIND_CHARGE)
-            return;
+        }
 
-        if (!player.hasPermission(plugin.getConfig().getString("permissions.bypass"))
+        if (isAllowedItem(player)) return;
+        if (plugin.getLobbySettings().protection().interactions()
+                && !player.hasPermission(plugin.getConfig().getString("permissions.bypass", "core.bypass"))
                 && !plugin.getExtendedPlayer(player).isBypassRegion()) {
             event.setCancelled(true);
         }
-
         String displayName = null;
         if (hand != null && hand.hasItemMeta() && hand.getItemMeta().hasDisplayName()) {
             displayName = ChatColor.stripColor(hand.getItemMeta().getDisplayName());
         }
 
-        if (displayName != null) {
-            switch (displayName.toLowerCase()) {
+        if (displayName != null && plugin.getLobbySettings().equipment().hotbar()) {
+            switch (displayName.toLowerCase(Locale.ROOT)) {
                 case "unranked queue" -> {
                     event.setCancelled(true);
                     player.performCommand("queue");
@@ -177,24 +170,12 @@ public class OnRightClickListener implements Listener {
         if (player.equals(target) || !target.isOnline() || !target.isValid())
             return;
 
-        World lobbyWorld = player.getServer().getWorld(plugin.getConfig().getString("lobby_world"));
-        if (lobbyWorld == null || player.getWorld() != lobbyWorld || target.getWorld() != lobbyWorld)
-            return;
-
-        ItemStack hand = player.getInventory().getItemInMainHand();
-        Material handType = hand == null ? Material.AIR : hand.getType();
-        if (handType == Material.FISHING_ROD)
-            return;
-        if (handType == Material.WIND_CHARGE)
-            return;
-        if (player.getInventory().getItemInOffHand().getType() == Material.FISHING_ROD)
-            return;
-        if (player.getInventory().getItemInOffHand().getType() == Material.WIND_CHARGE)
-            return;
+        var settings = plugin.getLobbySettings().interaction();
+        if (!settings.rightClickDuel() || !plugin.isLobby(player) || !plugin.isLobby(target) || isAllowedItem(player)) return;
 
         long now = System.currentTimeMillis();
         long last = duelClickCooldown.getOrDefault(player.getUniqueId(), 0L);
-        if (now - last < 250L) {
+        if (now - last < settings.rightClickDuelMillis()) {
             event.setCancelled(true);
             return;
         }
@@ -202,5 +183,15 @@ public class OnRightClickListener implements Listener {
 
         event.setCancelled(true);
         player.performCommand("duel " + target.getName());
+    }
+    private boolean isAllowedItem(Player player) {
+        var allowed = plugin.getLobbySettings().interaction().allowedItems();
+        return allowed.contains(player.getInventory().getItemInMainHand().getType())
+                || allowed.contains(player.getInventory().getItemInOffHand().getType());
+    }
+
+    @EventHandler
+    public void onQuit(org.bukkit.event.player.PlayerQuitEvent event) {
+        duelClickCooldown.remove(event.getPlayer().getUniqueId());
     }
 }

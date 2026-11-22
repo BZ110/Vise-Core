@@ -20,21 +20,16 @@ public class OnBlockPlaceListener implements Listener {
     public void onBlockPlace(BlockPlaceEvent event) {
         Player player = event.getPlayer();
 
-        String lobbyWorldStr = plugin.getConfig().getString("lobby_world");
-        String currentWorldStr = player.getWorld().getName();
-        
-        // Prevent player heads from being placed anywhere unless in the lobby world
-        if (event.getBlockPlaced().getType() == org.bukkit.Material.PLAYER_HEAD || 
-            event.getBlockPlaced().getType() == org.bukkit.Material.PLAYER_WALL_HEAD) {
-            if (lobbyWorldStr == null || !lobbyWorldStr.equals(currentWorldStr)) {
-                event.setCancelled(true);
-                return;
-            }
+        var protection = plugin.getLobbySettings().protection();
+        boolean lobby = plugin.isLobby(player);
+        var material = event.getBlockPlaced().getType();
+        if (!lobby && protection.blockPlayerHeadsOutsideLobby()
+                && (material == org.bukkit.Material.PLAYER_HEAD || material == org.bukkit.Material.PLAYER_WALL_HEAD)) {
+            event.setCancelled(true);
+            return;
         }
 
-        // Check if we're in the lobby.
-        if (lobbyWorldStr != null && lobbyWorldStr.equals(currentWorldStr)) {
-
+        if (lobby && protection.blockPlace()) {
             // If they don't have the permission, don't allow anything
             if (!player.hasPermission(Objects.requireNonNull(plugin.getConfig().getString("permissions.bypass")))) {
                 event.setCancelled(true);

@@ -1034,9 +1034,74 @@ menus:
           enabled: true
           slot: 5
   lobby:
+    # These are 9-slot player hotbars. Each button keeps its action after moving.
+    hotbar:
+      enabled: true
+      buttons:
+        travel: {slot: 0}
+        kit-editor: {slot: 1}
+        casual-queue: {slot: 3}
+        create-party: {slot: 4}
+        ranked-queue: {slot: 5}
+        statistics: {slot: 7}
+        settings: {slot: 8}
+    hotbar-queued:
+      enabled: true
+      buttons:
+        leave-queue: {slot: 8}
+    hotbar-party:
+      enabled: true
+      buttons:
+        play: {slot: 0}
+        members: {slot: 1}
+        invite-help: {slot: 2}
+        party-settings: {slot: 7}
+        disband-party: {slot: 8}
+        leave-party: {slot: 8}
+    hotbar-tournament:
+      enabled: true
+      buttons:
+        spectate-match: {slot: 0}
+        leave-tournament: {slot: 8}
     shulker-editor:
       title: "&bShulker Editor &8(ESC to save)"
 text:
+  lobby-hotbar:
+    travel: "&bInstance Selector"
+    travel-first: "&7Swap between server instances."
+    travel-second: "&fRight click to open /travel."
+    kit-editor: "&eKit Editor"
+    kit-editor-first: "&7Open duel, FFA, or custom kit editing."
+    kit-editor-second: "&fRight click to open /kiteditor."
+    casual-queue: "&aUnranked Queue"
+    casual-queue-first: "&7Enter queue and find a fight fast."
+    casual-queue-second: "&fRight click to open the queue menu."
+    create-party: "&6Create Party"
+    create-party-first: "&7Build a squad and start playing together."
+    create-party-second: "&fRight click to manage your party."
+    ranked-queue: "&cRanked Queue"
+    ranked-queue-first: "&7Compete for rank and climb the ladder."
+    ranked-queue-second: "&fRight click to open the ranked menu."
+    statistics: "&fStatistics"
+    statistics-first: "&7View your numbers, wins, and progress."
+    statistics-second: "&fRight click to open /stats."
+    settings: "&aSettings"
+    settings-first: "&7Personal preferences and toggles."
+    settings-second: "&fRight click to open /settings."
+    leave-queue: "&cLeave Queue"
+    leave-queue-first: "&7Back out of your current matchmaking."
+    leave-queue-second: "&fRight click to leave the queue."
+    disband-party: "&c&lDisband Party"
+    disband-party-first: "&7End the whole party instantly."
+    leave-party: "&c&lLeave Party"
+    leave-party-first: "&7Leave your current party."
+    spectate-match: "&eSpectate Match"
+    spectate-match-first: "&7Randomly spectate an ongoing tournament match."
+    spectate-match-second: "&fRight click to spectate."
+    leave-tournament: "&cLeave Tournament"
+    leave-tournament-first: "&7Drop out of the tournament."
+    leave-tournament-second: "&fRight click to use /tournament leave."
+    elytra-owner: "&r&7{1}"
   armor-trim-command:
     clear-all-trims: "&c&lClear All Trims"
     go-back: "&c&lGo Back"
@@ -1194,6 +1259,8 @@ text:
     unlock-by-reaching-the-required-level: "&8Unlock by reaching the required level."
     your-level: "&7Your Level: &e{1}"
   duel-main-command-guis:
+    telemetry-disabled: "&7Match telemetry is disabled on this server."
+    telemetry-round-limit: "&7Telemetry is available up to first-to-{1}."
     ruleset-tag: "&8• &7Ruleset"
     arena-tag: "&8• &7Arena"
     map-ready: "&8• &7Map ready"

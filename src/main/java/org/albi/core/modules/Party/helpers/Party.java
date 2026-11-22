@@ -1,5 +1,7 @@
 package org.albi.core.modules.Party.helpers;
 
+import org.albi.core.util.ConfigValues;
+
 import org.albi.core.Core;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
@@ -22,10 +24,16 @@ public final class Party {
     private long lastClosedTimestamp = 0;
 
     public Party(Player creator) {
+        this(creator, new org.bukkit.configuration.MemoryConfiguration());
+    }
+
+    public Party(Player creator, org.bukkit.configuration.ConfigurationSection config) {
         this.leader = creator.getUniqueId();
         this.members.add(leader);
 
-        int detectedMax = 4;
+        shuffle = config.getBoolean("party.default_shuffle", false);
+        autoBalance = config.getBoolean("party.default_auto_balance", true);
+        int detectedMax = ConfigValues.integer(config, "party.default_size", 4, 2, 100);
         for (PermissionAttachmentInfo perm : creator.getEffectivePermissions()) {
             String node = perm.getPermission();
             if (node.startsWith("core.party.size.")) {

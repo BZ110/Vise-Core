@@ -99,7 +99,7 @@ public class DuelMainCommandGUIs {
     }
 
     private void roundsGUI(Player p, Player opponent) {
-        List<Integer> list = plugin.getConfig().getIntegerList("duels.rounds");
+        List<Integer> list = plugin.getDuelSettings().rounds();
         SGMenu m = plugin.getMenus().create("duels.rounds", 1);
         for (int r : list) {
             m.addButton(new SGButton(button(Material.PAPER, GuiService.text("duel-main-command-guis.first-to", r),
@@ -153,7 +153,9 @@ public class DuelMainCommandGUIs {
                 List.of(GuiService.text("duel-main-command-guis.pick-the-round-target"), GuiService.text("duel-main-command-guis.click-to-change-it"))))
                 .withListener(e -> roundsGUI(p, opponent)));
 
-        boolean telAvailable = rounds <= 3;
+        boolean telemetryEnabled = plugin.getConfig().getBoolean("duels.telemetry.enabled", true);
+        int telemetryLimit = org.albi.core.util.ConfigValues.integer(plugin.getConfig(), "duels.telemetry.max_round_target", 3, 1, 100);
+        boolean telAvailable = telemetryEnabled && rounds <= telemetryLimit;
         boolean tel = pref.isTelemetry() && telAvailable;
         if (pref.isTelemetry() && !telAvailable) pref.setTelemetry(false);
 
@@ -161,7 +163,7 @@ public class DuelMainCommandGUIs {
                 GuiService.text("duel-main-command-guis.match-telemetry", (tel ? "§a§l✔ " : "§c§l✘ ")),
                 telAvailable
                         ? List.of(GuiService.text("duel-main-command-guis.record-hits-ping-and-movement"), GuiService.text("duel-main-command-guis.generates-a-match-id-for-analytics"), GuiService.text("duel-main-command-guis.click-to-toggle", (tel ? "OFF" : "ON")))
-                        : List.of(GuiService.text("duel-main-command-guis.telemetry-is-limited-to-first-to-3s"), GuiService.text("duel-main-command-guis.lower-the-round-target-to-enable")));
+                        : telemetryUnavailable(telemetryEnabled, telemetryLimit));
 
         GuiService.control(m, "tel-item", 13, new SGButton(telItem).withListener(e -> {
             if (!telAvailable) {
@@ -198,6 +200,13 @@ public class DuelMainCommandGUIs {
         GuiService.open(p, m);
     }
 
+    private List<String> telemetryUnavailable(boolean enabled, int limit) {
+        if (!enabled) return List.of(GuiService.text("duel-main-command-guis.telemetry-disabled"));
+        String hint = limit == 3 ? GuiService.text("duel-main-command-guis.telemetry-is-limited-to-first-to-3s")
+                : GuiService.text("duel-main-command-guis.telemetry-round-limit", limit);
+        return List.of(hint, GuiService.text("duel-main-command-guis.lower-the-round-target-to-enable"));
+    }
+
     private void openArenaGUI(Player p, Player opponent, boolean quick) {
         SGMenu m = plugin.getMenus().create("duels.arenas", 5);
         int off = 0;
@@ -209,7 +218,7 @@ public class DuelMainCommandGUIs {
             GuiService.entry(m, a.getName(), off++, new SGButton(it).withListener(e -> {
                 plugin.getExtendedPlayer(p).prefsFor(opponent.getUniqueId()).setArena(a);
                 if (quick) plugin.getExtendedPlayer(p).prefsFor(opponent.getUniqueId()).setRounds(
-                        plugin.getConfig().getInt("duels.default_rounds", 1));
+                        plugin.getDuelSettings().defaultRounds());
                 openSettingGUI(p, opponent);
             }));
         }

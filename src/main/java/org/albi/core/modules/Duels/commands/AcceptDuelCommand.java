@@ -69,7 +69,7 @@ public class AcceptDuelCommand extends BaseCommand {
         duel.prepare(new Player[]{challenger},new Player[]{player},
                 arena, kitA, kitB, rounds);
         duel.setTelemetry(pref.isTelemetry());
-        duel.initialize(10, baseKit!=null && baseKit.isPk());
+        duel.initialize(duel.configuredCountdownSeconds(), baseKit!=null && baseKit.isPk());
 
         ec.clearPrefs(player.getUniqueId());      // clean up
         return true;

@@ -120,7 +120,7 @@ public class SettingsCommand extends BaseCommand {
                             Messages.send(player, "messages.settings-command.lobby-speed-is-now", Messages.text(player, state ? "messages.settings-command.on" : "messages.settings-command.off"));
                             String lobbyWorld = plugin.getConfig().getString("lobby_world");
                             if (lobbyWorld != null && player.getWorld().getName().equalsIgnoreCase(lobbyWorld)) {
-                                if (state) player.addPotionEffect(new org.bukkit.potion.PotionEffect(org.bukkit.potion.PotionEffectType.SPEED, Integer.MAX_VALUE, 1, false, false, false));
+                                if (state) plugin.applyLobbyEffect(player, org.bukkit.potion.PotionEffectType.SPEED, plugin.getLobbySettings().equipment().speedLevel());
                                 else player.removePotionEffect(org.bukkit.potion.PotionEffectType.SPEED);
                             }
                         },
@@ -137,7 +137,7 @@ public class SettingsCommand extends BaseCommand {
                             Messages.send(player, "messages.settings-command.lobby-jump-boost-is-now", Messages.text(player, state ? "messages.settings-command.on" : "messages.settings-command.off"));
                             String lobbyWorld = plugin.getConfig().getString("lobby_world");
                             if (lobbyWorld != null && player.getWorld().getName().equalsIgnoreCase(lobbyWorld)) {
-                                if (state) player.addPotionEffect(new org.bukkit.potion.PotionEffect(org.bukkit.potion.PotionEffectType.JUMP_BOOST, Integer.MAX_VALUE, 1, false, false, false));
+                                if (state) plugin.applyLobbyEffect(player, org.bukkit.potion.PotionEffectType.JUMP_BOOST, plugin.getLobbySettings().equipment().jumpBoostLevel());
                                 else player.removePotionEffect(org.bukkit.potion.PotionEffectType.JUMP_BOOST);
                             }
                         },

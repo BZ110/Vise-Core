@@ -1,5 +1,7 @@
 package org.albi.core.modules.Party;
 
+import org.albi.core.util.ConfigValues;
+
 import org.albi.core.gui.Messages;
 
 import org.albi.core.gui.GuiService;
@@ -20,7 +22,6 @@ import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.inventory.meta.SkullMeta;
 
 import java.util.*;
 
@@ -76,7 +77,7 @@ public final class PartyManager extends Module {
             return null;
         }
 
-        Party party = new Party(creator);
+        Party party = new Party(creator, getPlugin().getConfig());
         partyOfPlayer.put(creator.getUniqueId(), party);
 
         getPlugin().getMessageAPI().sendMessageLang(creator, "party_created");
@@ -202,7 +203,7 @@ public final class PartyManager extends Module {
         if (!party.isOpen()) {
             // Opening the party
             long now = System.currentTimeMillis();
-            long cooldownMillis = 60 * 1000L;
+            long cooldownMillis = ConfigValues.seconds(getPlugin().getConfig(), "party.open_cooldown_seconds", 60, 0, 86_400);
             if (now - party.getLastClosedTimestamp() < cooldownMillis && !player.hasPermission("core.openparty_cooldownbypass")) {
                 long remainingSeconds = (cooldownMillis - (now - party.getLastClosedTimestamp())) / 1000;
                 getPlugin().getMessageAPI().sendMessageLang(player, "party_open_cooldown", new String[]{String.valueOf(remainingSeconds)});
@@ -325,26 +326,7 @@ public final class PartyManager extends Module {
         String lobbyWorld = getPlugin().getConfig().getString("lobby_world");
         if (lobbyWorld == null || !player.getWorld().getName().equalsIgnoreCase(lobbyWorld)) return;
 
-        player.getInventory().clear();
-        player.getInventory().setArmorContents(null);
-        player.getInventory().setItemInOffHand(null);
-
-        ItemStack play = named(Material.EMERALD, GuiService.text("party-manager.play"), List.of(GuiService.text("party-manager.open-party-play"), GuiService.text("party-manager.click-to-build-teams-or-launch-party-ffa")));
-        ItemStack list = named(Material.PLAYER_HEAD, GuiService.text("party-manager.members"), List.of(GuiService.text("party-manager.view-your-current-party-roster")));
-        if (list.getItemMeta() instanceof SkullMeta skull) {
-            skull.setOwningPlayer(player);
-            list.setItemMeta(skull);
-        }
-        ItemStack help = named(Material.NAME_TAG, GuiService.text("party-manager.invite-help"), List.of(GuiService.text("party-manager.use-party-invite-player"), GuiService.text("party-manager.quick-reminder-for-inviting-teammates")));
-        ItemStack settings = named(Material.COMPARATOR, GuiService.text("party-manager.party-settings"), List.of(GuiService.text("party-manager.shuffle-balancing-and-party-controls"), GuiService.text("party-manager.right-click-to-manage-your-party")));
-        ItemStack end = named(Material.BARRIER, leader ? "§c§lDisband Party" : "§c§lLeave Party", List.of(leader ? "§7End the whole party instantly." : "§7Leave your current party."));
-
-        player.getInventory().setItem(0, play);
-        player.getInventory().setItem(1, list);
-        player.getInventory().setItem(2, help);
-        player.getInventory().setItem(7, settings);
-        player.getInventory().setItem(8, end);
-        player.updateInventory();
+        getPlugin().getLobbyHotbar().render(player, org.albi.core.gui.LobbyHotbar.Layout.PARTY, leader);
     }
 
     public void restoreLobbyItems(Player player) {
