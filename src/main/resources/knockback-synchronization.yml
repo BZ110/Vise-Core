@@ -1,0 +1,29 @@
+# KnockbackSynchronization
+# Core-native adaptation of KnockbackSync's behavior for this Paper plugin.
+
+enabled: true
+
+debug: false
+
+runnable:
+  # Sample ping for recently-hit players every X ticks.
+  enabled: true
+  interval: 5
+  combat_timer: 30
+
+# Same spike handling idea as upstream KnockbackSync.
+spike_threshold: 20.0
+
+# The upstream plugin uses a hardcoded offset of 25ms in public builds.
+ping_offset: 25.0
+
+# Match KnockbackSync's optional off-ground behavior.
+enable_offground_synchronization: false
+
+sync:
+  max_ground_distance: 1.3
+  max_ray_distance: 5.0
+  max_no_damage_ticks: 8
+  tick_rate: 20.0
+
+exempt_worlds: []

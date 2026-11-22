@@ -1,0 +1,21 @@
+# Gradle and IDE output
+.gradle/
+build/
+out/
+target/
+.idea/
+*.iml
+.DS_Store
+
+# Local server files and deployment credentials
+.env
+.env.*
+!.env.example
+sftp_batch.txt
+server/
+run/
+plugins/
+*.pem
+*.key
+*.p12
+*.jks

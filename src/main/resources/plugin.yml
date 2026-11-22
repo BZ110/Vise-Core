@@ -1,0 +1,471 @@
+name: Core
+version: '${version}'
+main: org.albi.core.Core
+author: "CriticalKing"
+description: "Vise Core PvP, matchmaking and lobby tools"
+api-version: '1.21'
+
+softdepend:
+  - FeatherServerAPI
+  - PlaceholderAPI
+  - FastAsyncWorldEdit
+  - WorldEdit
+  - polarpaper
+
+commands:
+
+  bypass:
+    description: The ability to bypass block usage in the lobby.
+    usage: /bypass
+    permission: core.bypass
+
+  fly:
+    description: Toggle flight.
+    usage: /fly
+    permission: core.fly
+
+  gmc:
+    description: Switch to Creative mode
+    permission: core.gmc
+  gms:
+    description: Switch to Survival mode
+    permission: core.gms
+  gma:
+    description: Switch to Adventure mode
+    permission: core.gma
+  gmsp:
+    description: Switch to Spectator mode
+    permission: core.gmsp
+
+  vanish:
+    description: Toggle vanish mode
+    permission: core.vanish
+    permission-message: ""
+
+  spawn:
+    description: Go to spawn
+    permission: core.spawn
+    aliases: [ exit, leave, ff ]
+
+  setspawn:
+    description: Set the spawn
+    permission: core.setspawn
+  setspawnitem:
+    description: Define a lobby spawn item linked to a command
+    permission: core.setspawnitem
+
+  msg:
+    description: Private message a player
+    permission: core.msg
+    aliases: [ tell, whisper ]
+  r:
+    description: Reply to the last private message
+    permission: core.msg
+  block:
+    description: Block a player from private messages
+    permission: core.block
+  unblock:
+    description: Unblock a previously blocked player
+    permission: core.block
+
+  rules:
+    description: The rules of the server.
+    permission: core.rules
+
+  dueladmin:
+    description: The duel admin command.
+    permission: core.dueladmin
+
+  setkitdata:
+    description: Set sensitive data for kits
+    permission: core.dueladmin
+
+  duel:
+    description: Duel command.
+    permission: core.duel
+
+  acceptduel:
+    description: Accepts a duel, usually an internal command.
+    permission: core.duel
+
+  party:
+    description: The basic party command.
+    permission: core.party
+    aliases: [ p ]
+
+  lobbyplayers:
+    description: Hide or show other players in the lobby world.
+    permission: core.lobbyplayers
+    aliases: [ lobbyp ]
+
+  partyduelaccept:
+    description: Accept a party duel.
+    permission: core.partyduelaccept
+    aliases: [ pda ]
+
+  customkit:
+    description: Opens the custom kit menu.
+    permission: core.customkit
+    aliases: [ ckit, ck, k ]
+
+  createcustomkitcategory:
+    permission: core.customkitcategoryediting
+
+  setitemincustomkitcategory:
+    permission: core.customkitcategoryediting
+
+  deletecustomkitcategory:
+    permission: core.customkitcategoryediting
+
+  copykit:
+    description: Copy a shared kit into an empty slot
+    permission: core.copykit
+
+  discord:
+    description: Link and unlink account, get discord.
+    permission: core.discord
+
+  queue:
+    description: Allows /queue
+    permission: core.queue
+
+  quickqueue:
+    description: Queue into any available kit
+    permission: core.quickqueue
+
+  friends:
+    description: Open and manage your friends list
+    permission: core.friends
+    aliases: [ friend, f ]
+
+  travel:
+    description: Allows you to travel between servers
+    permission: core.travel
+
+  health:
+    description: Display server health
+    permission: core.health
+
+  stats:
+    description: See your stats
+    permission: core.stats
+    aliases: [ statistics, playerstats, ps ]
+
+  settings:
+    description: Edit your user settings
+    permission: core.settings
+    aliases: [ set, s, options ]
+
+  goto:
+    description: Go to an area in the lobby.
+    permission: core.goto
+
+  setgoto:
+    description: Edit that GUI.
+    permission: core.setgoto
+
+  spectate:
+    description: Spectate a player in a duel
+    permission: core.spectate
+
+  store:
+    description: Open the store
+    permission: core.store
+
+  leaderboard:
+    description: See the leaderboard
+    permission: core.leaderboard
+    aliases: [ lb, topstats, topstatistics ]
+
+  k1:
+    description: Get kit 1
+    permission: core.kitcommand
+    aliases: [ kit1 ]
+  k2:
+    description: Get kit 2
+    permission: core.kitcommand
+    aliases: [ kit2 ]
+  k3:
+    description: Get kit 3
+    permission: core.kitcommand
+    aliases: [ kit3 ]
+  k4:
+    description: Get kit 4
+    permission: core.kitcommand
+    aliases: [ kit4 ]
+  k5:
+    description: Get kit 5
+    permission: core.kitcommand
+    aliases: [ kit5 ]
+  k6:
+    description: Get kit 6
+    permission: core.kitcommand
+    aliases: [ kit6 ]
+  k7:
+    description: Get kit 7
+    permission: core.kitcommand
+    aliases: [ kit7 ]
+  k8:
+    description: Get kit 8
+    permission: core.kitcommand
+    aliases: [ kit8 ]
+  k9:
+    description: Get kit 9
+    permission: core.kitcommand
+    aliases: [ kit9 ]
+  k10:
+    description: Get kit 10
+    permission: core.kitcommand
+    aliases: [ kit10 ]
+  k11:
+    description: Get kit 11
+    permission: core.kitcommand
+    aliases: [ kit11 ]
+  k12:
+    description: Get kit 12
+    permission: core.kitcommand
+    aliases: [ kit12 ]
+  k13:
+    description: Get kit 13
+    permission: core.kitcommand
+    aliases: [ kit13 ]
+  k14:
+    description: Get kit 14
+    permission: core.kitcommand
+    aliases: [ kit14 ]
+  k15:
+    description: Get kit 15
+    permission: core.kitcommand
+    aliases: [ kit15 ]
+  k16:
+    description: Get kit 16
+    permission: core.kitcommand
+    aliases: [ kit16 ]
+  k17:
+    description: Get kit 17
+    permission: core.kitcommand
+    aliases: [ kit17 ]
+  k18:
+    description: Get kit 18
+    permission: core.kitcommand
+    aliases: [ kit18 ]
+  k19:
+    description: Get kit 19
+    permission: core.kitcommand
+    aliases: [ kit19 ]
+  k20:
+    description: Get kit 20
+    permission: core.kitcommand
+    aliases: [ kit20 ]
+  k21:
+    description: Get kit 21
+    permission: core.kitcommand
+    aliases: [ kit21 ]
+  k22:
+    description: Get kit 22
+    permission: core.kitcommand
+    aliases: [ kit22 ]
+  k23:
+    description: Get kit 23
+    permission: core.kitcommand
+    aliases: [ kit23 ]
+  k24:
+    description: Get kit 24
+    permission: core.kitcommand
+    aliases: [ kit24 ]
+  k25:
+    description: Get kit 25
+    permission: core.kitcommand
+    aliases: [ kit25 ]
+  k26:
+    description: Get kit 26
+    permission: core.kitcommand
+    aliases: [ kit26 ]
+  k27:
+    description: Get kit 27
+    permission: core.kitcommand
+    aliases: [ kit27 ]
+  k28:
+    description: Get kit 28
+    permission: core.kitcommand
+    aliases: [ kit28 ]
+  k29:
+    description: Get kit 29
+    permission: core.kitcommand
+    aliases: [ kit29 ]
+  k30:
+    description: Get kit 30
+    permission: core.kitcommand
+    aliases: [ kit30 ]
+  k31:
+    description: Get kit 31
+    permission: core.kitcommand
+    aliases: [ kit31 ]
+  k32:
+    description: Get kit 32
+    permission: core.kitcommand
+    aliases: [ kit32 ]
+  k33:
+    description: Get kit 33
+    permission: core.kitcommand
+    aliases: [ kit33 ]
+  k34:
+    description: Get kit 34
+    permission: core.kitcommand
+    aliases: [ kit34 ]
+  k35:
+    description: Get kit 35
+    permission: core.kitcommand
+    aliases: [ kit35 ]
+  k36:
+    description: Get kit 36
+    permission: core.kitcommand
+    aliases: [ kit36 ]
+
+  rtp:
+    description: Randomly teleport
+    permission: core.rtp
+    aliases: [ randomtp, randomteleport ]
+
+
+  tpa:
+    description: Request to teleport to someone
+    permission: core.tpa
+
+  tpahere:
+    description: Request someone to teleport to you
+    permission: core.tpahere
+
+  tpaccept:
+    description: Accept a teleport request from a player
+    usage: /tpaccept <player>
+    permission: core.tpaccept
+
+  changecategorylogo:
+    description: Change the icon/logo of a custom kit category
+    usage: /changecategorylogo <name>
+    permission: core.changecategorylogo
+
+  categorylist:
+    description: List categories
+    usage: /listcategories
+    permission: core.listcategories
+
+  back:
+    description: Go back to your death location
+    usage: /back
+    permission: core.back
+
+
+
+  # LAVA TIME
+  lavasetspawn:
+    description: Set lava spawn
+    usage: /lavasetspawn
+    permission: core.setspawn
+
+  lavaspawn:
+    description: Go to the lava spawn
+    usage: /lavaspawn
+    aliases: [ event ]
+    permission: core.spawn
+
+  lavaarena:
+    description: Create / edit Lava Rising arenas
+    permission: core.lavaarena
+    usage: /lavaarena
+
+  lavaforcestart:
+    description: Force‑start a Lava Rising match
+    permission: core.lavaforcestart
+    usage: /lavaforcestart
+
+  ffa:
+    description: Go to an FFA map.
+    permission: core.ffa
+    usage: /ffa
+  ffaadmin:
+    description: Utilize FFA Admin commands.
+    permission: core.ffaadmin
+    usage: /ffaadmin
+  ffakiteditor:
+    description: Open FFA kit editor
+    usage: /ffakiteditor
+    permission: core.ffakiteditor
+
+  kiteditor:
+    description: Open the regular kit editor
+    usage: /kiteditor
+    permission: core.kiteditor
+
+  setpageduelkitcategory:
+    description: Set categories for duels
+    usage: /setpageduelkitcategory
+    permission: core.setpageduelkitcategory
+
+  deletepageduelkitcategory:
+    description: Delete a category for duels
+    usage: /deletepageduelkitcategory
+    permission: core.deletepageduelkitcategory
+
+  automatecombat:
+    description: Open the experimental NPC practice menu
+    usage: /automatecombat
+    permission: core.automatecombat
+
+  armortrim:
+    description: Select and apply your favorite armor trims.
+    usage: /armortrim
+    aliases: [ trims, armortrims ]
+    permission: core.armortrim
+
+  deatheffects:
+    description: Select and customize your death effect cosmetic.
+    usage: /deatheffects
+    aliases: [ deatheffect, de ]
+    permission: core.deatheffects
+
+  profile:
+    description: View a player's profile and information.
+    usage: /profile [player]
+    permission: core.profile
+    aliases: [ pinfo, user, whois, lookup ]
+  rankedqueue:
+    description: Join the ranked matchmaking queue.
+    permission: core.ranked
+
+  rankedlb:
+    description: View the ranked leaderboard.
+    permission: core.ranked
+
+  rankedadmin:
+    description: Administrative ranked settings.
+    permission: core.rankedadmin
+
+  seegames:
+    description: View recent ranked matches for a player.
+    permission: core.ranked
+
+  matchinfo:
+    description: View detailed information for a specific match.
+    permission: core.ranked
+
+  rankedreport:
+    description: Generate an HTML report for a specific ranked match.
+    permission: core.ranked
+
+  autorestart:
+    description: Configure server restarts.
+    permission: core.autorestart
+    usage: /autorestart
+
+  tournament:
+    description: Manage and join tournaments.
+    permission: core.tournament
+    usage: /tournament
+    aliases: [ tourney ]
+
+  next:
+    description: Spectate or manage the next match in a tournament.
+    permission: core.tournament
+    usage: /next

@@ -1,0 +1,33 @@
+enabled: true
+debug: false
+
+collision:
+  # Extra size added to the swept player box before the segment test.
+  hitbox_expansion: 0.12
+  # Extra size added to the arrow's traveled segment bounds before candidate checks.
+  segment_expansion: 0.20
+  # Ignore nearly-stationary arrows.
+  minimum_travel_distance: 0.05
+  # Preserve vanilla owner grace so arrows do not immediately collide with the shooter.
+  owner_grace_ticks: 5
+  # Number of sub-steps to sample per tick for interpolation.
+  # Higher values improve detection accuracy at a minor CPU cost.
+  sub_steps: 4
+  # Extra dynamic expansion (blocks) applied when the arrow and target
+  # are closing towards each other at high relative velocity.
+  relative_velocity_expansion: 0.30
+  # Remove the arrow entity after forcing a ghost hit.
+  # Prevents the visual "bounce" artifact.
+  remove_arrow_on_forced_hit: true
+
+tracking:
+  # Stop tracking arrows after this many ticks to keep the scan tight.
+  max_tracked_ticks: 200
+
+targets:
+  # Do not recover hits while the target is inside vanilla invulnerability frames.
+  ignore_players_with_no_damage_ticks: true
+  ignore_creative_players: true
+  ignore_spectators: true
+
+exempt_worlds: [ ]

@@ -1,0 +1,80 @@
+package org.albi.core.modules.Duels;
+
+import org.albi.core.Core;
+import org.albi.core.modules.Duels.AutomatedCombat.Manager;
+import org.albi.core.modules.Duels.queue.DuelQueueModule;
+import org.albi.core.modules.Duels.queue.RankedQueueModule;
+import org.albi.core.modules.Duels.polar.PolarArenaManager;
+import org.albi.core.modules.Module;
+import org.albi.core.modules.Duels.helpers.DuelStorage;
+import org.albi.core.modules.Duels.managers.CommandManager;
+import org.albi.core.modules.Duels.managers.EventManager;
+import org.albi.core.modules.Duels.ranked.RankedCommands;
+import org.albi.core.modules.Duels.ranked.RankedStats;
+
+public final class DuelManager extends Module {
+
+    public static SchematicManager schemManager;
+    public static DuelStorage stor;
+    public static PolarArenaManager polarArenaManager;
+    private static DuelQueueModule duelQueueModule;
+    private static RankedQueueModule rankedQueueModule;
+
+    public DuelManager(Core plugin) {
+        super(plugin);
+    }
+
+    @Override
+    public void init() {
+
+        getPlugin().getLogger().warning("[Duels] Initializing");
+
+        getPlugin().getLogger().info("[Duels] Loading Schematic Manager (Static Context)");
+        schemManager = new SchematicManager(getPlugin());
+
+        getPlugin().getLogger().info("[Duels] Loading DuelStorage (if not exists, create)");
+        stor = (DuelStorage) getPlugin().getData().get("duelStorage");
+        if (stor == null) {
+            stor = new DuelStorage();
+            getPlugin().getData().set("duelStorage", stor); // Set the reference to it.
+        }
+
+        getPlugin().getLogger().info("[Duels] Loading Polar Arena Manager");
+        polarArenaManager = new PolarArenaManager(getPlugin());
+        if (getPlugin().getConfig().getBoolean("use_polar_worlds") && !polarArenaManager.isEnabled()) {
+            getPlugin().getLogger().warning("Polar arenas require PolarPaper. Schematic arenas can still be used.");
+        }
+        polarArenaManager.bootstrapStoredArenas();
+
+        getPlugin().getLogger().info("[Duels] Loading Event Manager");
+        new EventManager(getPlugin());
+
+        getPlugin().getLogger().info("[Duels] Loading Command Manager");
+        new CommandManager(getPlugin());
+
+        Manager.initialize(getPlugin());
+
+        getPlugin().getLogger().info("[Duels] Loading Slash Queue Manager");
+        duelQueueModule = new DuelQueueModule(getPlugin());
+
+        getPlugin().getLogger().info("[Duels] Loading Ranked Queue Module");
+        rankedQueueModule = new RankedQueueModule(getPlugin());
+
+        // Load Ranked Settings
+        RankedStats.PLACEMENT_THRESHOLD = getPlugin().getConfig().getInt("ranked.placement_matches", 5);
+
+        // Register Ranked Commands
+        RankedCommands rankedCommands = new RankedCommands(getPlugin());
+        getPlugin().getCommand("rankedlb").setExecutor(rankedCommands);
+        getPlugin().getCommand("matchinfo").setExecutor(rankedCommands);
+        getPlugin().getCommand("seegames").setExecutor(rankedCommands);
+    }
+
+    public static RankedQueueModule getRankedQueueModule() {
+        return rankedQueueModule;
+    }
+
+    public static DuelQueueModule getDuelQueueModule() {
+        return duelQueueModule;
+    }
+}

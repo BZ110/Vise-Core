@@ -1,0 +1,529 @@
+package org.albi.core;
+
+import com.samjakob.spigui.SpiGUI;
+import org.albi.core.data.*;
+import org.albi.core.managers.ChatFilter;
+import org.albi.core.modules.CustomKit.GUIs.CustomKitGUIMain;
+import org.albi.core.modules.Duels.DuelManager;
+import org.albi.core.modules.Duels.helpers.Kit;
+import org.albi.core.modules.ModuleManager;
+import org.albi.core.managers.CommandManager;
+import org.albi.core.managers.EventManager;
+import org.albi.core.managers.PlaceholderManager;
+import org.albi.core.modules.Party.PartyManager;
+import org.albi.core.serializable.SerializableLocation;
+import org.albi.core.serializable.SerializableSpawnInventory;
+import org.albi.core.util.AnnouncementService;
+import org.albi.core.util.FeatherBackground;
+import org.albi.core.modules.Duels.AutomatedCombat.Manager;
+import org.albi.core.util.KitSafety;
+import org.bukkit.Bukkit;
+import org.bukkit.Material;
+import org.bukkit.World;
+import org.bukkit.enchantments.Enchantment;
+import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemFlag;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.inventory.meta.components.UseCooldownComponent;
+import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
+import org.bukkit.util.Vector;
+
+import java.io.*;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
+import java.util.logging.Level;
+import java.util.*;
+
+public final class Core extends JavaPlugin {
+
+    public static Core instance;
+    private static Cache cache = new Cache();
+    private LangAPI messageAPI = new LangAPI(this);
+    private static Data data = new Data();
+    private SpiGUI spiGUI;
+    private CustomKitGUIMain guiKit;
+    public static final Map<UUID, TeleportRequest> teleportRequests = new HashMap<>();
+    private PartyManager partyManager;
+    private ChatFilter chatFilter;
+    private org.albi.core.commands.DeathEffectsGUI deathEffectsGUI;
+    private org.albi.core.managers.tiers.TierManager tierManager;
+    private org.albi.core.util.AutoRestartService autoRestartService;
+    private org.albi.core.events.GlobalChatRedisListener globalChatRedisListener;
+
+    public volatile int playersInDuel = 0;
+
+    @Override
+    public void onEnable() {
+        saveDefaultConfig();
+        if (!loadLocalData()) {
+            getServer().getPluginManager().disablePlugin(this);
+            return;
+        }
+
+        // Commands and background jobs depend on storage, so start it before registering either.
+        try {
+            StatManagement.init(this, StatManagement.Config.from(getConfig()));
+        } catch (IllegalArgumentException e) {
+            getLogger().severe("Invalid storage settings: " + e.getMessage());
+            getServer().getPluginManager().disablePlugin(this);
+            return;
+        } catch (RuntimeException e) {
+            getLogger().severe("Storage startup failed (" + e.getClass().getSimpleName()
+                    + "). Check your MySQL connection, credentials and permissions.");
+            getServer().getPluginManager().disablePlugin(this);
+            return;
+        }
+
+        instance = this;
+        getServer().getMessenger().registerOutgoingPluginChannel(this, "BungeeCord");
+        if (getServer().getPluginManager().isPluginEnabled("FeatherServerAPI")) {
+            FeatherBackground.load(this);
+        }
+
+        spiGUI = new SpiGUI(this);
+        guiKit = new CustomKitGUIMain(this);
+        chatFilter = new ChatFilter(this);
+        deathEffectsGUI = new org.albi.core.commands.DeathEffectsGUI(this);
+        tierManager = new org.albi.core.managers.tiers.TierManager(this);
+
+        new CommandManager(this);
+        new EventManager(this);
+        if (getServer().getPluginManager().isPluginEnabled("PlaceholderAPI")) {
+            new PlaceholderManager(this).register();
+        }
+        getCommand("deatheffects").setExecutor(new org.albi.core.commands.DeathEffectsCommand(this));
+        ModuleManager.initializeModules(this);
+
+        autoRestartService = new org.albi.core.util.AutoRestartService(this);
+        autoRestartService.start();
+        if (getConfig().getBoolean("network.global_chat", true)) {
+            globalChatRedisListener = new org.albi.core.events.GlobalChatRedisListener(this);
+            globalChatRedisListener.start();
+        }
+        new AnnouncementService(this).start();
+        new StatRecorder(this, StatManagement.getRedis(), getServerName()).start();
+
+        int flushSeconds = Math.max(1, getConfig().getInt("storage.flush_interval_seconds", 600));
+        long flushTicks = flushSeconds * 20L;
+        Bukkit.getScheduler().runTaskTimer(this, StatManagement::flushAllAsync, flushTicks, flushTicks);
+
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            cache.removeExtendedPlayer(player);
+            getExtendedPlayer(player).whenReady().thenRun(() -> Bukkit.getScheduler().runTask(this, () -> {
+                if (player.isOnline()) player.sendMessage("§aYour profile has now been rebuilt.");
+            }));
+        }
+        Bukkit.getScheduler().runTaskTimer(this, this::trackPlayerTime, 20L, 20L);
+        getLogger().info("Vise Core enabled.");
+    }
+
+    private boolean loadLocalData() {
+        File dataFile = new File(getDataFolder(), "data.dat");
+        data = new Data();
+        if (!dataFile.exists()) return true;
+
+        try (ObjectInputStream input = new ObjectInputStream(new FileInputStream(dataFile))) {
+            if (!(input.readObject() instanceof Data savedData)) {
+                throw new IOException("Unexpected data type in data.dat");
+            }
+            data = savedData;
+            return true;
+        } catch (IOException | ClassNotFoundException e) {
+            getLogger().log(Level.SEVERE, "Could not load data.dat. Check the file or restore a backup.", e);
+            return false;
+        }
+    }
+
+    private void trackPlayerTime() {
+        int duelPlayers = 0;
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            ExtendedPlayer profile = getExtendedPlayer(player);
+            if (profile.getPlayerDuelInstance() != null) duelPlayers++;
+
+            MainPlayer main = profile.getMainPlayer();
+            if (main != null) main.addTimePlayed(1);
+        }
+        playersInDuel = duelPlayers;
+    }
+
+    @Override
+    public void onDisable() {
+        if (instance != this) return;
+        try {
+            Manager.shutdown(this);
+            if (globalChatRedisListener != null) globalChatRedisListener.stop();
+
+            saveLocalData();
+        } finally {
+            StatManagement.shutdown();
+            instance = null;
+        }
+    }
+
+    private void saveLocalData() {
+        var directory = getDataFolder().toPath();
+        var target = directory.resolve("data.dat");
+        try {
+            Files.createDirectories(directory);
+            var temporary = Files.createTempFile(directory, "data-", ".tmp");
+            try {
+                try (ObjectOutputStream output = new ObjectOutputStream(Files.newOutputStream(temporary))) {
+                    output.writeObject(data);
+                }
+                try {
+                    Files.move(temporary, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+                } catch (AtomicMoveNotSupportedException e) {
+                    Files.move(temporary, target, StandardCopyOption.REPLACE_EXISTING);
+                }
+            } finally {
+                Files.deleteIfExists(temporary);
+            }
+        } catch (IOException e) {
+            getLogger().log(Level.SEVERE, "Could not save data.dat.", e);
+        }
+    }
+
+    public static Core getInstance() {
+        return instance;
+    }
+
+    public ExtendedPlayer getExtendedPlayer(Player p) {
+        return cache.getExtendedPlayer(p);
+    }
+
+    public LangAPI getMessageAPI() {
+        return messageAPI;
+    }
+
+    public Data getData() {
+        return data;
+    }
+
+    public Cache getCache() {
+        return cache;
+    }
+
+    public void resetPlayer(Player p, boolean addOther) {
+        // Stop all motion
+        if (addOther)
+            p.setVelocity(new Vector(0, 0, 0));
+
+        // Restore health and food
+        p.setHealth(p.getMaxHealth());
+        p.setFoodLevel(20);
+        p.setSaturation(1f);
+        p.setFireTicks(0);
+
+        // Reset experience
+        p.setExp(0f);
+        p.setLevel(0);
+        p.setTotalExperience(0);
+
+        // Clear inventory and armor
+        p.getInventory().clear();
+        p.getInventory().setArmorContents(null);
+        p.getInventory().setExtraContents(null);
+
+        // Remove all active potion effects
+        p.getActivePotionEffects().forEach(effect -> p.removePotionEffect(effect.getType()));
+
+        // Reset game mode if needed (optional)
+        if (addOther)
+            p.setGameMode(org.bukkit.GameMode.SURVIVAL);
+
+        // Reset walk/fly speed to default
+        p.setWalkSpeed(0.2f);
+        p.setFlySpeed(0.1f);
+
+        // Disable flight
+        if (addOther)
+            p.setAllowFlight(false);
+        if (addOther)
+            p.setFlying(false);
+
+        // Extinguish
+        p.setFireTicks(0);
+
+        // Reset fall distance
+        p.setFallDistance(0);
+
+        // Optionally close inventory and clear title
+        p.closeInventory();
+        p.sendTitle("", "", 0, 0, 0);
+    }
+
+    public void resetPlayer(Player p) {
+        resetPlayer(p, true);
+    }
+
+    public void teleportToLobby(Player player) {
+        SerializableLocation spawnSerialized = (SerializableLocation) getData().get("spawn");
+        ExtendedPlayer ep = getExtendedPlayer(player);
+        if (spawnSerialized != null) {
+            player.teleportAsync(spawnSerialized.convertToLocation());
+
+            if (ep != null && ep.isHideLobbyPlayers()) {
+                for (Player other : Bukkit.getOnlinePlayers()) {
+                    if (other != player)
+                        player.hidePlayer(this, other);
+                }
+            }
+
+            getMessageAPI().sendMessageLang(player, "spawn");
+        }
+        MainPlayer mp = ep.getMainPlayer();
+
+        giveAppropriateLobbyItems(player);
+        Bukkit.getScheduler().runTaskLater(this, () -> giveAppropriateLobbyItems(player), 1L);
+
+        if (mp != null) {
+            if (player.hasPermission("core.lobby.speed") && mp.lobbySpeed()) {
+                player.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, Integer.MAX_VALUE, 1, false, false, false));
+            }
+            if (player.hasPermission("core.lobby.jumpboost") && mp.lobbyJumpBoost()) {
+                player.addPotionEffect(new PotionEffect(PotionEffectType.JUMP_BOOST, Integer.MAX_VALUE, 1, false, false, false));
+            }
+        }
+
+    }
+
+    public void giveAppropriateLobbyItems(Player player) {
+        if (player == null)
+            return;
+        String lobbyWorld = getConfig().getString("lobby_world");
+        if (lobbyWorld == null || !player.getWorld().getName().equalsIgnoreCase(lobbyWorld))
+            return;
+
+        if (partyManager != null && partyManager.isInParty(player)) {
+            partyManager.giveLobbyPartyItems(player, partyManager.isLeader(player));
+            return;
+        }
+
+        // Get SQL-level data (probably for elytra settings)
+        ExtendedPlayer ep = getExtendedPlayer(player);
+        MainPlayer mp = ep.getMainPlayer();
+
+        if (player.hasPermission("core.elytra") && mp != null) {
+            if (mp.elytra()) { // Knew it
+                ItemStack elytra = new ItemStack(Material.ELYTRA);
+                ItemMeta elytraMeta = elytra.getItemMeta();
+                elytraMeta.setUnbreakable(true);
+                if (player.hasPermission("core.elytra.enchanted")) {
+                    elytraMeta.addEnchant(Enchantment.UNBREAKING, 1, true);
+                    elytraMeta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+                }
+                elytraMeta.setLore(Collections.singletonList("§r§7" + player.getName() + "'s Elytra"));
+                elytra.setItemMeta(elytraMeta);
+                player.getInventory().setChestplate(elytra);
+            }
+        }
+
+        applyLobbyShortcutItems(player);
+    }
+
+    public void applyLobbyShortcutItems(Player player) {
+        if (player == null)
+            return;
+        String lobbyWorld = getConfig().getString("lobby_world");
+        if (lobbyWorld == null || !player.getWorld().getName().equalsIgnoreCase(lobbyWorld))
+            return;
+        if (partyManager != null && partyManager.isInParty(player))
+            return;
+
+        player.getInventory().clear();
+        player.getInventory().setArmorContents(null);
+        player.getInventory().setItemInOffHand(null);
+
+        if (org.albi.core.modules.Tournaments.TournamentManager.getInstance() != null
+                && org.albi.core.modules.Tournaments.TournamentManager.getInstance().isInTournament(player)) {
+            player.getInventory().setItem(0, lobbyShortcut(Material.ENDER_EYE, "§eSpectate Match",
+                    "§7Randomly spectate an ongoing tournament match.", "§fRight click to spectate."));
+            player.getInventory().setItem(8, lobbyShortcut(Material.BARRIER, "§cLeave Tournament",
+                    "§7Drop out of the tournament.", "§fRight click to use /tournament leave."));
+            player.updateInventory();
+            return;
+        }
+
+        player.getInventory().setItem(0, lobbyShortcut(Material.NETHER_STAR, "§bInstance Selector",
+                "§7Swap between server instances.",
+                "§fRight click to open /travel."));
+
+        if (ModuleManager.getModule(DuelManager.class) != null) {
+            player.getInventory().setItem(1, lobbyShortcut(Material.BOOK, "§eKit Editor",
+                    "§7Open duel, FFA, or custom kit editing.",
+                    "§fRight click to open /kiteditor."));
+            player.getInventory().setItem(3, lobbyShortcut(Material.IRON_SWORD, "§aUnranked Queue",
+                    "§7Enter queue and find a fight fast.",
+                    "§fRight click to open the queue menu."));
+            player.getInventory().setItem(5, lobbyShortcut(Material.DIAMOND_SWORD, "§cRanked Queue",
+                    "§7Compete for rank and climb the ladder.",
+                    "§fRight click to open the ranked menu."));
+        }
+        if (partyManager != null) {
+            player.getInventory().setItem(4, lobbyShortcut(Material.GOAT_HORN, "§6Create Party",
+                    "§7Build a squad and start playing together.",
+                    "§fRight click to manage your party."));
+        }
+
+        // Social & Stats
+        player.getInventory().setItem(7, lobbyShortcut(Material.PAPER, "§fStatistics",
+                "§7View your numbers, wins, and progress.",
+                "§fRight click to open /stats."));
+
+        // Dynamic Slot 8 (Settings or Leave Queue)
+        boolean inCasual = org.albi.core.modules.Duels.DuelManager.getDuelQueueModule() != null
+                && org.albi.core.modules.Duels.DuelManager.getDuelQueueModule().isInQueue(player);
+        boolean inRanked = org.albi.core.modules.Duels.DuelManager.getRankedQueueModule() != null
+                && org.albi.core.modules.Duels.DuelManager.getRankedQueueModule().isInQueue(player);
+
+        if (inCasual || inRanked) {
+            player.getInventory().clear();
+            player.getInventory().setItem(8, lobbyShortcut(Material.BARRIER, "§cLeave Queue",
+                    "§7Back out of your current matchmaking.",
+                    "§fRight click to leave the queue."));
+        } else {
+            player.getInventory().setItem(8, lobbyShortcut(Material.COMPARATOR, "§aSettings",
+                    "§7Personal preferences and toggles.",
+                    "§fRight click to open /settings."));
+        }
+
+        player.updateInventory();
+
+        MainPlayer mp = getExtendedPlayer(player).getMainPlayer();
+        if (player.hasPermission("core.elytra") && mp != null) {
+            if (mp.elytra()) { // Knew it
+                ItemStack elytra = new ItemStack(Material.ELYTRA);
+                ItemMeta elytraMeta = elytra.getItemMeta();
+                elytraMeta.setUnbreakable(true);
+                if (player.hasPermission("core.elytra.enchanted")) {
+                    elytraMeta.addEnchant(Enchantment.UNBREAKING, 1, true);
+                    elytraMeta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+                }
+                elytraMeta.setLore(Collections.singletonList("§r§7" + player.getName() + "'s Elytra"));
+                elytra.setItemMeta(elytraMeta);
+                player.getInventory().setChestplate(elytra);
+
+                ItemStack held = player.getInventory().getItem(player.getInventory().getHeldItemSlot());
+                boolean isSpawnItem = false;
+                if (held != null && held.getType() != Material.AIR && held.hasItemMeta()
+                        && held.getItemMeta().hasDisplayName()) {
+                    isSpawnItem = true;
+                }
+
+                if (!isSpawnItem) {
+                    ItemStack windCharges = new ItemStack(Material.WIND_CHARGE);
+                    windCharges.setAmount(64);
+                    player.getInventory().setItemInOffHand(windCharges);
+                }
+            }
+        }
+
+    }
+
+    private ItemStack lobbyShortcut(Material material, String name, String... loreLines) {
+        ItemStack item = new ItemStack(material);
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            meta.setDisplayName(name);
+            meta.setLore(Arrays.asList(loreLines));
+            UseCooldownComponent cooldown = meta.getUseCooldown();
+            cooldown.setCooldownSeconds(1); // 1 second
+            meta.setUseCooldown(cooldown);
+            item.setItemMeta(meta);
+        }
+        return item;
+    }
+
+    public SpiGUI getGUI() {
+        return spiGUI;
+    }
+
+    public CustomKitGUIMain getGuiKit() {
+        return guiKit;
+    }
+
+    public String getServerName() {
+        return getConfig().getString("region", "EU").toUpperCase(Locale.ROOT) + "-" + getConfig().getString("id_number", "1");
+    }
+
+    public void setPartyManager(PartyManager partyManager) {
+        this.partyManager = partyManager;
+    }
+
+    public PartyManager getPartyManager() {
+        return partyManager;
+    }
+
+    public org.albi.core.commands.DeathEffectsGUI getDeathEffectsGUI() {
+        return deathEffectsGUI;
+    }
+
+    public org.albi.core.managers.tiers.TierManager getTierManager() {
+        return tierManager;
+    }
+
+    public void applyPossibleKit(Player player, Kit kit) {
+
+        // first, givekit
+        kit.giveKit(player);
+        var ep = getExtendedPlayer(player);
+        if (ep != null && ep.isReady()) {
+            MainPlayer mp = ep.getMainPlayer();
+            var edit = mp.getKitEdit(kit.getName());
+            if (edit != null && !edit.isEmpty()) {
+                edit.applyToIncludingOffhand(player);
+                for (int i = 0; i < player.getInventory().getSize(); i++) {
+                    var item = player.getInventory().getItem(i);
+                    if (KitSafety.isBlocked(item))
+                        player.getInventory().setItem(i, null);
+                }
+                if (KitSafety.isBlocked(player.getInventory().getItemInOffHand())) {
+                    player.getInventory().setItemInOffHand(null);
+                }
+                player.updateInventory();
+            }
+        }
+    }
+
+    public ChatFilter getChatFilter() {
+        return chatFilter;
+    }
+
+    public void applyImmediateArmorTrims(Player player) {
+        // Does nothing for now ... implementation soon!
+    }
+
+    public void applyTabMode(Player player, ExtendedPlayer ep) {
+        MainPlayer mp = ep.getMainPlayer();
+        if (mp == null)
+            return;
+
+        boolean friendsOnly = ep.getDisplayTab() == 1;
+
+        for (Player other : Bukkit.getOnlinePlayers()) {
+            if (other.equals(player))
+                continue;
+
+            if (!friendsOnly) {
+                player.showPlayer(this, other);
+                continue;
+            }
+
+            boolean isFriend = mp.getFriends().contains(other.getUniqueId());
+
+            if (isFriend) {
+                player.showPlayer(this, other);
+            } else {
+                player.hidePlayer(this, other);
+            }
+        }
+    }
+
+    public org.albi.core.util.AutoRestartService getAutoRestartService() {
+        return autoRestartService;
+    }
+}

@@ -1,0 +1,421 @@
+# Vise Core configuration. Restart Paper after editing this file.
+# For migrations, copy new settings into your existing plugins/Core/config.yml.
+
+# Region and ID identify this instance to Redis and to a BungeeCord-compatible proxy.
+name: "Vise Core"
+ip: "localhost"
+region: EU
+id_number: 1
+lobby_world: world
+lobby_max_height: 150
+max_entities: 30
+c_worlds: []
+ffa_worlds: []
+
+# Set up MySQL and Redis before starting. Environment variables override YAML.
+mysql:
+  host: "127.0.0.1"
+  port: 3306
+  database: "vise_core"
+  user: "vise_core"
+  password: ""
+  ssl: false
+  ssl_mode: "" # Optional Connector/J mode. Blank uses the legacy ssl flag.
+  pool_size: 20
+
+redis:
+  host: "127.0.0.1"
+  port: 6379
+  password: ""
+  ssl: false
+  ca_file: "" # With TLS, blank uses certs/ca.crt if present or the JVM trust store.
+
+storage:
+  flush_interval_seconds: 600
+
+modules:
+  Duels: true
+  Party: true
+  FFA: true
+  CustomKit: true
+  Friends: true
+  LavaRising: false
+  CriticalDiscord: false
+  Tournaments: false
+  KnockbackSynchronization: true
+  AntiGhostArrow: true
+
+network:
+  global_chat: true
+  store_url: ""
+  discord_url: ""
+  travel:
+    # Same-region instance transfers use the proxy. Add destinations here for direct transfers.
+    regions: {}
+    # Example entry under regions (use the identifier from the target server's region setting):
+    # NA:
+    #   name: "North America"
+    #   location: "New York"
+    #   host: "na.example.net"
+    #   port: 25565
+    #   texture_url: "" # Optional textures.minecraft.net player-head URL
+
+autorestart:
+  enabled: false
+  interval_hours: 24
+
+announcements:
+  enabled: true
+  interval_seconds: 180
+  messages:
+    - "&7Use &f/quickqueue &7to join an active queue."
+    - "&7Use &f/friends &7to manage your friends list."
+    - "&7Edit your layout with &f/customkit &7and preferences with &f/settings&7."
+
+# Optional alternate arena backend. Install a compatible PolarPaper build first.
+use_polar_worlds: false
+polar_preload: 2
+
+duels:
+  tnt_seconds: 3
+  default_rounds: 1
+  rounds: [1, 2, 3, 4, 5, 10, 15, 18, 20]
+
+  # Experimental. The practice NPC uses Paper server internals and can break
+  # after an update. Test it on a staging server before enabling it.
+  bots:
+    enabled: false
+    max_sessions: 4
+    allowed_kits: ["beast", "pot"]
+    default_rounds: 1
+    debug_logging: false
+
+ranked:
+  webhook_url: "" # VISE_RANKED_WEBHOOK_URL
+  report_url_template: "" # Optional URL with a {match_id} placeholder
+  placement_matches: 5
+  history_expiry_days: 7
+
+lava_rising:
+  lava_rising_world: lavaevent
+  time_finish: 900
+  time_pvp: 330
+  time_lava_start: 10
+  time_lava_rise: 3
+  auto_interval_ticks: 0 # Zero disables automatic starts.
+  webhook_url: "" # VISE_LAVA_WEBHOOK_URL
+  webhook_warn_seconds: 30
+  pregame:
+    required_players: 5
+    spectate_height: 100
+    lobby_wait_seconds: 60
+    reminder_interval_seconds: 10
+  starter_items:
+    - ENCHANTING_TABLE
+    - BOOKSHELF:8
+    - IRON_BLOCK:3
+    - GOLD_BLOCK:2
+    - APPLE:9
+    - OAK_LOG:16
+    - COOKED_BEEF:8
+
+tournaments:
+  challonge_username: "" # VISE_CHALLONGE_USERNAME
+  challonge_api_key: "" # VISE_CHALLONGE_API_KEY
+
+cooldowns:
+  bypass: 5
+  fly: 2
+  gma: 1
+  gms: 1
+  gmsp: 1
+  gmc: 1
+  msg: 3
+  setspawn: 5
+  setspawnitem: 5
+  rules: 3
+  spawn: 4
+  vanish: 1
+  duel: 10
+  duelaccept: 1
+  party: 1
+  automatecombat: 3
+  travel: 3
+
+# List kit IDs to opt into these combat rules.
+33_percent_boost: ["pot", "mctiersio.pot"]
+mending_rngs: ["subtiers.debuff", "mctierscom.smp", "diamondsmp"]
+
+# Add the words and phrases you want your server's chat filter to block.
+bad_words: []
+
+guis:
+  duel:
+    kitselector:
+      name: "&bSelect a Kit"
+      rows: 3
+      offset: 0
+    mainselector:
+      name: "&bMore Options"
+      rows: 1
+      offset: 0
+    arenaselector:
+      name: "&bSelect an Arena"
+      rows: 3
+      offset: 0
+    roundselector:
+      name: "&bSelect Rounds"
+      rows: 1
+      offset: 0
+
+# Chat line format.
+# Supports PlaceholderAPI and colour codes in *placeholders only*.
+chat: "{player}: {chat}"
+
+
+#
+#  LANGUAGE (ASSUMING ENGLISH LOCALE)
+#  Everything under lang supports Placeholder API (PAPI) as the receiver, and "\n" for new lines.
+#
+lang:
+
+  # GLOBAL
+  players_only: "&7Only players may run this command."
+  spawn: "&7You were warped back to the hub."
+  bad_word: "&7Your message has been blocked."
+  cooldown: "&7You're currently on cooldown for this action."
+  not_here: "&7You're not allowed to do this here."
+
+  # Rules Command
+  rules: "&7Rules for &d%core_name%\n&f1. No toxicity."
+
+  # Bypass Command
+  yes_region_bypass: "&7You're now bypassing restrictions in the lobby."
+  no_region_bypass: "&7You're no longer bypassing restrictions in the lobby."
+
+  # Fly Command
+  fly_yes: "&7Flight has been &aenabled."
+  fly_no: "&7Flight has been &cdisabled."
+
+  # GM Commands
+  # {1} is your gamemode.
+  gamemode: "&7You have set your gamemode to &d{1}&7."
+
+  # {1} is the target player.
+  # {2} is the gamemode.
+  gamemode_other: "&7You have set &d{1}&7's gamemode to &d{2}&7."
+  gamemode_proper: "&7You must specify an online player's name."
+
+  # Setspawn Command
+  spawn_set: "&7You have set the spawn to your location."
+
+  # Vanish Command
+  vanish_enabled: "&7You are now &ainvisible &7to players without &dcore.vanish.see&7."
+  vanish_disabled: "&7You are now &cvisible &7to all players."
+
+  # Setspawnitem Command
+  setspawnitem_usage: "&7Usage: /setspawnitem <slot> <command>"
+  setspawnitem_int: "&7<slot> must be a number."
+  setspawnitem_noitem: "&7Hold the item you want to register in your main hand."
+  setspawnitem_success: "&7Saved item in slot &d{1} &7with command &d{2}"
+
+  # Msg Command
+  msg_usage: "&7Usage: /msg <player> <message>"
+  msg_offline: "&7That person is offline."
+  msg_you: "&7You can't message yourself."
+  msg_to: "&f{3}" # The sender will see this
+  msg_from: "&f{3}" # The receiver will see this.
+  msg_blocked_by_target: "&7Unable to message this player."
+  msg_you_blocked_target: "&7You've blocked this person, so you can't message them."
+
+  # Block / Unblock Commands
+  block_usage: "&7Usage: /block <player>"
+  unblock_usage: "&7Usage: /unblock <player>"
+  block_self: "&7You can't block yourself."
+  block_already: "&7That player is already blocked."
+  block_success: "&7You've blocked &d{1}&7."
+  unblock_not_blocked: "&7That player isn't blocked."
+  unblock_success: "&7You've unblocked &d{1}&7."
+
+  # Reply Command
+  r_usage: "&7Usage: /r <message>"
+  r_no_target: "&7You don't have anyone to reply to."
+
+  # Duel Stuff
+  duel_request: "&d{1} &7challenged you to &f{2} &7(first to &f{3}&7)."
+  party_duel_request: "&d{1}'s party &7challenged your squad in &f{2} &7(first to &f{3}&7)."
+  duel_accept: "&a&lAccept"
+  party_duel_accept: "&a&lAccept"
+
+  duel_in: "&7Someone in this group is already tied to a duel."
+  duel_no_arena: "&7No arena slot is open right now."
+  duel_cancelled: "&7The duel was forcefully shut down."
+  duel_blocked: "&7Sorry, we weren't able to send a duel to that player."
+
+  duel_title: "&d&lPrepare Yourself"
+  duel_subtitle: "&a{1} &8vs &c{2} &7unleashes in &f{3}&7…"
+
+  duel_hp: "&f{1} &7survived on &c{2}❤&7."
+
+  # {1} is 1 or 2 depending on who won.
+  # {2} is rounds remaining.
+  # {3} is Red or Blue coloured, depending on who won.
+  duel_round_left: "\n   {3} Team &7has won this round.\n   &7They need &a{2} &7more rounds to win."
+
+  # Countdown for winning a round.
+  duel_count: "&dRound resumes in &f{1}&7…"
+  duel_started: "&7Fight."
+  duel_leave: "&e{1} &7left the duel."
+
+  # {1} victim
+  # {2} killer
+  duel_kill: "&f{1} &7was dropped by &f{2}&7."
+  duel_kill_themself: "&f{1} &7self-destructed."
+  duel_death_xp: "&a+1 XP &8for the finish"
+
+  duel_hit_team: "&7That player is on your side."
+
+  # {1} winner
+  # {2} loser
+  # {3} winner rounds
+  # {4} loser rounds
+  duel_over: "&7\n  The duel has been concluded. {1} &7has won the game.\n    &7SCORE: &a{3} &7- &c{4}"
+
+  duel_prefix_team_one: "&r"
+  duel_prefix_team_two: "&r"
+
+  duel_prefix_team_one_color: "&c"
+  duel_prefix_team_two_color: "&9"
+
+
+  # Duel Admin Commands
+  # Probably don't want to change these, as they act as a guide to serve the player.
+  duel_admin_begin: "&7Duel‑Setup Wizard\n&f• &e/dueladmin arena <id> &7→ build arenas\n&f• &e/dueladmin kit <id> &7→ make kits"
+
+  # ─────────── ARENA GUIDE ───────────
+  duel_admin_arena: "&7Arena Setup Commands:\n&f✓ &e/dueladmin arena create <id> &7→ Create a new arena\n&f✓ &e/dueladmin arena arenaready <id> &7→ Link the Multiverse world\n&f✓ &e/dueladmin arena setdisplayitem <id> &7→ Set icon in GUI\n&f✓ &e/dueladmin arena setspawn <id> <1|2> &7→ Set team spawn point\n&f✓ &e/dueladmin arena setcorner <id> <x1|z1|x2|z2> <value> &7→ Define arena bounds\n&f✓ &e/dueladmin arena setschematic <id> <file> &7→ Set schematic file\n&f✓ &e/dueladmin arena setoffset <id> <x|z> <blocks> &7→ Set schematic spacing\n&f✓ &e/dueladmin arena setmax <id> <perline|maxarenas> <num> &7→ Set grid size\n&f✓ &e/dueladmin arena info <id> &7→ View full arena info"
+
+  duel_admin_arena_proper_name: "&7Specify an arena name."
+  duel_admin_arena_exists: "&cThat arena already exists."
+
+  duel_admin_arena_one: "&a✔ Arena &e{1}&a created\n&f1) Make its world: &e/mv create {1}-duel normal -g VoidGen\n&f2) Unload world: &e/mv unload {1}-duel\nNext ➜ &e/dueladmin arena arenaready {1}"
+
+  duel_admin_arena_ready: "&aWorld linked!\nHold the arena icon in your hand.\nNext ➜ &e/dueladmin arena setdisplayitem {1}"
+
+  duel_admin_arena_two: "&aIcon saved.\nStand at &9Team‑1 &fspawn.\nNext ➜ &e/dueladmin arena setspawn {1} 1\n\n&r&7To do this, we recommend creating a world called &earenacreation&7 with the command &e/mv create arenacreation -g VoidGen &7- Go to this world, then spawn the schematic at 0, 0, 0. Then use these commands. Ensure you use commands such as /tp and center your yaw and pitch."
+
+  duel_admin_arena_setspawn_usage: "&7Usage: /dueladmin arena setspawn <name> <1|2>"
+  duel_admin_arena_setspawn: "&aTeam‑{1} spawn saved.\nIf the other team is missing, set it next.\nOtherwise stand at a corner of the build area.\nNext ➜ &e/dueladmin arena setcorner {arena} x1 <value>"
+
+  duel_admin_arena_setcorner_usage: "&7Usage: /dueladmin arena setcorner <name> <x1|z1|x2|z2> <value>"
+  duel_admin_arena_setcorner: "&aCorner &d{1}&a = &d{2}\nRepeat for the remaining corners.\nNext ➜ &e/dueladmin arena setschematic {arena} <file>"
+
+  duel_admin_arena_setschematic_usage: "&7Usage: /dueladmin arena setschematic <name> <file>"
+  duel_admin_arena_setschematic: "&aSchematic linked.\nOptional tweaks: offsets or limits.\nType &e/dueladmin arena info {1} &7to review."
+
+  # optional tweaks
+  duel_admin_arena_setoffset_usage: "&7Usage: /dueladmin arena setoffset <name> <x|z> <blocks>"
+  duel_admin_arena_setoffset: "&aOffset &d{1}&a set to &d{2}"
+  duel_admin_arena_setmax_usage: "&7Usage: /dueladmin arena setmax <name> <perline|maxarenas> <num>"
+  duel_admin_arena_setmax: "&aSet &d{1}&a to &d{2}"
+
+
+
+  # ─────────── KIT GUIDE ───────────
+  duel_admin_kit: "&7Kit Setup Commands: &f✓ &e/dueladmin kit create <id> &7→ Create a new kit &f✓ &e/dueladmin kit saveinv <id> &7→ Save your inventory &f✓ &e/dueladmin kit setdisplayitem <id> &7→ Set GUI icon &f✓ &e/dueladmin kit setslot <id> <slot> &7→ Set GUI position &f✓ &e/dueladmin kit setbuild <id> <true|false> &7→ Allow block placing &f✓ &e/dueladmin kit setnaturalregen <id> <true|false> &7→ Allow natural regen &f✓ &e/dueladmin kit sethealthindics <id> <true|false> &7→ Toggle health indicators &f✓ &e/dueladmin kit setlosehunger <id> <true|false> &7→ Toggle hunger loss &f✓ &e/dueladmin kit info <id> &7→ View kit details"
+
+  duel_admin_kit_proper_name: "&7Specify a kit name."
+  duel_admin_kit_exists: "&cThat kit already exists."
+
+  duel_admin_kit_one: "&a✔ Kit &e{1}&a created.\nFill your inventory with kit items.\nNext ➜ &e/dueladmin kit saveinv {1}"
+
+  duel_admin_kit_two: "&aInventory captured.\nHold the kit icon in your hand.\nNext ➜ &e/dueladmin kit setdisplayitem {1}"
+
+  duel_admin_kit_three: "&aIcon saved.\nNext ➜ &e/dueladmin kit setslot {1} <slot>"
+
+  duel_admin_kit_setslot_usage: "&7Usage: /dueladmin kit setslot <name> <slot>"
+  duel_admin_kit_four: "&aKit ready!  Slot &d{1}\nType &e/dueladmin kit info {kit} &7to review."
+
+  duels_duel_specify: "&7You must specify a player, or that player doesn't exist."
+  duels_duel_unable: "&7That player is unable to initiate a duel with you."
+  duel_admin_kit_bool_set: "&aSet &d{1} &ato &d{2}"
+  duel_admin_kit_bool_usage: "&7Usage: /dueladmin kit {setting} <name> <true|false>"
+
+
+  # LobbyPlayers Command
+  lobbyplayers_on: "&7Other players are now &avisible&7."
+  lobbyplayers_off: "&7Other players are now &chidden&7."
+  lobbyplayers_usage: "&7Usage: /lobbyplayers [on|off]"
+  lobbyplayers_not_in_lobby: "&7This command can only be used in the lobby."
+
+  # Party Command
+  party_usage: "&7Use &f/party help &7for the full command list."
+  party_unknown_subcommand: "&7Unknown subcommand."
+
+  party_created: "&aYour squad is live. &7Invite fighters with &f/party invite <player>&7."
+  party_invite_sent: "&7Invite sent to &b{1}&7."
+  party_invite_receive: "&b{1} &7invited you to their squad. Type &f/party accept &7to join."
+  party_join: "&b{1} &7joined the squad."
+  party_joined: "&7You joined &b{1}&7's squad."
+
+  party_help: "&7Party Commands:\n&e/party create &7- Create a new party\n&e/party invite <player> &7- Invite a player\n&e/party accept &7- Accept an invite\n&e/party leave &7- Leave your party\n&e/party list &7- See your party members\n&e/party open &7- Toggle party privacy\n&e/party join <player> &7- Join an open party\n&e/party duel &7- Duel another party\n&e/party play &7- Duel your own party\n&e/party disband &7- Disband your party"
+
+  party_opened: "&aYour party is now open to everyone."
+  party_privated: "&cYour party is now private."
+  party_open_cooldown: "&cYou must wait {1}s before opening your party again."
+  party_opened_broadcast: "\n &d{1}'s &7party is now &a&lOPEN&7! &a&lᴊᴏɪɴ &7&o(Click to join)\n"
+  party_join_not_open: "&cThis party is not open."
+  party_join_usage: "&7Usage: /party join <player>"
+
+
+  # Leaving & disband
+  party_leave: "&e{1} &7left the squad."
+  party_left: "&7You left the squad."
+  party_disband: "&cThe squad was disbanded."
+
+  # Errors / edge-cases
+  party_not_leader: "&7Only the leader can do that."
+  party_full: "&7Your squad is already full."
+  party_already_in: "&7You are already in a squad."
+  party_invite_fail_inparty: "&7That player is already in a squad."
+  party_invite_already: "&7That invite is already pending."
+  party_not_invited: "&7You do not have any pending squad invites."
+  party_none: "&7You are not in a squad."
+
+  party_list_header: "&6§lSquad Roster &8(&b{1}&7/&b{2}&8):"
+  party_list_member: "&7  {1}{2}" # {1} = (Leader) or empty, {2} = player name
+
+  party_duel_case: "&7Provide the enemy party leader's name."
+  party_duel_unable: "&7You cannot challenge that party right now."
+  party_blocked: "&7You cannot invite that player right now."
+
+
+  duels_already_in_duel: "&7You can’t spectate while you’re in a duel."
+  duels_not_in_duel: "&7That player isn’t in a duel."
+  duels_duel_already_over: "&7That duel has already finished."
+  duels_invalid_arena: "&7Couldn’t load that arena – try again later."
+  duels_spectate_blocked: "&7You can't spectate this player."
+  duels_now_spectating: "&7You are now spectating &d{1}&7."
+
+  duel_sent: "&7Challenge sent."
+
+  autorestart_warning: "&c&lSERVER RESTART &7The server will restart in &d{1}&7!"
+  no_permission: "&cYou do not have permission to execute this command."
+
+  tournament_created: "&aTournament created! &7Kit: &e{1}&7, Mode: &e{2}v{2}&7."
+  tournament_joined: "&aYou have joined the tournament!"
+  tournament_leave: "&cYou have left the tournament."
+  tournament_started: "&aThe tournament has officially started! Matches are being prepared."
+  tournament_kick: "&cYou were kicked from the tournament."
+  tournament_next: "&aYou are now spectating another tournament match!" 
+  tournament_round: "&aRound &e{1}&a has officially begun!"
+  tournament_spectate_next: "&7Use &f/next &7to spectate another ongoing tournament match."
+
+# Internal permission checks. The commands also enforce the nodes declared in plugin.yml.
+permissions:
+  bypass: core.bypass
+  fly: core.fly
+  gmc: core.gmc
+  gms: core.gms
+  gmsp: core.gmsp
+  gma: core.gma
