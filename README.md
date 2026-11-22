@@ -2,35 +2,53 @@
 
 Vise Core is a Minecraft PvP plugin for **Paper 1.21.3** and **Java 21**. It manages arenas, kits, queues, ranked matches, parties, and events. It also handles the lobby, player profiles, cosmetics, chat, and travel between server instances.
 
-## Vise Core vs. StrikePractice
+Scale a single instance with schematic slots or Polar world copies, or add Paper instances that share profiles, leaderboards, and chat through MySQL and Redis. [Arena backends](#choosing-an-arena-backend) · [Scaling guide](#scaling-and-deployment-architecture)
 
-| Feature | Vise Core | StrikePractice |
-| --- | :---: | :---: |
-| Direct duels and ranked matchmaking | ✅ | ✅ |
-| Party fights and free-for-all arenas | ✅ | ✅ |
-| Custom kits and saved layouts | ✅ | ✅ |
-| PvP practice bots | ✅ | ✅ |
-| Lava Rising survival events | ✅ | ❌ |
-| Challonge tournament brackets | ✅ | ❌ |
-| PvPTiers, MCTiers, and Subtiers in one profile | ✅ | ❌ |
-| Redis chat bridge and regional travel menu | ✅ | ❌ |
-| **Completely Free** | **✅** | **❌** |
+<a name="vise-core-vs-strikepractice"></a>
 
-The comparison covers the base plugins. On feature rows, ❌ means the feature is unlisted in StrikePractice’s published feature list and v4.0.0 release notes. The pricing row refers to the plugin itself. [StrikePractice listing and pricing](https://builtbybit.com/resources/strikepractice-practice-pvp-plugin.74743/) · [v4.0.0 release notes](https://builtbybit.com/resources/strikepractice-practice-pvp-plugin.74743/updates)
+## How Vise Core compares
+
+| Feature | **Vise Core** | StrikePractice | Versus | UltimateDuels | Duels by Realized |
+| --- | :---: | :---: | :---: | :---: | :---: |
+| Direct 1v1 challenges | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Arena kits and spectator mode | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Ranked play or Elo ratings | ✅ | ✅ | ❌ | ✅ | ✅ |
+| Party fights and public FFA arenas | ✅ | ✅ | ❌ | ✅ | ❌ |
+| Personal kit editor and saved layouts | ✅ | ✅ | ❌ | ✅ | ❌ |
+| Automatic arena restoration | ✅ | ✅ | ❌ | ✅ | Paid extension |
+| PvP practice bots | ✅ | ✅ | ❌ | ❌ | ❌ |
+| PolarPaper arena generation from saved origins | ✅¹ | ❌ | ❌ | ❌ | ❌ |
+| Built-in HTML telemetry export with movement, health, and ping charts | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Redis chat bridge and regional travel menu | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Built-in ping-aware knockback and ghost-arrow recovery | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Lava Rising survival events | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Challonge tournament brackets | ✅ | ❌ | ❌ | ❌ | ❌ |
+| PvPTiers, MCTiers, and Subtiers in one profile | ✅ | ❌ | ❌ | ❌ | ❌ |
+| **Completely Free** | **✅** | **❌** | **✅** | **✅** | **✅** |
+
+✅ denotes a documented feature of the base plugin. On feature rows, ❌ denotes a capability unlisted in the cited materials. The pricing row covers the base download. ¹ The PolarPaper integration has a version constraint described in the [arena generation guide](#polarpaper-arena-generation-support).
+
+- **StrikePractice** is a paid practice suite with bot fights, replay playback, per-kit knockback configuration, and built-in events. The author's separate stats site can display saved fight data. [Product listing and pricing](https://builtbybit.com/resources/strikepractice-practice-pvp-plugin.74743/) · [v4.0.0 release notes](https://builtbybit.com/resources/strikepractice-practice-pvp-plugin.74743/updates) · [Stats site](https://github.com/toppev/strikepractice-stats)
+- **Versus** focuses on casual 1v1 duels for semi-vanilla servers. It documents arena setup, waiting when arenas are full, public and private matches, and in-game configuration editing. [SpigotMC listing](https://www.spigotmc.org/resources/versus-1-16-1-21-%E2%9A%94%EF%B8%8F-duels-simplified.118883/) · [Source and commands](https://github.com/robomonkey-mc/Versus) · [Downloads](https://www.spigotmc.org/resources/versus-1-16-1-21-%E2%9A%94%EF%B8%8F-duels-simplified.118883/history)
+- **UltimateDuels** documents multi-round 1v1 and party play, party queues, per-player kit variants, FFA worlds, built-in scoreboards, and WorldEdit or FAWE schematic restoration. [Modrinth listing](https://modrinth.com/plugin/ultimateduels)
+- **Duels by Realized** offers item and money wagers, sign-based queues, kit ratings, inventory inspection after matches, and an extension system. Its automatic arena-reset extension is listed separately from the base download. [SpigotMC listing](https://www.spigotmc.org/resources/duels.20171/) · [Author's command reference](https://github.com/Realizedd/Duels/wiki/Commands)
 
 ## Contents
 
 - [Installation and module setup](#installation-and-module-setup)
 - [Duels, arenas, and matchmaking](#duels-arenas-and-matchmaking)
+  - [PolarPaper arena generation support](#polarpaper-arena-generation-support)
 - [Ranked play and match reports](#ranked-play-and-match-reports)
 - [Experimental NPC practice](#experimental-npc-practice)
 - [Kits and inventory layouts](#kits-and-inventory-layouts)
 - [Parties, FFA, Lava Rising, and tournaments](#groups-and-events)
 - [Lobby, teleportation, and server travel](#lobby-teleportation-and-server-travel)
+- [Scaling and deployment architecture](#scaling-and-deployment-architecture)
 - [Profiles, statistics, and cosmetics](#profiles-statistics-and-cosmetics)
 - [Friends, chat, and Discord](#friends-chat-and-discord)
 - [Combat fixes and server operations](#combat-fixes-and-server-operations)
 - [Configuration, data, and upgrades](#configuration-data-and-upgrades)
+- [Codebase map](#codebase-map)
 - [PlaceholderAPI reference](#placeholderapi-reference)
 - [Command and permission reference](#command-and-permission-reference)
 
@@ -61,7 +79,7 @@ Set each entry under `modules` to `true` or `false`. The defaults below apply to
 | `KnockbackSynchronization` | On | Ping-aware adjustments to combat knockback. Also has its own `enabled` setting. |
 | `AntiGhostArrow` | On | Arrow hit recovery when players and arrows move between server ticks. Also has its own `enabled` setting. |
 
-PolarPaper adds a second arena backend when `use_polar_worlds` is on. PlaceholderAPI adds values for compatible tab lists, scoreboards, and chat plugins. FeatherServerAPI loads the optional `plugins/Core/server-background.png` as a server-list background. The RTP menu delegates to a separate plugin that provides the `xwr rtp` console command.
+The optional PolarPaper backend has its own [version requirements](#polarpaper-arena-generation-support). PlaceholderAPI adds values for compatible tab lists, scoreboards, and chat plugins. FeatherServerAPI loads the optional `plugins/Core/server-background.png` as a server-list background. The RTP menu delegates to a separate plugin that provides the `xwr rtp` console command.
 
 ## Duels, arenas, and matchmaking
 
@@ -73,45 +91,112 @@ During the match, Core reserves an arena, equips the fighters, starts a countdow
 
 Run `/spectate <player>` to watch an active fight. Spectating respects the player's preference and applies restrictions to keep spectators out of combat. Use `/spawn` to leave. The [PlaceholderAPI expansion](#placeholderapi-reference) supplies team colors, health indicators, score, elapsed time, and spectator information to compatible displays.
 
+#### How a duel runs
+
+| Stage | Server behavior |
+| --- | --- |
+| Allocation | Core binds participants to a duel and reserves either a position in a schematic world or a Polar world copy. The two team spawn points are resolved in that reservation's world. |
+| Countdown | Fighters get their kit, round state, and start feedback. Combat listeners protect the countdown, restrict teammates from damaging one another, and apply kit rules for building, regeneration, and food. |
+| Live round | Core checks the X/Z arena bounds each tick. Fighters outside the active bounds are treated as eliminated. Spectators outside the bounds are sent inward. Moving between two Polar copies of the same arena is a supported round transition. |
+| Elimination | The lethal-hit listener lets a held totem use vanilla handling. Otherwise it resolves the killer, switches the defeated player to spectator, and informs the duel. The duel updates the team score and can announce the surviving players' health. |
+| Reset or finish | A continuing match reapplies kit inventory and effects and resets player positions. On a cross-world round reset, the inventory is applied after the teleport completes. The end-of-match cleanup sends players and spectators back to the lobby and releases arena reservations. |
+
+[Duel state and transitions](src/main/java/org/albi/core/modules/Duels/DuelInstance.java) · [Bounds checks](src/main/java/org/albi/core/modules/Duels/events/MovementOutside.java) · [Lethal-hit handling](src/main/java/org/albi/core/modules/Duels/events/OnSimulatedDeath.java)
+
 ### Casual queues
 
 `/queue` opens a kit browser with queue counts. Choose a standard kit or **Per Custom Kit**. `/quickqueue` looks for a match in an active casual queue without making the player choose a specific ruleset. The action bar shows queue status while the player waits. Run `/queue leave` or `/quickqueue leave` to leave the casual queue.
 
+The casual matcher checks every two ticks and tries the quick queue first. Two quick-queue players can receive a random standard kit. A lone quick-queue player can take a match from another eligible queue, including Per Custom Kit when both players have usable selections. Regular kit queues pair eligible players waiting for the same kit. Casual matches start first-to-one and pick from active arenas. The match-found transition rechecks player state before starting the duel. [Casual matchmaking code](src/main/java/org/albi/core/modules/Duels/queue/DuelQueueModule.java)
+
 Staff can organize the duel and casual queue browsers into ruleset pages. Hold the item to use as the category icon, then run `/setpageduelkitcategory <page> <guiSlot>`. Use `/deletepageduelkitcategory <guiSlot>` to remove that entry from the category menu.
+
+### Choosing an arena backend
+
+| | Schematic arenas | PolarPaper arena generation |
+| --- | --- | --- |
+| **Hardware fit** | **Lower RAM, stronger CPU.** Start here when memory is scarce and the server can keep up with repeated pastes. | **Higher RAM, less CPU headroom.** Use ready-to-play world copies to reduce repeated block pastes during matches. |
+| Unit of capacity | A reserved grid slot inside the loaded `<arena>-duel` world. | A separate loaded copy of an arena's saved Polar origin. |
+| How the map is reset | Paste blocks and air back into the slot through WorldEdit or FAWE. | Use a fresh world copy and retire the used world after players leave. |
+| Main capacity control | `setmax <name> maxarenas <count>` sets the number of slots for that map. `perline` and the X and Z offsets lay them out. | `polar_preload` sets the minimum ready-pool target per map. The target also grows with reservations. |
+| Resource costs | Clipboard cache, loaded chunks, block edits, and a shared paste queue. | Cached origin bytes, decoded and loaded world copies, startup and refill work, and cleanup of retired worlds. |
+
+This is a hardware rule of thumb. A big clipboard still takes memory, and generating a Polar copy still takes CPU. Arena size, how often build kits need resets, and how many matches run at once determine which backend fits. [Capacity and load testing](#scaling-and-deployment-architecture) · [PolarPaper's memory tradeoff](https://github.com/MinehubMC/PolarPaper#large-worlds)
 
 ### Schematic arenas
 
-Schematic arenas reserve a slot in an arena world and paste the map into that slot. The configured offsets and grid size control how many copies can fit in the world. Core queues schematic pastes and reuses arena slots after matches.
+The schematic backend gives multiple matches separate physical slots inside one loaded world per arena name. Core lays out slots from `(0, 100, 0)` in that world. For a zero-based slot index, the row is `index / perline` and the column is `index % perline`. The row advances along X and the column advances along Z using the configured offsets. Team spawn coordinates are added to the slot's paste origin, so record them relative to the schematic origin in your build area. The X/Z arena bounds move with the copy.
 
-1. Prepare an empty template world in `plugins/Core/duel-placeholder/` and put the arena schematic in `plugins/Core/schems/duels/`. Keep the schematic origin aligned with the team spawns and arena coordinates you will register.
-2. Run `/dueladmin arena create <name>`. Run `/dueladmin arena arenaready <name>` to copy the template into the arena's world directory. Running `arenaready` again replaces that arena's template copy.
-3. Hold the map icon and run `/dueladmin arena setdisplayitem <name>`. Stand at each team spawn and run `/dueladmin arena setspawn <name> 1` and `/dueladmin arena setspawn <name> 2` at their respective locations.
-4. Record the four horizontal boundaries with `/dueladmin arena setcorner <name> <x1|z1|x2|z2> <coordinate>`. Link the file with `/dueladmin arena setschematic <name> <file>`.
-5. Use `setoffset <name> <x|z> <blocks>` and `setmax <name> <perline|maxarenas> <number>` under `/dueladmin arena` to configure spacing and capacity. Use `info <name>` to review the setup or `deactivate <name>` to toggle the arena's availability in the direct challenge picker.
+1. Prepare a clean template in `plugins/Core/duel-placeholder/` and put the arena schematic in `plugins/Core/schems/duels/`. Export the schematic with a known origin and record spawn and boundary offsets relative to that point.
+2. Run `/dueladmin arena create <name>` and then `/dueladmin arena arenaready <name>`. The second command copies the template to `plugins/Core/<name>-duel/` and replaces an existing copy at that path. Make the arena world available through your world setup and verify that Paper has loaded it with the exact name `<name>-duel`. The match allocator looks up that loaded world by name.
+3. Hold a map icon and run `/dueladmin arena setdisplayitem <name>`. Stand at each team spawn in the origin-aligned build area and use `/dueladmin arena setspawn <name> 1` and `/dueladmin arena setspawn <name> 2`. Core saves the position and facing direction.
+4. Record the relative horizontal boundaries with `/dueladmin arena setcorner <name> <x1|z1|x2|z2> <coordinate>`. Link the map with `/dueladmin arena setschematic <name> <file>`.
+5. Set a positive `perline` and `maxarenas` with `/dueladmin arena setmax <name> <perline|maxarenas> <count>`. Set X and Z spacing with `/dueladmin arena setoffset <name> <x|z> <blocks>`. Leave space between copies for the full playable footprint and the arena buffers. Use `/dueladmin arena info <name>` to inspect the settings and `/dueladmin arena deactivate <name>` to toggle selection in the direct duel and casual arena pickers.
+6. Test two simultaneous matches on the same map before adding capacity. Check that their spawn points and bounds are separate. Play a build round, break and place blocks, and check that the following round and the next match get the expected layout.
 
-### Polar arenas
+Core caches decoded clipboards by filename within the process and runs one queued schematic paste at a time. The paste runs through a WorldEdit edit session on an asynchronous task. The queue schedules a five-tick gap after each paste. Duel launch and build-round reset can enqueue paste work, and a freed slot becomes eligible for reuse. A large map or multiple reset requests can delay other arenas using the same paste queue, including Lava Rising work. Keep distinct filenames for different maps and restart the instance after replacing a schematic in place so a cached clipboard is reloaded. [Schematic queue](src/main/java/org/albi/core/modules/Duels/SchematicManager.java) · [Duel allocation and lifecycle](src/main/java/org/albi/core/modules/Duels/DuelInstance.java) · [Arena setup commands](src/main/java/org/albi/core/modules/Duels/commands/DuelAdminCommand.java)
 
-Set `use_polar_worlds: true` with a compatible PolarPaper installation. A Polar arena has an editable origin world and temporary match worlds. Core creates match worlds from the saved origin, preloads copies, and releases them when matches end. `polar_preload` sets the preload target.
+<a name="polar-arenas"></a>
 
-Use `/dueladmin polar_arena create <name>` and `edit <name>` to set up the origin. Record the team positions with `spawn1 <name>` and `spawn2 <name>`, or `setspawn <name> <1|2>`. Set the two arena boundaries with `set_limit <name> <min|max>` while standing at each corner. Use `setdisplayitem <name>` to set the icon and `save <name>` or `arenaready <name>` to save the origin and prepare it for use. Run `info <name>` to inspect the result. [Arena command source](src/main/java/org/albi/core/modules/Duels/commands/DuelAdminCommand.java)
+### PolarPaper arena generation support
+
+Core can generate isolated match worlds from a saved **PolarPaper** origin. Map builders work in one editable origin and publish it with a save command. At runtime, Core creates uniquely named match worlds from that saved version. Every copy starts from the same map coordinates.
+
+> [!IMPORTANT]
+> Core's build targets Paper 1.21.3 and compiles the Polar integration against `live.minehub:polarpaper:1.21.11.17`. That dependency JAR declares Paper API 1.21.11. PolarPaper's historical 1.1.3 release for Paper 1.21.3 uses older load and save signatures and lacks the `FilePolarSource` class Core uses. Use schematic arenas on the documented Paper 1.21.3 setup. Validate the full Core, Paper, and PolarPaper combination on staging before turning on the optional backend. [Build dependency](build.gradle.kts) · [PolarPaper versions](https://hangar.papermc.io/MinehubMC/Polar/versions) · [Historical Paper 1.21.3 release](https://hangar.papermc.io/MinehubMC/Polar/versions/1.1.3)
+
+On a compatible setup, install PolarPaper, enable Duels, and restart Paper with the following settings.
+
+```yaml
+use_polar_worlds: true
+polar_preload: 2
+```
+
+| Step | Action |
+| --- | --- |
+| Create the origin | Run `/dueladmin polar_arena create <name>`. When the origin file is absent, Core creates a temporary flat world without structures, converts its blocks to Polar, writes the origin, and cleans up the bootstrap world. The command opens the origin for the builder. |
+| Edit the map | Run `/dueladmin polar_arena edit <name>` to reopen the loaded origin or load it from disk. Build or paste your intended map into that world. |
+| Record teams | Stand at each spawn and use `/dueladmin polar_arena spawn1 <name>` and `spawn2 <name>`. The equivalent command is `/dueladmin polar_arena setspawn <name> <1\|2>`. The editor records exact X/Y/Z and yaw/pitch. |
+| Record bounds and icon | At the two opposing corners run `/dueladmin polar_arena set_limit <name> min` and `set_limit <name> max`. These commands record X/Z limits. Hold an item for `/dueladmin polar_arena setdisplayitem <name>`. |
+| Publish it to the ready pool | Run `/dueladmin polar_arena save <name>` or `/dueladmin polar_arena arenaready <name>` with the origin loaded. Run `/dueladmin polar_arena info <name>` to review the setup. |
+
+#### What happens during a match
+
+1. **Origin storage.** Arena definitions, team positions, and the Polar flag are in Core's local data. The actual map is `worlds/<lowercase-arena>-p-orig.polar` inside the PolarPaper plugin's data directory. Back up both when moving or restoring a server.
+2. **World creation and reservation.** The arena manager caches origin bytes, decodes a copy for each new match world, and tracks ready worlds and in-use reservations separately by arena. Generated names follow `<arena>-p-<sequence>-<suffix>-duel`. Copies enable keep-inventory and immediate respawn. The arena lookup uses the recorded positions in the selected copy.
+3. **Consumers.** Casual and ranked duels, party team fights, and tournament duels can use the normal duel allocator. NPC practice and private Party FFA sessions also reserve Polar copies when their chosen arena uses Polar. Public FFA and Lava Rising have their own world workflows.
+4. **Round resets.** Build and per-custom duel paths can reserve a replacement copy for the next round. When a replacement is ready, the duel switches worlds and reapplies the players' kit after teleporting. A replacement reservation contributes to the active reservation count. [Duel lifecycle](src/main/java/org/albi/core/modules/Duels/DuelInstance.java) · [NPC session](src/main/java/org/albi/core/modules/Duels/AutomatedCombat/BotSession.java) · [Party FFA allocation](src/main/java/org/albi/core/modules/Party/play/PartyFFAInstance.java)
+5. **Retirement and edits.** At release, Core schedules temporary-world unload and attempts to remove the generated world folder. If players are still there, it schedules a retry after 100 ticks. Saving a new origin refreshes the byte cache and retires unused copies from the older origin. Active fights keep the worlds they already reserved.
+6. **Maintenance.** The instance warms saved arenas at startup. Join, quit, and world-change events schedule maintenance that looks for missing reserved worlds and queues replenishment. Background Polar operations go through a serialized queue. Its current delay between completed tasks is 250 ticks. The immediate startup and reservation paths can also generate worlds synchronously from Core's perspective by waiting on the world creation future.
+
+The effective ready target is `max(max(1, polar_preload), active reservations + 1)` **per arena**. With the default preload and three in-use reservations on one map, Core aims for four ready copies in addition to those three. That means seven loaded match worlds at the target, before counting an open origin or a world waiting for cleanup. `polar_preload` is a floor for ready capacity. Budget RAM for the active and ready worlds together, and profile both a cold launch and the first reservation burst. [Polar arena manager](src/main/java/org/albi/core/modules/Duels/polar/PolarArenaManager.java) · [World operation queue](src/main/java/org/albi/core/modules/Duels/polar/PolarQueue.java) · [Maintenance listener](src/main/java/org/albi/core/modules/Duels/events/PolarArenaMaintenanceListener.java)
 
 ## Ranked play and match reports
 
 `/rankedqueue` opens solo, single-round matchmaking by standard kit. The menu shows the player's Elo, placement or tier, and the number of players waiting for each kit. The queue widens its Elo search range as players wait. Leaving a party and ending any active fight or spectating session makes a player eligible to queue. Use `/rankedqueue leave` to cancel.
 
-- Each kit has its own rating, win and loss counts, and placements. Ratings start at **1,000 Elo**. By default, the first **five matches** per kit count as placements and use larger rating adjustments.
-- Wins against higher-rated opponents are worth more. Losses against lower-rated opponents cost more. The match countdown previews the stakes.
+- Each kit has its own rating, win and loss counts, and placements. Core also tracks an overall rating. Ratings start at **1,000 Elo**. The first **five matches** count as placements by default. The Elo adjustment uses a factor of 64 during placements and 32 after.
+- The initial search window is ±50 Elo. It grows by 25 for every three seconds waiting. A pair is eligible if the gap fits either player's current window. Wins against higher-rated opponents are worth more, and the match countdown previews the stakes.
 - Tiers run from Bronze through Silver, Gold, Platinum, Diamond, Master, Grandmaster, and Champion. Each tier has five 100-point divisions. Players see placement progress until they earn a displayed tier.
-- `/rankedlb` opens the per-kit ranked leaderboard. For an arena pool specific to a kit, use `/rankedadmin add <kit> <arena>`, `remove <kit> <arena>`, and `list <kit>`. If the pool is empty, the queue draws from the shared arena list. Staff can access the pool commands with both `core.rankedadmin` and `core.admin.ranked`.
+- `/rankedlb` opens the top 27 by overall ranked Elo in Redis. The kit picker and match calculations use the selected kit's ladder. For an arena pool specific to a kit, use `/rankedadmin add <kit> <arena>`, `remove <kit> <arena>`, and `list <kit>`. If the pool is empty, the queue draws from the shared arena list. Staff can access the pool commands with both `core.rankedadmin` and `core.admin.ranked`.
+
+[Ranked matcher](src/main/java/org/albi/core/modules/Duels/queue/RankedQueueModule.java) · [Elo calculation](src/main/java/org/albi/core/modules/Duels/ranked/EloCalculator.java) · [Leaderboard reader](src/main/java/org/albi/core/modules/Duels/ranked/RankedCommands.java)
 
 ### Match telemetry, history, and export
 
-Ranked duels record match telemetry. In a direct challenge, the challenger can also enable **Match Telemetry** for a first-to-one, first-to-two, or first-to-three match. Telemetry records a match ID and includes hits, measured distance and aim angles, arm swings, damage, combos, health, movement, and ping. Use measurements in context when reviewing individual hits.
+Ranked duels record telemetry. In a direct challenge, the challenger can also enable **Match Telemetry** for a first-to-one, first-to-two, or first-to-three match. For eligible multi-round duels, Core starts a fresh record each round. Each record gets an eight-character ID.
+
+- Hit events capture attacker, distance, aim angles, and vertical separation. The distance calculation uses the player's eye ray against the target hitbox, with nearest-box distance as a fallback. Core also counts arm swings, total damage, and longest combos.
+- A repeating task samples both players' positions, health, and ping every 20 ticks. A second sampler collects ping every 100 ticks. The HTML report combines the event stream and periodic snapshots into charts for movement, health, reach, hit frequency, and network conditions.
+- The current record can flag unusual measured reach for review. It is a telemetry signal. Consult the recorded context before treating a flag as evidence of a rule violation.
+- On the normal round-end path, the telemetry record closes before the ranked result update. A saved report can show an unset winner or Elo deltas even though the ranked profiles have been updated.
+
+[Match tracker](src/main/java/org/albi/core/modules/Duels/ranked/MatchTracker.java) · [Match record](src/main/java/org/albi/core/modules/Duels/ranked/RankedMatchRecord.java) · [HTML report generator](src/main/java/org/albi/core/modules/Duels/ranked/RankedReportGenerator.java)
 
 | Command or setting | What it does |
 | --- | --- |
-| `/seegames [player]` | Lists recent stored matches for yourself or the named online player. |
-| `/matchinfo <match_id>` | Reads a stored match, including the players, winner, and key combat measurements. |
+| `/seegames [player]` | Queries MySQL for up to ten recent records for yourself or the named online player. |
+| `/matchinfo <match_id>` | Reads a stored match and displays the kit, participants, average measured reach, and any recorded review flag. |
 | `/rankedreport <match_id>` | Generates an HTML report under `plugins/Core/reports/`. It includes charts and a match timeline for reviewing health, movement, reach measurements, combos, and network conditions. Charts use a browser-loaded library. |
 | `ranked.history_expiry_days` | Sets the Redis report cache lifetime and the age at which older SQL matches are pruned on startup. Defaults to seven days. |
 | `ranked.webhook_url` | Sends match summaries and permits HTML report export to a configured webhook. `VISE_RANKED_WEBHOOK_URL` overrides the YAML value. |
@@ -127,6 +212,8 @@ Enable `duels.bots.enabled` and grant `core.automatecombat` to players who shoul
 - The practice menu lets players choose a map, kit, and available preset. Built-in preset families cover **Beast**, **Pot**, **SMP**, and **Netherite OP**. The bundled public-kit allowlist contains `beast` and `pot`. Adjust `duels.bots.allowed_kits` to match the public kit IDs on your server.
 - Advanced settings cover sprint-hit frequency, W-taps, attack range, strafing, movement and retreat speeds, reaction delay, chase distance, shield use and shield breaking, and resynchronization distance. Players can change the round target. Invulnerability lets players practice hits and knockback while both sides keep their health.
 - `duels.bots.max_sessions` caps simultaneous practice duels, `default_rounds` sets the initial round target, and `debug_logging` enables bot diagnostics. The command, server log, and practice UI identify the feature as experimental.
+
+Core creates a server-side fake player and equips it from the selected kit. Its tick loop manages aim, spacing, sprint resets, shields, and supported potions based on session state and inventory. The practice listener connects damage, projectiles, and departures to the correct session. Eligible rounds can reserve a fresh Polar copy. On normal close, Core cancels the session tasks, removes the NPC, and releases the arena. The bot's own round scoring stays inside the practice session. [NPC lifecycle](src/main/java/org/albi/core/modules/Duels/AutomatedCombat/FakePlayerNPC.java) · [Practice session](src/main/java/org/albi/core/modules/Duels/AutomatedCombat/BotSession.java)
 
 ## Kits and inventory layouts
 
@@ -240,6 +327,81 @@ network:
 ```
 
 `/health <server>` reads the latest heartbeat for an instance such as `eu-1`. It displays status, last heartbeat, player counts, TPS, uptime, memory, and host information. The Redis health stream also records world, JVM, and server metrics for external monitoring. Keep `core.health` with roles that should see server diagnostics.
+
+## Scaling and deployment architecture
+
+Vise Core runs the lobby, queues, arenas, and combat inside each Paper process. You can **scale up** by giving a busy instance more CPU, RAM, or storage throughput and choosing the arena backend that fits. You can **scale out** by putting multiple Vise Core instances behind a proxy and sharing MySQL and Redis. Adding instances increases the number of places that can host matches. Each queue still matches players on its own instance.
+
+### Vertical scaling on one Paper instance
+
+Start with the resource that limits the actual workload.
+
+| Resource | What drives it in Vise Core | What to change or measure |
+| --- | --- | --- |
+| CPU and tick time | Combat and entity processing, busy chunks, frequent schematic resets, Polar creation on the reservation path, and NPC activity. The ranked matcher compares waiting players in pairs per kit until it finds compatible opponents. | Put CPU headroom where the Paper tick thread and worker tasks need it. Look at tick-time percentiles during match starts and round resets. Keep the map footprint and loaded chunks modest before increasing concurrent capacity. |
+| RAM and garbage collection | Loaded world chunks, the schematic clipboard cache, online profile objects, active match telemetry, and Polar origins and copies. One Polar map can hold several ready and reserved worlds at the same time. | For **high RAM and lower CPU headroom**, choose Polar on a compatible setup where ready copies avoid repeated pastes. For **low RAM and stronger CPU**, choose schematic slots. Check loaded worlds and heap after peak sessions drain as well as during warmup. |
+| Local storage | Startup world loads, first-time schematic reads, Polar origin saves and temporary world cleanup, `data.dat`, and report exports. | Give world and report files enough space. Profile cold and warm runs separately. When an arena has trouble cleaning up, check which runtime worlds remain loaded before moving any files. |
+| MySQL connections | Each Paper instance owns its own HikariCP pool. `mysql.pool_size` defaults to 20. Startup table work, profile misses and saves, and report history queries use it. | Count connection budgets across all processes. Four instances at the default can open up to 80 pooled MySQL connections in total, before other services. Increase the pool only if connection waits are the bottleneck and MySQL has capacity. |
+| Redis connections and response time | The Jedis pool is capped at 16 connections per instance in the current code. Profile caching, leaderboards, travel discovery, health streams, sharing, and linking use Redis. Global chat holds a subscription open. | Measure Redis latency and pool pressure along with Paper tick time. Run backends close to the game servers where possible. Watch shared-service load when adding instances. |
+
+#### Capacity controls
+
+- **Schematic slots.** `maxarenas` caps the addressable slots for one named map on the current instance. Plan X/Z spacing and set `perline` before raising the cap. More slots let more matches reserve that map, but schematic work still passes through one shared paste queue.
+- **Polar ready pool.** Start with a small `polar_preload` on each supported test instance. Both active reservations and ready copies are loaded worlds, and demand can raise the target above the configured minimum. An open origin, a reserved next round, and deferred cleanup all affect memory.
+- **NPC practice.** `duels.bots.max_sessions` is an instance-wide cap. A session has its own combat loop and consumes arena capacity. Test NPC practice separately from player-only fights so its effect on tick time is visible.
+- **Modules and worlds.** Disable features you do not use on that instance. An FFA-heavy server, a duel-focused server, and an event server can use different module and world configurations while their network features share backends. Enable Duels where another module needs its arena or kit storage. Paper's `view-distance` and `simulation-distance` affect chunk and entity work. [Paper server properties](https://docs.papermc.io/paper/reference/server-properties/)
+- **Profile flushes.** `storage.flush_interval_seconds` controls the cadence of asynchronous dirty-profile sweeps. A shorter interval asks the backing services to persist changes more often. Budget that load alongside disconnect saves and other activity.
+
+#### Load test the work that actually spikes
+
+1. Measure a quiet baseline after startup. Record server tick time, used and committed heap, GC activity, loaded worlds and chunks, and backend latency.
+2. Start simultaneous matches in one popular arena. Include a build kit that forces resets, spectators, and the next match on the same map. For Polar, test the first wave of reservations and the refill after the burst.
+3. Add a separate run with peak NPC usage, FFA, or the event you expect to run alongside duels. Capture both steady-state play and transitions such as mass joins, round changes, world retirement, and profile flushes.
+4. Change one setting, compare the measurements, and repeat. Use Paper's bundled spark profiler while the load is occurring. `/spark profiler start --timeout 600` captures a ten-minute profile. Watch MSPT as well as TPS so short stalls are visible. [Paper profiling guide](https://docs.papermc.io/paper/profiling/)
+
+### Horizontal scaling across a network
+
+```mermaid
+flowchart LR
+    P[Players] --> B[Proxy]
+    B --> E1[Paper eu-1]
+    B --> E2[Paper eu-2]
+    B --> N1[Paper na-1]
+    E1 --> R[(Redis)]
+    E2 --> R
+    N1 --> R
+    E1 --> M[(MySQL)]
+    E2 --> M
+    N1 --> M
+    E1 -.-> L1[Local maps and data]
+    E2 -.-> L2[Local maps and data]
+    N1 -.-> L3[Local maps and data]
+```
+
+Each instance has a unique `region` and `id_number`. Configure proxy entries with the lowercase names Core publishes, such as `eu-1` and `eu-2`. Same-region travel sends the proxy a `BungeeCord` channel `Connect` message. A regional button uses the client transfer API with the configured host and port. The menu shows stored heartbeats and player counts. Players or your proxy configuration choose where sessions start. [Travel implementation](src/main/java/org/albi/core/commands/TravelCommand.java)
+
+| Shared by configured instances | Owned by each instance |
+| --- | --- |
+| Player profile and statistics rows, ranked match records, completed Discord links, Redis profile caches and leaderboards, shared-kit codes, Redis chat, and health discovery. | Loaded worlds and map assets, public kit and arena definitions, event setup, spawn and menu locations, and the active matchmaking queues, parties, duels, tournaments, and reservations. |
+
+- **Place players where they can match.** Two players using the same kit on different servers are in different queues. Use travel or proxy routing to bring them to the same instance. Plan where new players go if one practice server has the busiest ladder.
+- **Provision local content on each instance.** Deploy the intended kit and arena definitions plus the matching schematic or Polar files to each match host. For Polar, the origin file and Core's accompanying arena definition belong together. Set lobby and event locations for each local world setup.
+- **Share backends deliberately.** MySQL stores durable rows and Redis is the live cache and messaging layer. Player keys and the `chat:global` channel are common to the deployment, so keep unrelated environments such as staging and production on separate services where they need isolation.
+- **Allow for persistence timing.** Profiles are cached by UUID in each process. Periodic saves and disconnect saves publish and upsert dirty JSON. Transfers are new joins on the destination, so plan for one active session per UUID and let pending saves settle when testing rapid transfers.
+- **Plan restarts per instance.** Active matches and queues live in memory. When rolling out changes, move players to another instance or allow matches to finish first. A shared SQL or Redis backend still needs its own availability and backup plan. [Profile and stats storage](src/main/java/org/albi/core/data/StatManagement.java)
+
+### Heartbeats, health streams, and diagnosis
+
+`StatRecorder` takes a snapshot every **100 ticks**, about five seconds at 20 TPS. It gathers Paper state on the tick thread and pipelines a Redis hash update and stream append from an asynchronous task. Each instance writes to `server:<id>:health:latest` and `server:<id>:health:stream`. The stream targets roughly **17,280 entries**, about one day of samples at the nominal cadence. Slower tick rates change the wall-clock interval.
+
+The latest hash includes the timestamp, player count and cap, TPS over several windows, loaded chunks and players per world, JVM memory, uptime, threads, garbage collection, system architecture, and server version. `/health <server>` prints a subset in-game. For fleet monitoring, get the latest hash or sample the stream directly using your normal Redis connection settings.
+
+```sh
+redis-cli HGETALL server:eu-1:health:latest
+redis-cli XREVRANGE server:eu-1:health:stream + - COUNT 5
+```
+
+The travel refresh uses Redis `SCAN` and rebuilds its menu snapshot every 100 ticks. A last heartbeat at least ten seconds old is treated as offline, so check the Paper tick rate and Redis connection as well as process uptime when a server disappears from the available destinations. Region totals use the online instances in the latest travel snapshot. [Health recorder](src/main/java/org/albi/core/data/StatRecorder.java) · [Travel and discovery](src/main/java/org/albi/core/commands/TravelCommand.java) · [Health command](src/main/java/org/albi/core/commands/HealthCommand.java)
 
 ## Profiles, statistics, and cosmetics
 
@@ -370,6 +532,22 @@ Set credentials in the environment of the Paper process. A defined variable take
 | Memory | Online profile state and active gameplay state such as queues, parties, pending teleport requests, and arena reservations. A Paper restart clears active sessions. |
 | `plugins/Core/reports/` | HTML files produced by explicit report export commands. |
 
+#### Data flow and cache lifetime
+
+The online player wrapper brings together active state, the saved profile, and statistics. On a process-local cache miss, Core checks Redis and then MySQL for the player JSON. A successful Redis read refreshes the 72-hour profile or stats cache lifetime. When a profile or stats object is dirty, a scheduled flush or a disconnect save writes the Redis cache and upserts the corresponding MySQL column. Keep both services healthy when verifying persistence. An in-game change can be visible before a save has reached either service.
+
+| Redis key or channel | Purpose |
+| --- | --- |
+| `main:<uuid>`, `stats:<uuid>` | Cached profile and stats snapshots. Durable copies live in separate JSON columns in `player_stats`. |
+| `lb:ranked:elo`, `lb:names`, `lb:<game>:<metric>` | Sorted rating and ruleset metric indexes, with a name lookup hash. |
+| `match:<id>` | On-demand telemetry cache. Match history queries read MySQL, and an individual match lookup checks Redis first. |
+| `sharedkits:getkit:<code>`, `sharedkits:getcode:<uuid>:<slot>` | Thirty-day kit snapshots and reusable share codes. |
+| `link-code:<code>`, `link-wait:<uuid>` | Five-minute Discord linking state. Completed links use MySQL. |
+| `chat:global` | Live Redis Pub/Sub channel. Subscribers receive messages as they arrive. |
+| `server:<id>:health:latest`, `server:<id>:health:stream` | Current server heartbeat and rolling health history. |
+
+On startup, Core opens SQL and ensures the tables exist before starting its command and module registrations. A failed SQL initialization disables the plugin. The Redis client checks for a PING response and retries failed connections. During a Redis outage the SQL fallback can still serve saved profiles and match records, while live functions such as travel discovery, Redis leaderboards, code redemption, and chat depend on Redis recovery. [Storage and connection code](src/main/java/org/albi/core/data/StatManagement.java) · [Player profile model](src/main/java/org/albi/core/data/MainPlayer.java)
+
 ### Upgrading and troubleshooting
 
 1. Back up `plugins/Core/`, the arena worlds, MySQL, and any Redis data you rely on. Stop Paper before swapping JARs.
@@ -378,6 +556,30 @@ Set credentials in the environment of the Paper process. A defined variable take
 4. Join the lobby and test one full match from queue or challenge through arena reuse. For FFA, test the exact configured world name and a saved entry spot. For network features, check `/health <server>` on both instances and confirm they use the expected Redis database and distinct instance IDs.
 
 The repository includes the Gradle Wrapper, a pinned GitHub Actions workflow, build-time plugin version metadata, and shaded runtime dependencies for the JAR. Paper and integration plugins run alongside it. [Build script](build.gradle.kts) · [Main configuration](src/main/resources/config.yml)
+
+### Diagnosing common deployment problems
+
+| Symptom | Where to look |
+| --- | --- |
+| Core disables itself during startup | Check the logged storage error, the configured SQL database, and the user's table permissions. For a `data.dat` read error, use the backup from that instance. |
+| Duel commands show no usable arena | Confirm Duels started, a public kit and active arena exist, the schematic world is loaded under its exact name or the compatible Polar origin is readable, and the map has spare reservations. |
+| A pasted map looks stale or overlaps another match | Check the schematic filename and the clipboard cache, slot spacing, relative corner coordinates, and the logs for queued paste failures. Verify one reset before increasing concurrency. |
+| Polar maps fail to generate or refill slowly | Check the installed Paper and PolarPaper API versions, the origin file path, and the `[PolarArena]` and `[PolarQueue]` logs. Profile immediate generation and check whether retired worlds still contain players. |
+| Two waiting players never match | Verify they joined the same Paper instance and kit queue. In ranked, compare their Elo range and whether they are already in a party, a tournament, or a match. |
+| A server is online but missing in travel | Check `/health <server>`, the latest Redis heartbeat, `region` and `id_number`, and the corresponding proxy registry entry. |
+| A report link fails to load | Verify the record still exists, run `/rankedreport <match_id>` to create the file, and check how your external host serves `ranked.report_url_template`. |
+
+## Codebase map
+
+| Area | Where to start | What it owns |
+| --- | --- | --- |
+| Bootstrap and module gates | [Core](src/main/java/org/albi/core/Core.java) · [ModuleManager](src/main/java/org/albi/core/modules/ModuleManager.java) | Storage startup, local data, optional plugin hooks, commands and events, and module dependency checks. |
+| Duels and arena state | [DuelManager](src/main/java/org/albi/core/modules/Duels/DuelManager.java) · [DuelInstance](src/main/java/org/albi/core/modules/Duels/DuelInstance.java) | Shared kit and arena storage, queue registration, participant state, rounds, spectators, and finish handling. |
+| Arena provisioning | [SchematicManager](src/main/java/org/albi/core/modules/Duels/SchematicManager.java) · [PolarArenaManager](src/main/java/org/albi/core/modules/Duels/polar/PolarArenaManager.java) | Shared clipboard paste queue versus the Polar origin, reservation, and cleanup workflow. |
+| Telemetry and ratings | [Ranked package](src/main/java/org/albi/core/modules/Duels/ranked) · [RankedQueueModule](src/main/java/org/albi/core/modules/Duels/queue/RankedQueueModule.java) | Elo windows, rating changes, match sampling, history, and HTML or webhook export. |
+| NPC combat and other modes | [AutomatedCombat](src/main/java/org/albi/core/modules/Duels/AutomatedCombat) · [Party](src/main/java/org/albi/core/modules/Party) · [FFA](src/main/java/org/albi/core/modules/FFA) · [LavaRising](src/main/java/org/albi/core/modules/LavaRising) · [Tournaments](src/main/java/org/albi/core/modules/Tournaments) | Practice sessions, private party matches, public FFA worlds, event matches, and Challonge progression. |
+| Persistence and fleet health | [StatManagement](src/main/java/org/albi/core/data/StatManagement.java) · [StatRecorder](src/main/java/org/albi/core/data/StatRecorder.java) | MySQL and Redis clients, profile and stats caching, match history, periodic health metrics, and Redis streams. |
+| Presentation and configuration | [Resources](src/main/resources) · [PlaceholderManager](src/main/java/org/albi/core/managers/PlaceholderManager.java) · [LangAPI](src/main/java/org/albi/core/LangAPI.java) | Packaged settings, command registry, text formatting, and per-player or relational placeholder output. |
 
 ## PlaceholderAPI reference
 
@@ -423,7 +625,7 @@ Each group lists its registered commands, aliases, and permission nodes. Additio
 | `/queue [leave]` | | `core.queue` | Browse casual queues or leave one. |
 | `/quickqueue [leave]` | | `core.quickqueue` | Enter or leave quick matchmaking. |
 | `/rankedqueue [leave]` | | `core.ranked` | Browse competitive queues or leave one. |
-| `/rankedlb` | | `core.ranked` | Browse ranked standings by kit. |
+| `/rankedlb` | | `core.ranked` | Browse the top 27 by overall ranked Elo. |
 | `/seegames [player]` | | `core.ranked` | Read recent match history. |
 | `/matchinfo <match_id>` | | `core.ranked` | Inspect a stored match. |
 | `/rankedreport <match_id>` | | `core.ranked` | Export an HTML report. |
