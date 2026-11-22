@@ -105,7 +105,7 @@ duels:
 
 ## Installation and module setup
 
-1. Build with `./gradlew build` on macOS or Linux or `gradlew.bat build` on Windows. Put `build/libs/ViseCore-1.0.0.jar` in Paper's `plugins/` directory. GitHub Actions also publishes the JAR as the **ViseCore** build artifact. [Build workflow](../../actions/workflows/build.yml)
+1. Download `ViseCore-*.jar` from GitHub Releases and put it in Paper's `plugins/` directory. To build from source, use `./gradlew build` on macOS or Linux or `gradlew.bat build` on Windows. The JAR is written to `build/libs/`. [Latest release](../../releases/latest) · [Build workflow](../../actions/workflows/build.yml)
 2. Install FastAsyncWorldEdit or WorldEdit if you plan to use Duels or modules that share its arenas and kits.
 3. Start Paper once to generate `plugins/Core/config.yml`. Create a MySQL database and configure its connection alongside Redis. The default endpoints point at localhost. Paper may disable Core on the first run until MySQL is reachable and the configured user can create the tables. Restart Paper after configuring both services.
 4. Set `lobby_world` to the name of your lobby. Stand at the arrival point and run `/setspawn`. If you use multiple instances, give each one its own `region` and `id_number` combination.
