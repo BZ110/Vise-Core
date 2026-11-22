@@ -2,30 +2,30 @@
 
 Vise Core is a Minecraft PvP plugin for **Paper 1.21.3** and **Java 21**. It manages arenas, kits, queues, ranked matches, parties, and events. It also handles the lobby, player profiles, cosmetics, chat, and travel between server instances.
 
-Scale a single instance with schematic slots or Polar world copies, or run a fleet that shares **regional matchmaking**, profiles, leaderboards, and chat. Redis coordinates queues and transfers, and MySQL stores player profiles and match history. [Global matchmaking](#global-matchmaking) · [Arena backends](#choosing-an-arena-backend) · [Scaling guide](#scaling-and-deployment-architecture)
+Scale a single instance with schematic slots or Polar world copies, or run a fleet that shares **regional matchmaking**, profiles, leaderboards, and chat. Redis coordinates queues and transfers, and MySQL stores player profiles and match history. [Small-server setup](#skip-the-scaling-can-i-use-vise-core-on-a-small-minecraft-server) · [Global matchmaking](#global-matchmaking) · [Arena backends](#choosing-an-arena-backend) · [Scaling guide](#scaling-and-deployment-architecture)
 
 <a name="vise-core-vs-strikepractice"></a>
 
 ## How Vise Core compares
 
-| Feature | **Vise Core** | StrikePractice | Versus | UltimateDuels | Duels by Realized |
-| --- | :---: | :---: | :---: | :---: | :---: |
-| Direct 1v1 challenges | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Arena kits and spectator mode | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Ranked play or Elo ratings | ✅ | ✅ | ❌ | ✅ | ✅ |
-| Party fights and public FFA arenas | ✅ | ✅ | ❌ | ✅ | ❌ |
-| Personal kit editor and saved layouts | ✅ | ✅ | ❌ | ✅ | ❌ |
-| Automatic arena restoration | ✅ | ✅ | ❌ | ✅ | Paid extension |
-| PvP practice bots | ✅ | ✅ | ❌ | ❌ | ❌ |
-| PolarPaper arena generation from saved origins | ✅¹ | ❌ | ❌ | ❌ | ❌ |
-| Built-in HTML telemetry export with movement, health, and ping charts | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Redis chat bridge and regional travel menu | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Redis matchmaking with ranked and casual queues, ordered regional pools, and automatic duel transfers | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Built-in ping-aware knockback and ghost-arrow recovery | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Lava Rising survival events | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Challonge tournament brackets | ✅ | ❌ | ❌ | ❌ | ❌ |
-| PvPTiers, MCTiers, and Subtiers in one profile | ✅ | ❌ | ❌ | ❌ | ❌ |
-| **Completely Free** | **✅** | **❌** | **✅** | **✅** | **✅** |
+| Feature | **Vise Core** | StrikePractice | Versus | UltimateDuels | Duels by Realized | EpicDuels |
+| --- | :---: | :---: | :---: | :---: | :---: | :---: |
+| Direct 1v1 challenges | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Arena kits and spectator mode | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Ranked play or Elo ratings | ✅ | ✅ | ❌ | ✅ | ✅ | ❌ |
+| Party fights and public FFA arenas | ✅ | ✅ | ❌ | ✅ | ❌ | Party fights |
+| Personal kit editor and saved layouts | ✅ | ✅ | ❌ | ✅ | ❌ | Layouts only |
+| Automatic arena restoration | ✅ | ✅ | ❌ | ✅ | Paid extension | ✅ |
+| PvP practice bots | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| PolarPaper arena generation from saved origins | ✅¹ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Built-in HTML telemetry export with movement, health, and ping charts | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Redis chat bridge and regional travel menu | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Redis matchmaking with ranked and casual queues, ordered regional pools, and automatic duel transfers | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Built-in ping-aware knockback and ghost-arrow recovery | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Lava Rising survival events | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Challonge tournament brackets | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| PvPTiers, MCTiers, and Subtiers in one profile | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Completely Free** | **✅** | **❌** | **✅** | **✅** | **✅** | **✅** |
 
 ✅ denotes a documented feature of the base plugin. On feature rows, ❌ denotes a capability unlisted in the cited materials. The pricing row covers the base download. ¹ The PolarPaper integration has a version constraint described in the [arena generation guide](#polarpaper-arena-generation-support).
 
@@ -33,9 +33,11 @@ Scale a single instance with schematic slots or Polar world copies, or run a fle
 - **Versus** focuses on casual 1v1 duels for semi-vanilla servers. It documents arena setup, waiting when arenas are full, public and private matches, and in-game configuration editing. [SpigotMC listing](https://www.spigotmc.org/resources/versus-1-16-1-21-%E2%9A%94%EF%B8%8F-duels-simplified.118883/) · [Source and commands](https://github.com/robomonkey-mc/Versus) · [Downloads](https://www.spigotmc.org/resources/versus-1-16-1-21-%E2%9A%94%EF%B8%8F-duels-simplified.118883/history)
 - **UltimateDuels** documents multi-round 1v1 and party play, party queues, per-player kit variants, FFA worlds, built-in scoreboards, and WorldEdit or FAWE schematic restoration. [Modrinth listing](https://modrinth.com/plugin/ultimateduels)
 - **Duels by Realized** offers item and money wagers, sign-based queues, kit ratings, inventory inspection after matches, and an extension system. Its automatic arena-reset extension is listed separately from the base download. [SpigotMC listing](https://www.spigotmc.org/resources/duels.20171/) · [Author's command reference](https://github.com/Realizedd/Duels/wiki/Commands)
+- **EpicDuels** by nuroso000 offers kit queues, team duels, in-game party brackets, rematches, and live spectating. It creates and removes an isolated world copy for each duel. The base plugin is free to download and can optionally sync statistics through Supabase or Firebase. [Modrinth listing](https://modrinth.com/plugin/epicduels) · [Author's wiki](https://github.com/nuroso000/EpicDuels/wiki)
 
 ## Contents
 
+- [Skip the scaling. Can I use Vise Core on a small Minecraft server?](#skip-the-scaling-can-i-use-vise-core-on-a-small-minecraft-server)
 - [Installation and module setup](#installation-and-module-setup)
 - [Duels, arenas, and matchmaking](#duels-arenas-and-matchmaking)
   - [Global matchmaking](#global-matchmaking)
@@ -54,6 +56,50 @@ Scale a single instance with schematic slots or Polar world copies, or run a fle
 - [PlaceholderAPI reference](#placeholderapi-reference)
 - [Command and permission reference](#command-and-permission-reference)
 - [License](#license)
+
+## Skip the scaling. Can I use Vise Core on a small Minecraft server?
+
+**Yes. One Paper server, one lobby, one kit, and one arena are enough to get your first fight running.** Players connect directly to Paper. The same instance runs the lobby, pairs opponents, reserves the arena, and returns players to spawn when the fight ends. Regional pools, proxy transfers, and cross-server queues are optional. [Installation and module setup](#installation-and-module-setup)
+
+### What works on one server
+
+- **A fight between friends.** Use `/duel <player>` for a direct challenge, `/queue` for a specific kit, or `/quickqueue` when players are open to any eligible casual kit. Everyone already connected is in the same local matchmaking pool. Friends can watch with `/spectate <player>` when the fighters allow it. [Duels and matchmaking](#duels-arenas-and-matchmaking)
+- **A small ranked ladder.** `/rankedqueue` still uses per-kit Elo and widens its rating range as players wait. A wider range helps two eligible players match, but the queue still needs another player in the same kit. Start with one popular ruleset so a handful of players are looking for the same fight. Ranked history and report exports work on the same instance. [Ranked play and match reports](#ranked-play-and-match-reports)
+- **Room to add other ways to play.** Personal kit layouts and player profiles are useful from the first duel. Enable Party when your group wants team fights, or configure an FFA world when everyone wants to play together without waiting for an opponent. Each mode can use the same Paper instance. [Kits and inventory layouts](#kits-and-inventory-layouts) · [Groups and events](#groups-and-events)
+
+### What the host needs
+
+Run **Paper 1.21.3 with Java 21** and install **WorldEdit or FastAsyncWorldEdit** for Duels. Put the lobby and arena world on that instance. Start with the schematic backend, which is the default and works on the documented Paper version. A schematic arena can reuse physical slots in one loaded world as matches finish. [Schematic arena setup](#schematic-arenas)
+
+Plan for **one MySQL database and one Redis endpoint**. Both can run on the same machine as Paper if your host allows it, or you can use reachable endpoints supplied by your host. MySQL stores profiles, stats, and ranked history. Core disables itself at startup if it cannot initialize MySQL. Redis is useful even on one server because it backs profile caching, leaderboards, and kit-share codes. If Redis is temporarily unavailable, standalone duels still run and MySQL can serve saved profiles and match history. Redis features resume when the connection recovers. [Storage and connection code](src/main/java/org/albi/core/data/StatManagement.java)
+
+If you add Core to an existing survival server, test the join flow on a copy first. Core resets player state, clears inventory, and sends players to its configured lobby on join. That behavior fits a practice server and matters when the same Paper instance also hosts an SMP. [Join listener](src/main/java/org/albi/core/events/OnJoinListener.java) · [Player reset code](src/main/java/org/albi/core/Core.java)
+
+### Start with one map and a few slots
+
+Merge these settings into `plugins/Core/config.yml` alongside your existing MySQL and Redis settings. Set `lobby_world` to the actual lobby world name.
+
+```yaml
+lobby_world: world
+network:
+  global_chat: false
+  matchmaking:
+    enabled: false
+use_polar_worlds: false
+modules:
+  Duels: true
+  Party: false
+  FFA: false
+  LavaRising: false
+  Tournaments: false
+duels:
+  bots:
+    enabled: false
+```
+
+1. Set the lobby spawn with `/setspawn`, save one public kit, and create a compact schematic arena. A kit with building disabled is a good first test because there are fewer block changes to reset between rounds. [Kit setup](#shared-rulesets) · [Arena setup](#schematic-arenas)
+2. Size `maxarenas` for **simultaneous fights**. For example, two slots in one map let four players fight in two separate 1v1s while other players wait or spectate. Set `perline` and the offsets so the two copies and their playable bounds are separate. If the standalone queue finds a pair while all slots on the selected map are occupied, the duel can fail to start and that pair can requeue when a slot opens.
+3. Test one complete duel and then two at once. Check that the next match gets a clean arena, players return to the lobby, and tick times stay steady when the two copies paste. Map size, reset frequency, and other loaded worlds matter more for this test than the total number of people on the whitelist. Keep the setup at the size your players actually use. [Capacity and load testing](#load-test-the-work-that-actually-spikes)
 
 ## Installation and module setup
 
