@@ -43,21 +43,55 @@ public final class SharedState {
             redis.call('HSET', KEYS[1], unpack(ARGV, 2))
             return 1
             """;
+    private static final String PUBLISH_CHAT = """
+            if redis.call('SET', KEYS[1], '1', 'NX', 'EX', 45) then
+                redis.call('PUBLISH', 'chat:global', ARGV[1])
+            end
+            return 1
+            """;
+    private static final String PUBLISH_KIT = """
+            local previous = tonumber(redis.call('GET', KEYS[2]) or '0')
+            if previous <= tonumber(ARGV[1]) then
+                redis.call('PSETEX', KEYS[1], ARGV[2], ARGV[3])
+                redis.call('PSETEX', KEYS[2], ARGV[2], ARGV[1])
+            end
+            return 1
+            """;
+    private static final String READ_KIT = """
+            local payload = redis.call('GET', KEYS[1])
+            if not payload then return {} end
+            return { payload, redis.call('PTTL', KEYS[1]) }
+            """;
+    private static final String ISSUE_LINK = """
+            local issued = redis.call('GET', KEYS[3])
+            if issued then return issued end
+            if redis.call('EXISTS', KEYS[1]) == 1 then return 'pending' end
+            if not redis.call('SET', KEYS[2], ARGV[1], 'NX', 'EX', 300) then return 'collision' end
+            redis.call('SETEX', KEYS[1], 300, ARGV[2])
+            redis.call('SETEX', KEYS[3], 30, ARGV[2])
+            return ARGV[2]
+            """;
+    private static final java.security.SecureRandom LINK_CODES = new java.security.SecureRandom();
 
     private final RedisWrapper redis;
     private final DataSource database;
     private final boolean useExperimental;
+    private final boolean networkKitSharing;
+    private final boolean networkDiscord;
     private final SqlRedisRelay relay;
     private final BooleanSupplier sqlReady;
     private volatile SqlSharedKeys sql;
     private final Logger logger;
 
-    SharedState(RedisWrapper redis, DataSource database, boolean experimental, boolean failover, SqlRedisRelay relay,
+    SharedState(RedisWrapper redis, DataSource database, boolean experimental, boolean failover, boolean networkKitSharing,
+                boolean networkDiscord, SqlRedisRelay relay,
                 BooleanSupplier sqlReady, Logger logger) {
         this.redis = redis;
         this.database = database;
         this.relay = relay;
         this.sqlReady = sqlReady;
+        this.networkKitSharing = networkKitSharing;
+        this.networkDiscord = networkDiscord;
         this.logger = logger;
         if (redis.isEnabled() && experimental && !failover) {
             logger.warning("[Storage] Redis is enabled. Experimental MySQL shared state requires redis.fallback_to_mysql: true to act as a fallback.");
@@ -72,15 +106,85 @@ public final class SharedState {
     }
 
     void prepareSql() throws SQLException {
-        if (useExperimental && sql == null) sql = new SqlSharedKeys(database);
+        if ((useExperimental || networkKitSharing || networkDiscord) && sql == null) sql = new SqlSharedKeys(database);
     }
 
-    public boolean isEnabled() { return redis.isEnabled() || useExperimental; }
+    public boolean isEnabled() { return redis.isEnabled() || useExperimental || networkKitSharing; }
 
     private boolean canUseSql() { return sql != null && sqlReady.getAsBoolean(); }
 
+    public boolean publishChat(UUID id, String payload) {
+        return Boolean.TRUE.equals(redis.withJedis(j -> Long.valueOf(1L).equals(j.eval(PUBLISH_CHAT,
+                List.of("vise:chat:sent:" + id), List.of(payload)))));
+    }
+
+    public void askToPublishChat(UUID id, String payload) {
+        if (!redis.isEnabled() || !relay.available() || !sqlReady.getAsBoolean()) return;
+        runSql("relay live chat", () -> { relay.offer("chat:" + id, payload, 15); return null; });
+    }
+
+    boolean publishRelayedChat(String id, String payload) {
+        if (!id.matches("[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}") || payload.length() > 4096) return true;
+        try {
+            var message = com.google.gson.JsonParser.parseString(payload);
+            if (!message.isJsonObject()) return true;
+            var field = message.getAsJsonObject().get("id");
+            if (field == null || !field.isJsonPrimitive() || !id.equals(field.getAsString())) return true;
+        } catch (JsonParseException invalid) {
+            return true;
+        }
+        return publishChat(UUID.fromString(id), payload);
+    }
+
+    public String issueDiscordLink(UUID player, UUID request) {
+        return redis.withJedis(j -> {
+            for (int attempt = 0; attempt < 8; attempt++) {
+                String candidate = String.format(Locale.ROOT, "%06d", LINK_CODES.nextInt(1_000_000));
+                Object result = j.eval(ISSUE_LINK, List.of("link-wait:" + player, "link-code:" + candidate,
+                        "vise:discord:issued:" + request), List.of(player.toString(), candidate));
+                if (result instanceof String code && !code.equals("collision")) return code;
+            }
+            return null;
+        });
+    }
+
+    public boolean askForDiscordLink(UUID player, UUID request) {
+        if (!networkDiscord || !canUseSql() || !relay.available() || !redis.isEnabled() || redis.isHealthy()) return false;
+        return Boolean.TRUE.equals(runSql("relay Discord link", () -> {
+            relay.offer("discord:" + request, player.toString(), 15);
+            return true;
+        }));
+    }
+
+    public String readDiscordLink(UUID request) {
+        return canUseSql() ? runSql("read Discord link result", () -> sql.get("discord-result:" + request)) : null;
+    }
+
+    boolean issueRelayedDiscordLink(String request, String player) {
+        if (!networkDiscord || !canUseSql()) return false;
+        UUID playerId;
+        UUID token;
+        try { playerId = UUID.fromString(player); token = UUID.fromString(request); }
+        catch (IllegalArgumentException invalid) { return true; }
+        String code = issueDiscordLink(playerId, token);
+        return code != null && Boolean.TRUE.equals(runSql("save Discord link result", () -> {
+            sql.put("discord-result:" + token, code, 20);
+            return true;
+        }));
+    }
+
     public String shareKit(UUID owner, int slot, String json) {
         String ownerKey = "sharedkits:getcode:" + owner + ":" + slot;
+        if (networkKitSharing && canUseSql()) {
+            String code = shareSqlKit(ownerKey, json);
+            if (code != null) {
+                if (redis.isEnabled() && !publishRelayedKit(code) && relay.available()) {
+                    // Keep the mirror request through a long Redis outage while the SQL code is still valid.
+                    runSql("relay kit share", () -> { relay.offer("kit-publish:" + code, "", KIT_TTL); return null; });
+                }
+                return code;
+            }
+        }
         String shared = redis.withJedis(j -> {
             for (int attempt = 0; attempt < 8; attempt++) {
                 Object result = j.eval(SHARE_KIT, List.of(ownerKey), List.of(KIT_PREFIX, newCode(), Integer.toString(KIT_TTL), json));
@@ -88,19 +192,62 @@ public final class SharedState {
             }
             return null;
         });
-        if (shared != null || redis.isHealthy() || !canUseSql()) return shared;
+        if (shared != null || redis.isHealthy() || !useExperimental || !canUseSql()) return shared;
         // Distinct codes keep SQL and Redis shares addressable after either service recovers.
+        return shareSqlKit(ownerKey, json);
+    }
+
+    private String shareSqlKit(String ownerKey, String json) {
         return runSql("share kit", () -> sql.shareKit(ownerKey, json, KIT_TTL, () -> "S" + newCode()));
     }
 
+    boolean publishRelayedKit(String code) {
+        if (!code.matches("S[0-9A-F]{8}")) return true;
+        if (!canUseSql()) return false;
+        var entry = runSql("read kit for Redis", () -> sql.entry(kitKey(code)));
+        if (entry == null || entry.remainingMillis() <= 0) return false;
+        return Boolean.TRUE.equals(redis.withJedis(j -> Long.valueOf(1L).equals(j.eval(PUBLISH_KIT,
+                List.of(kitKey(code), "vise:kit:version:" + code),
+                List.of(Long.toString(entry.expiryMillis()), Long.toString(entry.remainingMillis()), entry.payload())))));
+    }
+
+    public boolean requestRedisKit(String code) {
+        if (!networkKitSharing || !canUseSql() || !redis.isEnabled() || redis.isHealthy()
+                || !code.matches("[0-9A-F]{8}") || !relay.available()) return false;
+        return Boolean.TRUE.equals(runSql("ask a peer for a Redis kit", () -> {
+            relay.offer("kit-read:" + code, "", 15);
+            return true;
+        }));
+    }
+
+    boolean copyRelayedRedisKit(String code) {
+        if (!code.matches("[0-9A-F]{8}")) return true;
+        if (!canUseSql()) return false;
+        var result = redis.withJedis(j -> j.eval(READ_KIT, List.of(kitKey(code)), List.of()));
+        if (!(result instanceof List<?> value)) return false;
+        if (value.size() != 2 || !(value.get(0) instanceof String json) || !(value.get(1) instanceof Long ttl)) return true;
+        int seconds = (int) Math.min(ttl / 1000L, 30);
+        return seconds <= 0 || Boolean.TRUE.equals(runSql("buffer a Redis kit", () -> {
+            sql.put(kitKey(code), json, seconds);
+            return true;
+        }));
+    }
+
     public String readKit(String code) {
-        if (code.matches("S[0-9A-F]{8}") && canUseSql()) return runSql("look up kit", () -> sql.get(kitKey(code)));
-        if (code.matches("[0-9A-F]{8}")) return redis.withJedis(j -> j.get(kitKey(code)));
+        if (code.matches("S[0-9A-F]{8}")) {
+            if (canUseSql()) return runSql("look up kit", () -> sql.get(kitKey(code)));
+            if (networkKitSharing) return redis.withJedis(j -> j.get(kitKey(code)));
+        }
+        if (code.matches("[0-9A-F]{8}")) {
+            String direct = redis.withJedis(j -> j.get(kitKey(code)));
+            if (direct != null || redis.isHealthy() || !networkKitSharing || !canUseSql()) return direct;
+            return runSql("look up relayed kit", () -> sql.get(kitKey(code)));
+        }
         return null;
     }
 
     public boolean isKitBackendAvailable(String code) {
-        if (code.matches("S[0-9A-F]{8}")) return canUseSql();
+        if (code.matches("S[0-9A-F]{8}")) return canUseSql() || (networkKitSharing && redis.isHealthy());
         if (code.matches("[0-9A-F]{8}")) return redis.isHealthy();
         return isEnabled();
     }
@@ -120,7 +267,7 @@ public final class SharedState {
             }
             return true;
         });
-        if (published == null && !redis.isHealthy() && canUseSql()) {
+        if (useExperimental && canUseSql()) {
             runSql("write heartbeat", () -> {
                 sql.put(key, JSON.toJson(data), ttl);
                 return null;
@@ -153,8 +300,8 @@ public final class SharedState {
     public Map<String, String> readHealth(String server) {
         String key = healthKey(server);
         var data = redis.withJedis(j -> j.hgetAll(key));
-        if (data != null || redis.isHealthy() || !canUseSql()) return data;
-        return decodeHealth(runSql("read heartbeat", () -> sql.get(key)));
+        if (!useExperimental || !canUseSql()) return data;
+        return latest(data, decodeHealth(runSql("read heartbeat", () -> sql.get(key))));
     }
 
     public List<Map<String, String>> healthSnapshots() {
@@ -170,10 +317,28 @@ public final class SharedState {
             } while (!ScanParams.SCAN_POINTER_START.equals(cursor));
             return list;
         });
-        if (snapshots != null) return snapshots;
-        if (redis.isHealthy() || !canUseSql()) return List.of();
+        if (!useExperimental || !canUseSql()) return snapshots == null ? List.of() : snapshots;
         var stored = runSql("discover servers", sql::healthSnapshots);
-        return stored == null ? List.of() : stored.stream().map(SharedState::decodeHealth).filter(Objects::nonNull).toList();
+        if (stored == null) return snapshots == null ? List.of() : snapshots;
+        Map<String, Map<String, String>> combined = new java.util.HashMap<>();
+        if (snapshots != null) snapshots.forEach(data -> addHealth(combined, data));
+        stored.stream().map(SharedState::decodeHealth).forEach(data -> addHealth(combined, data));
+        return List.copyOf(combined.values());
+    }
+
+    private static void addHealth(Map<String, Map<String, String>> combined, Map<String, String> data) {
+        if (data != null && data.get("server") != null) combined.merge(data.get("server"), data, SharedState::latest);
+    }
+
+    private static Map<String, String> latest(Map<String, String> first, Map<String, String> second) {
+        if (first == null) return second;
+        if (second == null) return first;
+        return timestamp(first) >= timestamp(second) ? first : second;
+    }
+
+    private static long timestamp(Map<String, String> data) {
+        try { return Long.parseLong(data.getOrDefault("timestamp_ms", "0")); }
+        catch (NumberFormatException invalid) { return 0; }
     }
 
     private static String healthKey(String server) { return "server:" + server + ":health:latest"; }

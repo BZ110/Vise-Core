@@ -10,6 +10,7 @@ import java.util.function.Supplier;
 
 /** The experimental MySQL backend. The database clock controls expiry across servers. */
 final class SqlSharedKeys {
+    record Entry(String payload, long expiryMillis, long remainingMillis) {}
     private static final String PUT = """
             INSERT INTO vise_shared_keys (key_name, payload, expires_at)
             VALUES (?, ?, TIMESTAMPADD(SECOND, ?, UTC_TIMESTAMP(6)))
@@ -38,6 +39,19 @@ final class SqlSharedKeys {
     String get(String key) throws SQLException {
         try (var connection = database.getConnection()) {
             return get(connection, key);
+        }
+    }
+
+    Entry entry(String key) throws SQLException {
+        try (var connection = database.getConnection(); var query = connection.prepareStatement("""
+                SELECT payload, TIMESTAMPDIFF(MICROSECOND, '1970-01-01 00:00:00', expires_at) DIV 1000,
+                       TIMESTAMPDIFF(MICROSECOND, UTC_TIMESTAMP(6), expires_at) DIV 1000
+                FROM vise_shared_keys WHERE key_name=? AND expires_at>UTC_TIMESTAMP(6)
+                """)) {
+            query.setString(1, key);
+            try (var row = query.executeQuery()) {
+                return row.next() ? new Entry(row.getString(1), row.getLong(2), row.getLong(3)) : null;
+            }
         }
     }
 

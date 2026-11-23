@@ -445,7 +445,9 @@ public final class StatManagement {
                 relay = new SqlRedisRelay(sql);
                 String namespace = plugin.getConfig().getString("storage.recovery_namespace", "").strip();
                 requests = new RedisRecovery(redis, namespace.isEmpty() ? c.mysqlDatabase() : namespace);
-                shared = new SharedState(redis, sql, c.sqlSharedState(), c.redisFallbackToMysql(), relay, () -> sqlReady, plugin.getLogger());
+                shared = new SharedState(redis, sql, c.sqlSharedState(), c.redisFallbackToMysql(),
+                        SqlNetworkState.enabled(plugin.getConfig(), "kit_sharing"),
+                        SqlNetworkState.enabled(plugin.getConfig(), "discord_linking"), relay, () -> sqlReady, plugin.getLogger());
                 leaderboards = new Leaderboards(sql, redis, plugin.getLogger(), () -> storedNames, () -> sqlReady);
                 prepareSql();
                 warnIfDegraded();
@@ -629,6 +631,14 @@ public final class StatManagement {
                     boolean sent;
                     if (job.key().startsWith("health:")) {
                         sent = Boolean.TRUE.equals(shared.publishRelayedHealth(job.key().substring(7), job.payload()));
+                    } else if (job.key().startsWith("chat:")) {
+                        sent = shared.publishRelayedChat(job.key().substring(5), job.payload());
+                    } else if (job.key().startsWith("kit-publish:")) {
+                        sent = shared.publishRelayedKit(job.key().substring(12));
+                    } else if (job.key().startsWith("kit-read:")) {
+                        sent = shared.copyRelayedRedisKit(job.key().substring(9));
+                    } else if (job.key().startsWith("discord:")) {
+                        sent = shared.issueRelayedDiscordLink(job.key().substring(8), job.payload());
                     } else {
                         sent = publishRelayedCache(job.key());
                     }
@@ -674,7 +684,7 @@ public final class StatManagement {
             } else if (state.equals("mysql")) {
                 plugin.getLogger().severe("[Recovery] MYSQL DOWN. Urgent writes are queued on disk and in Redis. Any instance with MySQL access can save them. Restore MySQL access to drain the queue.");
             } else if (state.equals("redis")) {
-                plugin.getLogger().warning("[Recovery] REDIS DOWN. Gameplay is local and durable data is in MySQL. Asking a healthy peer to republish supported Redis keys. Restore Redis for global features.");
+                plugin.getLogger().warning("[Recovery] REDIS DOWN. Durable data remains in MySQL. Enabled MySQL network features can continue. Asking healthy peers to handle supported Redis requests.");
             }
             int pending = journal.pending().size();
             if (sqlReady && pending != 0) {

@@ -65,7 +65,7 @@ public final class Core extends JavaPlugin {
     private org.albi.core.commands.DeathEffectsGUI deathEffectsGUI;
     private org.albi.core.managers.tiers.TierManager tierManager;
     private org.albi.core.util.AutoRestartService autoRestartService;
-    private org.albi.core.events.GlobalChatRedisListener globalChatRedisListener;
+    private volatile org.albi.core.events.GlobalChatRedisListener globalChatRedisListener;
 
     public volatile int playersInDuel = 0;
 
@@ -122,7 +122,8 @@ public final class Core extends JavaPlugin {
 
         autoRestartService = new org.albi.core.util.AutoRestartService(this);
         autoRestartService.start();
-        if (StatManagement.getRedis().isEnabled() && getConfig().getBoolean("network.global_chat", true)) {
+        if (getConfig().getBoolean("network.global_chat", true) && (StatManagement.getRedis().isEnabled()
+                || org.albi.core.data.SqlNetworkState.enabled(getConfig(), "chat"))) {
             globalChatRedisListener = new org.albi.core.events.GlobalChatRedisListener(this);
             globalChatRedisListener.start();
         }
@@ -470,6 +471,10 @@ public final class Core extends JavaPlugin {
 
     public ChatFilter getChatFilter() {
         return chatFilter;
+    }
+
+    public void broadcastNetworkChat(String player, String message) {
+        if (globalChatRedisListener != null) globalChatRedisListener.send(player, message);
     }
 
     public void applyImmediateArmorTrims(Player player) {

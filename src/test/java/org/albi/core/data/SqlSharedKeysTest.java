@@ -1,6 +1,7 @@
 package org.albi.core.data;
 
 import com.mysql.cj.jdbc.MysqlDataSource;
+import org.albi.core.testing.TestMySql;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.Plugin;
 import org.junit.jupiter.api.BeforeEach;
@@ -23,16 +24,7 @@ class SqlSharedKeysTest {
 
     @BeforeEach
     void connect() throws Exception {
-        String port = System.getenv("VISE_TEST_MYSQL_PORT");
-        assumeTrue(port != null, "Set VISE_TEST_MYSQL_PORT to run MySQL shared state integration tests.");
-        database = new MysqlDataSource();
-        database.setServerName("127.0.0.1");
-        database.setPort(Integer.parseInt(port));
-        database.setDatabaseName("vise_integration");
-        database.setUser("vise_test");
-        database.setPassword("vise_test");
-        database.setSslMode("DISABLED");
-        database.setAllowPublicKeyRetrieval(true);
+        database = TestMySql.database();
         store = new SqlSharedKeys(database);
     }
 
@@ -153,6 +145,37 @@ class SqlSharedKeysTest {
         assertTrue(peer.claim(second));
         peer.finish(second);
         assertTrue(source.requests().stream().noneMatch(job -> job.key().equals(key)));
+    }
+
+    @Test
+    void mysqlKitCanBeRepublishedAndDiscordIssuanceIsIdempotent() throws Exception {
+        String port = System.getenv("VISE_TEST_REDIS_PORT");
+        assumeTrue(port != null, "This test requires both MySQL and Redis.");
+        try (var redis = redis(Integer.parseInt(port))) {
+            var relay = new SqlRedisRelay(database);
+            relay.prepare();
+            var state = new SharedState(redis, database, false, false, true, true, relay, () -> true, Logger.getAnonymousLogger());
+            state.prepareSql();
+            UUID player = UUID.randomUUID();
+            String code = state.shareKit(player, 1, "{\"name\":\"Mirror\"}");
+            assertNotNull(code);
+            assertTrue(code.matches("S[0-9A-F]{8}"));
+            assertEquals(state.readKit(code), redis.withJedis(j -> j.get(SharedState.kitKey(code))));
+            String older = randomCode().substring(1);
+            redis.withJedis(j -> j.setex(SharedState.kitKey(older), 60, "legacy"));
+            assertTrue(state.copyRelayedRedisKit(older));
+            assertEquals("legacy", store.get(SharedState.kitKey(older)));
+
+            UUID request = UUID.randomUUID();
+            String link = state.issueDiscordLink(player, request);
+            assertNotNull(link);
+            assertTrue(link.matches("[0-9]{6}"));
+            assertEquals(link, state.issueDiscordLink(player, request));
+            assertEquals("pending", state.issueDiscordLink(player, UUID.randomUUID()));
+            assertEquals(player.toString(), redis.withJedis(j -> j.get("link-code:" + link)));
+            assertTrue(state.issueRelayedDiscordLink(request.toString(), player.toString()));
+            assertEquals(link, state.readDiscordLink(request));
+        }
     }
 
     private void createProfileTable() throws Exception {

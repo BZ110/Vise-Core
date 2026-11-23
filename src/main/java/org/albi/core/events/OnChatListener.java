@@ -1,15 +1,14 @@
 package org.albi.core.events;
 
-import com.google.gson.JsonObject;
 import me.clip.placeholderapi.PlaceholderAPI;
 import org.albi.core.Core;
-import org.albi.core.data.StatManagement;
 import org.albi.core.modules.CustomKit.GUIs.CustomKitGUIMain;
 import org.albi.core.modules.Party.play.PartyPlayGUIs;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -86,7 +85,7 @@ public class OnChatListener implements Listener {
         return profile != null && profile.getMainPlayer() != null && profile.getMainPlayer().chatMentions();
     }
 
-    @EventHandler
+    @EventHandler(ignoreCancelled = true)
     public void onPlayerChat(AsyncPlayerChatEvent event) {
         Player player = event.getPlayer();
         String message = event.getMessage();
@@ -225,26 +224,14 @@ public class OnChatListener implements Listener {
             }
         }
 
-        // ────────────────────────────────────────────────────────────
-        // Redis logging / Cross-Server Broadcasting
-        // ────────────────────────────────────────────────────────────
-        if (mp != null && mp.isBroadcastChats() && plugin.getConfig().getBoolean("network.global_chat", true)
-                && StatManagement.getRedis().isEnabled()) {
-            var redis = StatManagement.getRedis();
-            String finalMessage = ChatColor.stripColor(ChatColor.translateAlternateColorCodes('&', event.getMessage()));
-            finalMessage = finalMessage.replaceAll("(?i)[§&][0-9A-FK-ORX]|&#[0-9A-Fa-f]{6}", "");
+    }
 
-            final String redisMessage = finalMessage;
-            Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-                redis.withJedis(jedis -> {
-                    JsonObject payload = new JsonObject();
-                    payload.addProperty("server", plugin.getServerName().toLowerCase(java.util.Locale.ROOT));
-                    payload.addProperty("player", player.getName());
-                    payload.addProperty("message", redisMessage);
-                    jedis.publish("chat:global", payload.toString());
-                    return null;
-                });
-            });
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void broadcastNetworkChat(AsyncPlayerChatEvent event) {
+        Player player = event.getPlayer();
+        MainPlayer mp = plugin.getExtendedPlayer(player).getMainPlayer();
+        if (mp != null && mp.isBroadcastChats()) {
+            plugin.broadcastNetworkChat(player.getName(), event.getMessage());
         }
     }
 

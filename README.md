@@ -2,7 +2,7 @@
 
 Vise Core is a Minecraft PvP plugin for **Paper 1.21.3** and **Java 21**. It manages arenas, kits, queues, ranked matches, parties, and events. It also handles the lobby, player profiles, cosmetics, chat, and travel between server instances.
 
-Scale a single instance with schematic slots or Polar world copies, or run a fleet that shares **regional matchmaking**, profiles, leaderboards, and chat. Redis coordinates queues and transfers, and MySQL stores player profiles and match history. [Small-server setup](#skip-the-scaling-can-i-use-vise-core-on-a-small-minecraft-server) · [Global matchmaking](#global-matchmaking) · [Arena backends](#choosing-an-arena-backend) · [Scaling guide](#scaling-and-deployment-architecture)
+Scale a single instance with schematic slots or Polar world copies, or run a fleet that shares **regional matchmaking**, profiles, leaderboards, and chat. Redis normally coordinates queues and transfers. MySQL stores player profiles and match history and can coordinate selected network features during Redis outages. [Small-server setup](#skip-the-scaling-can-i-use-vise-core-on-a-small-minecraft-server) · [Global matchmaking](#global-matchmaking) · [Arena backends](#choosing-an-arena-backend) · [Help Me Please](#help-me-please)
 
 <a name="vise-core-vs-strikepractice"></a>
 
@@ -34,6 +34,7 @@ Scale a single instance with schematic slots or Polar world copies, or run a fle
 | MySQL leaderboards with a Redis index and cached outage fallback | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Standalone ranked queues after Redis loss | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Experimental MySQL key-value fallback for kit sharing and travel discovery | ✅² | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Experimental MySQL coordination for network chat, spectator transfers, and ranked or casual queues | ✅² | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Disk recovery for player data and ranked matches when both databases are unreachable | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Peer-assisted database recovery through both Redis and MySQL | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **Completely Free** | **✅** | **❌** | **✅** | **✅** | **✅** | **✅** |
@@ -156,7 +157,7 @@ During the match, Core reserves an arena, equips the fighters, starts a countdow
 
 Run `/spectate <player>` to watch a fight through the countdown and rounds. Every fighter's spectator preference and block list apply, so choosing a different fighter in the same match still respects those settings. Viewers stay outside combat, follow the match when a Polar round moves to a new copy, and leave with `/spawn`. The [PlaceholderAPI expansion](#placeholderapi-reference) supplies team colors, health indicators, score, elapsed time, and spectator information to compatible displays.
 
-With [global matchmaking](#global-matchmaking) enabled, run `/spectate <exact player name>` from the lobby to watch a duel on another participating server. Leave any party or tournament before making a remote request. The duel host approves the request before the proxy transfers the viewer and checks the same match and permissions again on arrival. `/spawn`, the end of the match, or revoked access sends the viewer back to their original lobby. Redis outages leave local spectating available. Direct invitations and party and tournament sessions use their current Paper instance.
+With network spectating enabled, run `/spectate <exact player name>` from the lobby to watch a duel on another participating server. The default Redis directory starts with [global matchmaking](#global-matchmaking). The optional MySQL directory can run independently. Leave any party or tournament before making a remote request. The duel host approves the request before the proxy transfers the viewer and checks the same match and permissions again on arrival. `/spawn`, the end of the match, or revoked access sends the viewer back to their original lobby. Local spectating works through database outages. Direct invitations and party and tournament sessions use their current Paper instance. [MySQL network failover](#experimental-mysql-network-failover)
 
 #### How a duel runs
 
@@ -187,7 +188,7 @@ With `network.matchmaking.enabled`, `/queue`, `/quickqueue`, and `/rankedqueue` 
 1. **Start in each player's home pool.** A player joining on an `eu-east` server searches for an `eu-east` host first. The defaults open alternate destinations in geographic tiers, so several nearby pools can become eligible together. Each tier adds eight seconds by default. Each player's cross-region routes stay closed for at least 45 seconds. For two players in the EU, an eligible EU host ranks above a host outside it. An explicit priority list opens one destination per step in the listed order.
 2. **Widen the latency and rating windows.** Core takes Paper's current ping sample at the source and adds the configured estimate for reaching the candidate pool. Both players must meet their individual ping limit, and their ping difference must fit the limit earned by the player who has waited less. Defaults start at 110 ms per player and a 45 ms difference. Both limits grow by 15 ms every five seconds, up to 260 ms and a 130 ms difference. Ranked starts at ±50 Elo and adds 25 every three seconds. The longer-waiting player's Elo window can admit the pair.
 3. **Pick a host that both players can use.** Among eligible servers, Core prefers the region and pool priorities that work for both players. It then minimizes the worse estimated ping and the ping difference. Available player slots, an open arena for the ruleset, and current host load also affect selection. An eligible `eu-central` host can take a duel between players on `eu-east` and `eu-west`, even if neither player is already connected there. Source ping and directional adjustments are estimates. The proxy topology affects the actual in-match latency.
-4. **Prepare the arena, then transfer.** Redis claims the two queue tickets atomically. The chosen host reserves a warm Polar world or completes a schematic paste, and both source servers confirm the players are still eligible. Core flushes dirty profiles before remote transfer and requests a proxy connection only for players who need to move. As soon as both players connect, their profiles load, and the lobby arrival completes, Core starts the normal duel countdown on the reserved arena.
+4. **Prepare the arena, then transfer.** The selected backend claims the two queue tickets atomically. The chosen host reserves a warm Polar world or completes a schematic paste, and both source servers confirm the players are still eligible. Core flushes dirty profiles before remote transfer and requests a proxy connection only for players who need to move. As soon as both players connect, their profiles load, and the lobby arrival completes, Core starts the normal duel countdown on the reserved arena.
 
 #### Set up the network
 
@@ -226,13 +227,13 @@ Upgrades pick up the catalog automatically, including servers with the original 
 
 #### Redis outages and interrupted transfers
 
-When Redis is unavailable, each Paper instance can match players already connected there. Fresh local tickets can match right away. Recently published tickets wait for their possible network claims to expire, up to 31 seconds after the last publication attempt finishes. That prevents an old transfer and a new local duel from claiming the same player. Local fallback uses the same kit and ranked rating rules and a local arena. Global queues resume automatically when Redis responds.
+When the configured matchmaking backend is unavailable, each Paper instance can match players already connected there. Fresh local tickets can match right away. Recently published tickets wait for their possible network claims to expire, up to 31 seconds after the last publication attempt finishes. That prevents an old transfer and a new local duel from claiming the same player. Local fallback uses the same kit and ranked rating rules and a local arena. Global queues resume automatically when their configured backend responds.
 
 Unfinished network handoffs expire after 25 seconds. If a transfer fails or an opponent never arrives, players who already moved can queue again from the destination lobby. Queued players who stayed in place can resume the search. Duels already started continue on their host. The handoff uses short-lived keys under `vise:mm:v1:{<namespace>}:` and needs no MySQL schema change. [Matchmaking code](src/main/java/org/albi/core/modules/Duels/queue/global) · [Redis state transitions](src/main/resources/matchmaking/exchange.lua)
 
 ```mermaid
 flowchart TD
-    Queue["Players join the same kit queue"] --> Store{"Can the queue server reach MySQL and Redis?"}
+    Queue["Players join the same kit queue"] --> Store{"Are MySQL and the selected queue backend reachable?"}
     Store -->|Yes| Regions["Search priority pools and widen ping and Elo limits"]
     Regions --> Host["Claim both tickets and reserve an arena on the chosen host"]
     Host --> Save{"Are both players eligible and their profiles saved?"}
@@ -652,6 +653,7 @@ Existing installations can add individual settings to `plugins/Core/config.yml`.
 | `storage.shutdown_timeout_seconds` | Maximum wait for pending writes and the final MySQL flush before storage closes. The default is 15 seconds. |
 | `storage.recovery_namespace` | Shared name for Redis recovery requests. Leave blank to use `mysql.database`, or give every server in this deployment the same unique value. |
 | `network` | Redis chat bridge, global matchmaking and spectating, travel discovery and health sampling, `/store` and `/discord` links, and direct travel destinations. |
+| `network.mysql_failover` | Experimental fleet-wide options for MySQL chat, spectator transfers, matchmaking, kit sharing, and peer-assisted Discord linking. `poll_ticks` controls how often the chat reader, spectator directory, and queue sync. |
 | `announcements`, `autorestart` | Lobby tips and the startup restart schedule. |
 | `use_polar_worlds`, `polar_preload` | Toggle the PolarPaper backend and set its preload target. |
 | `duels` | TNT fuse, selectable rounds, countdowns, queue timings, schematic paste spacing, Polar background operations, spectator privacy checks, direct challenge telemetry, and NPC settings. |
@@ -830,11 +832,12 @@ Redis is optional on one Paper instance and strongly recommended for any multi-s
 | Standalone | `redis.enabled: false` | Local queues, duels, spectating, and gameplay use Paper. MySQL stores player data, ranked history, and leaderboard scores. Manually configured travel destinations still work. |
 | Multi-server, recommended | `redis.enabled: true` | Redis powers global queues, cross-server spectating and chat, Discord link codes, kit sharing, and discovery. During an outage, Core reconnects in the background. Durable data and leaderboards use MySQL, local play continues, and global queues apply their normal lease rules before matching locally. |
 | MySQL shared state only | `redis.enabled: false` and `storage.experimental_sql_shared_state: true` | Enables shared kit codes, `/health`, and automatic travel discovery between instances using the same MySQL database. Use only if you do not have Redis. |
-| MySQL failover | `redis.enabled: true`, `redis.fallback_to_mysql: true`, and `storage.experimental_sql_shared_state: true` | Kit sharing and current heartbeats switch to MySQL when Redis is unavailable. Redis resumes those writes automatically when it reconnects. |
+| MySQL key-value failover | `redis.enabled: true`, `redis.fallback_to_mysql: true`, and `storage.experimental_sql_shared_state: true` | Kit sharing can switch to MySQL. Current heartbeats are mirrored in MySQL so both sides of a partial outage can see the fleet. |
+| MySQL network failover | `network.mysql_failover.enabled: true` on every peer | Chat uses Redis and MySQL. Spectating, matchmaking, and kit sharing use their MySQL coordination paths. [Feature switches and timing](#experimental-mysql-network-failover) |
 
 > **EXPERIMENTAL. Not recommended as a Redis substitute.** If Redis is unavailable, a smaller server with modest traffic can use this for occasional kit sharing and server discovery. The `vise_shared_keys` table stores expiring key-value records and adds work to the same MySQL service that saves profiles. Redis is strongly recommended when expanding to multiple servers.
 
-Redis and MySQL share codes are kept separate. Codes created through MySQL begin with `S` and remain redeemable through their 30-day lifetime while the MySQL shared state setting stays enabled, even after Redis reconnects. Existing Redis codes can be redeemed again when Redis returns. Redis remains required for cross-server matchmaking, spectating, chat, Discord code redemption, and health history streams. [Shared state code](src/main/java/org/albi/core/data/SharedState.java) · [Matchmaking outage behavior](#redis-outages-and-interrupted-transfers)
+Redis and MySQL share codes have distinct formats. Codes created through MySQL begin with `S` and remain redeemable through their 30-day lifetime while the applicable MySQL setting stays enabled. Redis continues to provide health history streams and the companion Discord service's code redemption. [Shared state code](src/main/java/org/albi/core/data/SharedState.java) · [Matchmaking outage behavior](#redis-outages-and-interrupted-transfers)
 
 ### Help Me Please
 
@@ -845,8 +848,8 @@ Redis and MySQL share codes are kept separate. Codes created through MySQL begin
 | MySQL and Redis are unreachable | The affected server loads local profile snapshots and keeps new profile, stat, and match writes in `plugins/Core/recovery/outbox/`. | Local gameplay and queues continue. Core pauses transfers that require a saved profile. A player with no available snapshot starts with a temporary local profile. |
 | Redis is healthy and all servers lose MySQL | Each server writes its local outbox and sends persistent recovery requests to Redis. | Local gameplay continues. The first instance to regain MySQL can replay pending requests. |
 | Redis is healthy and only some servers lose MySQL | Affected servers publish their urgent dirty profile, stat, and match saves into the Redis outbox. A peer can commit them to MySQL and acknowledge each write. | Players on affected servers can play locally. Healthy peers can continue hosting network matches. |
-| MySQL is healthy and all servers lose Redis | MySQL remains authoritative. Local queues wait out any outstanding network claims. The optional experimental MySQL shared state provides kit codes and current heartbeats. | Local play, saved profiles, ranked history, and MySQL or cached leaderboards stay available. |
-| MySQL is healthy and only some servers lose Redis | Affected servers ask via `vise_redis_relay` in MySQL. A healthy peer claims a short lease and republishes the latest server heartbeat or an authoritative profile, stats, or match cache key to Redis. | Healthy peers can see the relayed heartbeats. Affected servers still use local queues and the optional experimental kit-sharing fallback while disconnected. |
+| MySQL is healthy and all servers lose Redis | MySQL remains authoritative. With the experimental MySQL network mode enabled throughout the fleet, selected network features already use the same MySQL coordination paths. | Local play, saved profiles, ranked history, and leaderboards stay available. Opted-in fleets can keep network chat, spectator transfers, matchmaking, and new kit shares. |
+| MySQL is healthy and only some servers lose Redis | Affected servers ask via `vise_redis_relay` in MySQL. A healthy peer claims a short lease to update Redis, look up an older kit code, or issue a Discord code where enabled. | MySQL features keep working on the isolated servers. Redis-connected peers can receive relayed chat and heartbeats. |
 
 ```mermaid
 flowchart TD
@@ -854,7 +857,7 @@ flowchart TD
     SQL -->|Yes| RedisA{"Can it reach Redis?"}
     SQL -->|No| RedisB{"Can it reach Redis?"}
     RedisA -->|Yes| Normal["Save to MySQL and use Redis for network features"]
-    RedisA -->|No| SqlMode["Save to MySQL and run local matches"]
+    RedisA -->|No| SqlMode["Save to MySQL and use configured SQL network features"]
     SqlMode --> Relay["Ask through MySQL to publish supported Redis keys"]
     SqlMode --> Fallback["Use experimental kit codes and heartbeats if enabled"]
     RedisB -->|Yes| RedisMode["Keep dirty writes on disk and ask through Redis"]
@@ -866,7 +869,7 @@ flowchart TD
 #### How the handoffs work
 
 - **MySQL writes requested through Redis.** The outbox entries have no expiration. A peer commits the SQL write and its receipt together so another peer can retry safely. Core removes acknowledged requests and replays local files after recovery. Put Redis on persistent storage and configure AOF and an eviction policy that preserves recovery keys if you need Redis to survive a process restart. Keep the local outbox through outages and restarts.
-- **Redis publication requested through MySQL.** The SQL table carries a fixed set of request types. A peer with both connections claims one, publishes it, and clears the exact request it handled. Heartbeats only move forward in time. Profile, stats, and match cache requests are rebuilt from MySQL when a peer processes them. Redis still handles live chat delivery, matchmaking leases, spectator transfers, Discord linking codes, and health streams directly.
+- **Redis publication requested through MySQL.** The SQL table carries a fixed set of request types. A peer with both connections claims one and clears the exact request it handled. Heartbeats only move forward in time. Profile, stats, and match cache requests are rebuilt from MySQL. Expired chat, kit lookup, and Discord requests drop out of the relay instead of being sent late.
 - **Conflicting profiles.** Replay checks the saved version the change was based on before replacing a player record. If another server has already changed the record, or if a temporary profile was created for a player who already has saved data, Core retains the pending file and leaves the saved record intact. Keep the `recovery/` directory and reconcile those histories before removing any retained writes.
 
 ```mermaid
@@ -889,6 +892,45 @@ flowchart LR
 #### During an outage
 
 The console logs a recovery warning when the connection state changes and repeats it about every 30 seconds until the service returns. When MySQL is unreachable, dirty data is flushed to the recovery outbox on the shorter recovery cycle, alongside disconnect and shutdown saves. Check available disk space, keep servers on the same recovery namespace, and grant the configured MySQL user permission to create and use the recovery tables. Use a separate Redis service or database and recovery namespace for unrelated deployments. After restoring a service, check that pending-write warnings clear before moving affected players between servers. [Recovery code](src/main/java/org/albi/core/data/StatManagement.java)
+
+#### Experimental MySQL network failover
+
+**Experimental. Redis is strongly recommended for networks.** Enable this only on a fleet that needs to keep these features through a Redis outage. It is off by default. Stop or drain every participating Paper server before enabling or disabling it, then restart them with the same mode, MySQL database, `network.matchmaking.namespace`, and unique proxy server IDs. Spectator and match claims stay in one backend at all times, so there is no automatic switch back to Redis for those two features while the MySQL mode is enabled. Existing live claims and transfers should finish before the change.
+
+```yaml
+network:
+  mysql_failover:
+    enabled: true
+    chat: true
+    spectating: true
+    matchmaking: true
+    kit_sharing: true
+    discord_linking: true
+    poll_ticks: 20
+```
+
+The existing switches still control the underlying features. Set `network.global_chat: true` for chat, `network.spectating.enabled: true` for spectating, and `network.matchmaking.enabled: true` for global queues. Spectator transfers and matchmaking require a working proxy connection. Combine with `storage.experimental_sql_shared_state` and `redis.fallback_to_mysql` if you also want mirrored discovery while Redis is configured. Grant table creation permissions for `vise_network_state`, `vise_chat_sequence`, `vise_chat_buffer`, and `vise_shared_keys`.
+
+| Feature | What to expect during an outage |
+| --- | --- |
+| Global chat | Redis has immediate delivery when available. MySQL polling adds about one second with default settings. The chat buffer expires after 20 seconds, and receivers deduplicate the two paths. A Redis-only receiver may wait for the next five-second peer relay pass. Very late messages expire. |
+| Spectator transfers | Host approval takes several polling rounds. Requests expire after 18 seconds and require at least five seconds remaining before departure. The source must save the viewer's profile to MySQL. The destination consumes the request once and rechecks the current duel and privacy rules. A busy or unavailable directory can delay or cancel a transfer. |
+| Global matchmaking | MySQL coordinates casual and ranked tickets, regional host selection, arena preparation, and player departures. Host approval and transfer can take several extra ticks and database round trips. Outstanding claims expire within the normal 31-second window before local fallback. The SQL directory caps active tickets at 512 and hosting backends at 64 per namespace. SQL matchmaking only transports personal kit payloads up to 16 KiB. |
+| Kit sharing | New MySQL codes start with `S`, are immediately readable through MySQL, and mirror to Redis directly or via a peer. Looking up an older Redis code from an isolated server can take up to ten seconds. During a full Redis outage, older codes live only where they were previously stored and may need to wait for Redis to return. |
+| Discord linking | With a healthy Redis peer, the source can ask for a code through MySQL and wait up to ten seconds. If the fleet loses Redis completely, code issuance and redemption wait for Redis. Existing link records still live in MySQL. |
+
+```mermaid
+flowchart LR
+    Sender["Send network chat"] --> Fast["Redis live delivery"]
+    Sender --> Buffer["Short MySQL chat buffer"]
+    Fast --> Once["Deduplicate by message ID"]
+    Buffer --> Once
+    Buffer --> Peer["If needed, ask a healthy peer to publish to Redis"]
+    Peer --> Fast
+    Viewer["Request cross-server spectating"] --> Host["Host checks the duel and privacy"]
+    Host --> Persist["Source saves profile and claims departure"]
+    Persist --> Consume["Destination consumes the ticket once and rechecks privacy"]
+```
 
 ### What gets stored
 

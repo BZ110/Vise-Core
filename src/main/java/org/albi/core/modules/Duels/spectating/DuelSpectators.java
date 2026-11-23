@@ -43,8 +43,15 @@ public final class DuelSpectators {
 
     public DuelSpectators(Core plugin, GlobalMatchmaking matchmaking) {
         this.plugin = plugin;
-        network = matchmaking == null ? null
-                : new NetworkSpectating(plugin, this, matchmaking.namespace(), matchmaking.serverId());
+        var config = plugin.getConfig();
+        String namespace = config.getString("network.matchmaking.namespace", "default").strip().toLowerCase(java.util.Locale.ROOT);
+        String server = config.getString("network.matchmaking.server_id", "").strip();
+        if (server.isEmpty()) server = plugin.getServerName().toLowerCase(java.util.Locale.ROOT);
+        if (!config.getBoolean("network.spectating.enabled", true)) network = null;
+        else if (matchmaking != null) network = new NetworkSpectating(plugin, this, matchmaking.namespace(), matchmaking.serverId());
+        else if (org.albi.core.data.SqlNetworkState.enabled(config, "spectating") && namespace.matches("[a-z0-9_-]{1,64}")
+                && server.matches("[A-Za-z0-9_-]{1,64}")) network = new NetworkSpectating(plugin, this, namespace, server);
+        else network = null;
         int interval = ConfigValues.integer(plugin.getConfig(), "duels.spectating.privacy_check_ticks", 20, 1, 100);
         Bukkit.getScheduler().runTaskTimer(plugin, this::checkPrivacy, interval, interval);
     }

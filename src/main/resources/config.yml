@@ -138,6 +138,16 @@ modules:
 
 network:
   global_chat: true
+  # EXPERIMENTAL. Choose the same values on every server in the same proxy fleet.
+  # With enabled=true, selected transfer features use MySQL even while Redis is healthy.
+  mysql_failover:
+    enabled: false
+    chat: true
+    spectating: true
+    matchmaking: true
+    kit_sharing: true
+    discord_linking: true # A healthy Redis peer must still be available for the companion integration.
+    poll_ticks: 20 # 10–40 ticks. Shorter polls reduce delay and increase SQL work.
   store_url: ""
   discord_url: ""
   matchmaking:

@@ -323,6 +323,7 @@ messages:
   chat-filter:
     your-message-has-been-blocked: "{1}Your message has been blocked."
   copy-kit-command:
+    asking-a-peer: "&7Checking the kit code with another server. This can take a few seconds."
     no-kit-found-with-that-code: "&cNo kit found with that code."
     storage-unavailable: "&cKit sharing storage is unavailable on this server."
     usage-copykit-code: "&cUsage: /copykit <code>"

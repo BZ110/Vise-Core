@@ -2,6 +2,8 @@ package org.albi.core.modules.Duels.spectating;
 
 import org.albi.core.Core;
 import org.albi.core.data.StatManagement;
+import org.albi.core.data.SqlNetworkState;
+import org.albi.core.util.ConfigValues;
 import org.albi.core.util.ProxyTransfer;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -14,6 +16,8 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
+import java.sql.SQLException;
 
 import static org.albi.core.modules.Duels.spectating.SpectateDirectory.Intent;
 import static org.albi.core.modules.Duels.spectating.SpectateDirectory.Request;
@@ -35,7 +39,7 @@ final class NetworkSpectating {
     }
 
     private record Query(Intent intent, boolean opened) {}
-    private record Reply(Intent intent, Request request, String error) {}
+    record Reply(Intent intent, Request request, String error) {}
     private record Decision(Request request, String state) {}
     private record Cancellation(Intent intent, long expires) {}
     private record Round(List<Reply> replies, List<Request> offers) {}
@@ -45,6 +49,9 @@ final class NetworkSpectating {
     private final DuelSpectators spectators;
     private final String server;
     private final SpectateDirectory directory;
+    private final SqlSpectateDirectory sqlDirectory;
+    private volatile boolean sqlPrepared;
+    private long nextSqlWarning;
     private final Map<UUID, Outgoing> outgoing = new LinkedHashMap<>();
     private final Map<UUID, Player> arriving = new HashMap<>();
     private final Map<UUID, Return> returning = new HashMap<>();
@@ -58,7 +65,10 @@ final class NetworkSpectating {
         this.spectators = spectators;
         this.server = server;
         directory = new SpectateDirectory(namespace, server);
-        Bukkit.getScheduler().runTaskTimer(plugin, this::tick, 1, 10);
+        sqlDirectory = SqlNetworkState.enabled(plugin.getConfig(), "spectating")
+                ? new SqlSpectateDirectory(new SqlNetworkState(StatManagement.getSql()), namespace, server) : null;
+        int ticks = sqlDirectory == null ? 10 : ConfigValues.integer(plugin.getConfig(), "network.mysql_failover.poll_ticks", 20, 10, 40);
+        Bukkit.getScheduler().runTaskTimer(plugin, this::tick, 1, ticks);
     }
 
     void request(Player player, String target) {
@@ -115,38 +125,36 @@ final class NetworkSpectating {
         cancellations.clear();
 
         polling = true;
-        var connection = StatManagement.getRedis();
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-            Round result = connection.withJedis(redis -> {
-                cancel.forEach(item -> directory.cancel(redis, item.intent));
-                gone.forEach(route -> directory.forget(redis, route));
-                directory.publish(redis, routes);
-                ready.forEach(decision -> directory.decide(redis, decision.request, decision.state));
+            Round result = exchange(wire -> {
+                cancel.forEach(item -> wire.cancel(item.intent));
+                gone.forEach(wire::forget);
+                wire.publish(routes);
+                ready.forEach(decision -> wire.decide(decision.request, decision.state));
 
                 List<Reply> replies = new ArrayList<>();
                 for (Query query : queries) {
                     if (query.opened) {
-                        Request found = directory.find(redis, query.intent.viewer());
+                        Request found = wire.find(query.intent.viewer());
                         if (found == null || !found.token().equals(query.intent.token())) {
                             replies.add(new Reply(query.intent, null, "unavailable"));
                         } else {
                             replies.add(new Reply(query.intent, found, null));
                         }
                     } else {
-                        String resultJson = directory.open(redis, query.intent);
-                        if ("missing".equals(resultJson) || "busy".equals(resultJson)) {
-                            replies.add(new Reply(query.intent, null, resultJson));
-                        } else {
-                            replies.add(new Reply(query.intent, SpectateDirectory.parse(resultJson), null));
-                        }
+                        replies.add(wire.open(query.intent));
                     }
                 }
-                return new Round(replies, directory.pending(redis));
+                return new Round(replies, wire.pending());
             });
             onMain(() -> {
                 polling = false;
                 if (result == null) {
                     cancellations.addAll(cancel);
+                    if (sqlDirectory != null) {
+                        ready.forEach(decision -> decisions.putIfAbsent(decision.request.viewer(), decision));
+                        return; // Bounded by the original request deadline. Never switch authorities.
+                    }
                     for (Query query : queries) {
                         if (!query.opened) deliver(new Reply(query.intent, null, "unavailable"));
                     }
@@ -202,11 +210,9 @@ final class NetworkSpectating {
         var profile = plugin.getExtendedPlayer(travel.player);
         var stat = profile.getStat();
         var main = profile.getMainPlayer();
-        var connection = StatManagement.getRedis();
-
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             boolean sent = StatManagement.flushForTransfer(stat, main)
-                    && Boolean.TRUE.equals(connection.withJedis(redis -> directory.depart(redis, request)));
+                    && Boolean.TRUE.equals(exchange(wire -> wire.depart(request)));
             onMain(() -> {
                 if (outgoing.get(travel.intent.viewer()) != travel || !online(travel.player)) return;
                 if (sent && travel.expires > deadline(1000) && spectators.canTravel(travel.player)) {
@@ -224,15 +230,86 @@ final class NetworkSpectating {
         if (!online(player)) return;
         UUID viewer = player.getUniqueId();
         arriving.put(viewer, player);
-        var connection = StatManagement.getRedis();
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-            Request request = connection.withJedis(redis -> directory.take(redis, viewer));
+            Request request = take(viewer);
             onMain(() -> {
                 if (arriving.remove(viewer, player) && request != null && online(player)) {
                     spectators.watchOnArrival(player, request);
                 }
             });
         });
+    }
+
+    private Request take(UUID viewer) {
+        // A connection can arrive during another SQL transaction. Retry contention only.
+        int attempts = sqlDirectory == null ? 1 : 3;
+        for (int attempt = 0; attempt < attempts; attempt++) {
+            try {
+                if (sqlDirectory == null) return exchange(wire -> wire.take(viewer));
+                if (!StatManagement.isSqlReady()) return null;
+                prepareSql();
+                return sqlDirectory.exchange((wire, now) -> wire.take(viewer));
+            } catch (SQLException failure) {
+                if (!SqlNetworkState.busy(failure)) { warn(failure); return null; }
+                try { Thread.sleep(30L * (attempt + 1)); }
+                catch (InterruptedException stop) { Thread.currentThread().interrupt(); return null; }
+            }
+        }
+        return null;
+    }
+
+    interface Wire {
+        void publish(Map<String, Route> routes);
+        void forget(Route route);
+        Reply open(Intent intent);
+        Request find(UUID viewer);
+        List<Request> pending();
+        void decide(Request request, String state);
+        boolean depart(Request request);
+        Request take(UUID viewer);
+        void cancel(Intent intent);
+    }
+
+    private <T> T exchange(Function<Wire, T> callback) {
+        if (sqlDirectory != null) {
+            if (!StatManagement.isSqlReady()) return null;
+            try {
+                prepareSql();
+                return sqlDirectory.exchange((wire, now) -> callback.apply(wire));
+            } catch (SQLException failure) {
+                if (!SqlNetworkState.busy(failure)) warn(failure);
+                return null;
+            }
+        }
+        return StatManagement.getRedis().withJedis(redis -> callback.apply(new Wire() {
+            public void publish(Map<String, Route> routes) { directory.publish(redis, routes); }
+            public void forget(Route route) { directory.forget(redis, route); }
+            public Reply open(Intent intent) {
+                String result = directory.open(redis, intent);
+                return "missing".equals(result) || "busy".equals(result) ? new Reply(intent, null, result)
+                        : new Reply(intent, SpectateDirectory.parse(result), null);
+            }
+            public Request find(UUID viewer) { return directory.find(redis, viewer); }
+            public List<Request> pending() { return directory.pending(redis); }
+            public void decide(Request request, String state) { directory.decide(redis, request, state); }
+            public boolean depart(Request request) { return directory.depart(redis, request); }
+            public Request take(UUID viewer) { return directory.take(redis, viewer); }
+            public void cancel(Intent intent) { directory.cancel(redis, intent); }
+        }));
+    }
+
+    private synchronized void prepareSql() throws SQLException {
+        if (!sqlPrepared) {
+            sqlDirectory.prepare();
+            sqlPrepared = true;
+        }
+    }
+
+    private synchronized void warn(SQLException failure) {
+        if (System.nanoTime() < nextSqlWarning && nextSqlWarning != 0) return;
+        nextSqlWarning = deadline(30_000);
+        if ("42S02".equals(failure.getSQLState())) sqlPrepared = false;
+        plugin.getLogger().warning("[Help Me Please] MySQL spectating is temporarily unavailable (" + failure.getSQLState() + ").");
     }
 
     void returnHome(Player player, String origin, CompletableFuture<Boolean> lobby) {

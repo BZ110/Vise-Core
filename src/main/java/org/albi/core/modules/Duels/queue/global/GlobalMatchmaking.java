@@ -6,6 +6,8 @@ import org.albi.core.Core;
 import org.albi.core.data.ExtendedPlayer;
 import org.albi.core.data.MainPlayer;
 import org.albi.core.data.StatManagement;
+import org.albi.core.data.SqlNetworkState;
+import org.albi.core.util.ConfigValues;
 import org.albi.core.modules.CustomKit.helpers.CustomKit;
 import org.albi.core.modules.Duels.DuelManager;
 import org.albi.core.modules.Tournaments.TournamentManager;
@@ -58,6 +60,9 @@ public final class GlobalMatchmaking {
     private final MatchmakingPolicy policy;
     private final QueueDuelHost host;
     private final RedisMatchmaking redis;
+    private final SqlMatchmaking sql;
+    private boolean sqlPrepared;
+    private long nextSqlWarning;
     private final String session = UUID.randomUUID().toString();
     private final Map<UUID, Waiting> waiting = new LinkedHashMap<>();
     private final Map<UUID, Long> publicationFences = new HashMap<>();
@@ -72,7 +77,7 @@ public final class GlobalMatchmaking {
     private boolean closed;
 
     public static GlobalMatchmaking create(Core plugin) {
-        if (!StatManagement.getRedis().isEnabled()) {
+        if (!StatManagement.getRedis().isEnabled() && !SqlNetworkState.enabled(plugin.getConfig(), "matchmaking")) {
             if (plugin.getConfig().getBoolean("network.matchmaking.enabled")) {
                 plugin.getLogger().info("[Matchmaking] Redis is disabled. Using standalone queues and local spectating.");
             }
@@ -89,8 +94,12 @@ public final class GlobalMatchmaking {
         policy = new MatchmakingPolicy(settings.rules());
         host = new QueueDuelHost(plugin);
         redis = new RedisMatchmaking(settings, policy);
-        ticker = Bukkit.getScheduler().runTaskTimer(plugin, this::tick, 1, settings.pollTicks());
-        plugin.getLogger().info("[Matchmaking] Redis queues enabled for " + settings.server() + " in " + settings.pool() + ".");
+        sql = SqlNetworkState.enabled(plugin.getConfig(), "matchmaking")
+                ? new SqlMatchmaking(new SqlNetworkState(StatManagement.getSql()), settings, policy) : null;
+        int ticks = sql == null ? settings.pollTicks() : ConfigValues.integer(plugin.getConfig(), "network.mysql_failover.poll_ticks", 20, 10, 40);
+        ticker = Bukkit.getScheduler().runTaskTimer(plugin, this::tick, 1, ticks);
+        plugin.getLogger().info("[Matchmaking] " + (sql == null ? "Redis" : "MySQL") + " queues enabled for "
+                + settings.server() + " in " + settings.pool() + ".");
     }
 
     public boolean join(Player player, String kit, boolean ranked) {
@@ -220,6 +229,21 @@ public final class GlobalMatchmaking {
             if (data == null || StatManagement.flushForTransfer(data.stat, data.profile)) ready.add(action);
         }
         long sentAt = System.nanoTime();
+        if (sql != null) {
+            try {
+                if (!sqlPrepared) { sql.prepare(); sqlPrepared = true; }
+                return new Exchange(!entries.isEmpty(), sentAt, sql.exchange(session, heartbeat, entries, ready));
+            } catch (java.sql.SQLException failure) {
+                if (SqlNetworkState.busy(failure)) return null;
+                if ("42S02".equals(failure.getSQLState())) sqlPrepared = false;
+                if (nextSqlWarning == 0 || System.nanoTime() >= nextSqlWarning) {
+                    nextSqlWarning = deadline(30_000);
+                    plugin.getLogger().warning("[Help Me Please] MySQL matchmaking is temporarily unavailable (" + failure.getSQLState() + ").");
+                }
+                // If commit was ambiguous, conservatively observe the normal publication fence.
+                return new Exchange(!entries.isEmpty(), sentAt, null);
+            }
+        }
         List<Assignment> matches = connection.withJedis(client -> {
             mayHavePublished[0] = true;
             return redis.exchange(client, session, heartbeat, entries, ready);
@@ -236,6 +260,10 @@ public final class GlobalMatchmaking {
     private void accept(Exchange response, List<Entry> published, List<Change> attempted) {
         if (closed) return;
         exchanging = false;
+        if (response == null) {
+            changes.addAll(attempted); // SQL lock was busy. Try the same changes on the next poll.
+            return;
+        }
         if (response.mayHavePublished) {
             long fence = deadline(RedisMatchmaking.FALLBACK_FENCE_MS);
             for (Entry entry : published) {
@@ -249,7 +277,7 @@ public final class GlobalMatchmaking {
             redisAvailable = available;
             if (available) plugin.getLogger().info("[Matchmaking] Shared storage recovered. Network queues resumed.");
             else {
-                String backend = StatManagement.isSqlReady() ? "Redis" : "MySQL";
+                String backend = sql == null && StatManagement.isSqlReady() ? "Redis" : "MySQL";
                 plugin.getLogger().info("[Matchmaking] " + backend + " unavailable. Local queues will resume as network assignments expire.");
             }
         }

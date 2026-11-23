@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "org.albi"
-version = "0.0.3"
+version = "0.0.31"
 
 java {
     toolchain.languageVersion.set(JavaLanguageVersion.of(21))

@@ -9,7 +9,6 @@ import net.md_5.bungee.api.chat.TextComponent;
 import net.md_5.bungee.api.chat.hover.content.Text;
 import org.albi.core.Core;
 import org.albi.core.data.StatManagement;
-import org.albi.core.data.StatManagement.RedisWrapper;
 import org.albi.core.modules.Module;
 import org.albi.core.util.ConfigValues;
 import org.bukkit.Bukkit;
@@ -22,18 +21,16 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
 public final class CriticalDiscordManager extends Module {
 
     private static final String TABLE_LINKS = "player_discord_links";
-    private final RedisWrapper redis;
     private final SQLInstance sql;
 
     public CriticalDiscordManager(Core plugin) {
         super(plugin);
-        this.redis = StatManagement.getRedis();
         this.sql = new SQLInstance(StatManagement.getSql());
     }
 
@@ -98,7 +95,6 @@ public final class CriticalDiscordManager extends Module {
         });
     }
 
-    public RedisWrapper getRedis() { return redis; }
 
     private void asyncSql(Consumer<Connection> task) {
         Bukkit.getScheduler().runTaskAsynchronously(getPlugin(), () -> {
@@ -165,43 +161,46 @@ public final class CriticalDiscordManager extends Module {
             return true;
         }
 
+        private final Set<UUID> pendingLinks = ConcurrentHashMap.newKeySet();
+
         private void handleLink(Player p) {
+            UUID player = p.getUniqueId();
+            if (!pendingLinks.add(player)) return;
+            var shared = StatManagement.getSharedState();
+            var request = UUID.randomUUID();
             Bukkit.getScheduler().runTaskAsynchronously(mod.getPlugin(), () -> {
-                UUID uuid = p.getUniqueId();
-
-                if (mod.getLinkedDiscordIdAsync(uuid).join().isPresent()) {
-                    sendSync(p, "§cYou’re already linked to Discord.");
+                if (!StatManagement.isSqlReady()) {
+                    finishLink(p, null);
                     return;
                 }
-
-                String waitKey = "link-wait:" + uuid;
-                Boolean pending = mod.getRedis().withJedis(j -> j.exists(waitKey));
-                if (pending == null) {
-                    sendSync(p, "§cAccount linking is temporarily unavailable.");
+                if (mod.getLinkedDiscordIdAsync(player).join().isPresent()) {
+                    finishLink(p, "linked");
                     return;
                 }
-                if (pending) {
-                    sendSync(p, "§eYou already have a code waiting – check your Discord DMs!");
+                String code = shared.issueDiscordLink(player, request);
+                if (code != null || !shared.askForDiscordLink(player, request)) {
+                    finishLink(p, code);
                     return;
                 }
-
-                String code = String.format("%06d", ThreadLocalRandom.current().nextInt(0, 1_000_000));
-                String codeKey = "link-code:" + code;
-
-                Boolean stored = mod.getRedis().withJedis(j -> {
-                    j.setex(codeKey, 300, uuid.toString());
-                    j.setex(waitKey, 300, code);
-                    return true;
-                });
-                if (!Boolean.TRUE.equals(stored)) {
-                    sendSync(p, "§cAccount linking is temporarily unavailable.");
-                    return;
-                }
-
-                sendSync(p,
-                        "§7Copy this code, then follow the instructions on the Discord within five minutes",
-                        "§e§l" + code);
+                sendSync(p, "§7Asking another server to generate your Discord code.");
+                retryLink(p, request, 0);
             });
+        }
+
+        private void retryLink(Player p, UUID request, int attempt) {
+            Bukkit.getScheduler().runTaskLaterAsynchronously(mod.getPlugin(), () -> {
+                String code = StatManagement.getSharedState().readDiscordLink(request);
+                if (code != null || attempt >= 9) finishLink(p, code);
+                else retryLink(p, request, attempt + 1);
+            }, 20);
+        }
+
+        private void finishLink(Player p, String code) {
+            pendingLinks.remove(p.getUniqueId());
+            if (code == null) sendSync(p, "§cAccount linking is temporarily unavailable.");
+            else if (code.equals("linked")) sendSync(p, "§cYou’re already linked to Discord.");
+            else if (code.equals("pending")) sendSync(p, "§eYou already have a code waiting – check your Discord DMs!");
+            else sendSync(p, "§7Copy this code, then follow the instructions on the Discord within five minutes", "§e§l" + code);
         }
 
         private void handleCheck(Player p) {
@@ -218,7 +217,7 @@ public final class CriticalDiscordManager extends Module {
 
         private void sendSync(Player p, String... lines) {
             Bukkit.getScheduler().runTask(mod.getPlugin(), () -> {
-                for (String line : lines) p.sendMessage(line);
+                if (p.isOnline()) for (String line : lines) p.sendMessage(line);
             });
         }
     }
