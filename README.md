@@ -1,5 +1,9 @@
 # Vise Core
 
+The biggest, most feature-rich, free and open-source Minecraft Paper PvP plugin, featuring ranked matchmaking, customizable arenas, advanced lobby tools, and everything you need to build the ultimate competitive PvP experience.
+
+---
+
 Vise Core is a Minecraft PvP plugin for **Paper 1.21.3** and **Java 21**. It manages arenas, kits, queues, ranked matches, parties, and events. It also handles the lobby, player profiles, cosmetics, chat, and travel between server instances.
 
 Scale a single instance with schematic slots or Polar world copies, or run a fleet that shares **regional matchmaking**, profiles, leaderboards, and chat. Redis normally coordinates queues and transfers. MySQL stores player profiles and match history and can coordinate selected network features during Redis outages. [Small-server setup](#skip-the-scaling-can-i-use-vise-core-on-a-small-minecraft-server) · [Global matchmaking](#global-matchmaking) · [Arena backends](#choosing-an-arena-backend) · [Help Me Please](#help-me-please)
